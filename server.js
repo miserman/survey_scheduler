@@ -1,7 +1,7 @@
 'use strict'
 var express = require('express'), app = express(), aws = require('aws-sdk'),
     crypto = require('crypto'), jwt = require('jsonwebtoken'), pem = require('jwk-to-pem'),
-    fs = require('fs'), http = require('https'), Sanitize = require('./public/sanitize.js'), date_formatter = Intl.DateTimeFormat('en-us',
+    fs = require('fs'), http = require('https'), Sanitize = require('./docs/sanitize.js'), date_formatter = Intl.DateTimeFormat('en-us',
     {day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: 'numeric'}),
     ddb, database, users, message, studies = {'demo': {dbcopy: {Items: []}, participants: {}, protocols: {}, users: {}}},
     keys = [], sessions = {}, beeps = {}, cookie_options = {
@@ -20,7 +20,7 @@ fs.mkdir('logs', function(e){})
 
 app.use(require('body-parser').json())
 app.use(require('cookie-parser')(cookie_options.secret))
-app.use(express.static('./public'))
+app.use(express.static('./docs'))
 
 message = new aws.SNS({region: process.env.REGION})
 ddb = new aws.DynamoDB({region: process.env.REGION})
