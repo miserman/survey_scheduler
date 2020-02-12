@@ -1,0 +1,181 @@
+body, div, input, select, label, a, p, h1, h2{font: 400 14px verdana}
+body{margin: 0; padding: 0}
+p{margin: 0; text-align: center}
+h1{text-align: center; font-size: 2em}
+th{padding: 0}
+label, input, button, th, h1, h2, h3, .menu_wrap td, .schedule td, #scheduler_notification, #latest_notification{
+  -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none;
+  -ms-user-select: none; user-select: none
+}
+input[type='checkbox'], select{cursor: pointer}
+input[type='time'], input[type='date']{cursor: text}
+.packed input[type='color']{cursor: pointer; padding: 0; max-width: 25px}
+input, select{display: inline-block; border: none}
+button{
+  cursor: pointer; background: #4a4a4a; color: #e6e6e6; border-radius: 5px;
+  border: none; padding: 6px 12px
+}
+button:hover{background: #000}
+#wrap{position: absolute; top: 0; bottom: 0; left: 0; right: 0}
+#side_menu{position: fixed; width: 105px; top: 0; bottom: 0; left: -117px; padding: 50px 5px 0 7px; background: #000; z-index: 1}
+#side_menu button{width: 100%; margin: 0 0 7px 0}
+.menu{position: fixed; left: 0; right: 0; height: 27px}
+.menu input{border: 2px inset #767676}
+#top_menu{top: 0; border-spacing: 0; width: 100%; text-align: center; z-index: 2; padding: 0 5px}
+#top_menu button{width: 100%}
+#top_menu td:first-child, #top_menu td:last-child{width: 105px}
+#top_menu button.areabutton, #studies_wrap td:first-child button, #study_selector > div > p button{background: #fff; color: #313131; font-weight: bold; font-size: 1.5em; padding: 6px; width: 100%}
+#top_menu button.areabutton:hover, #studies_wrap td:first-child button:hover, #study_selector > div > p button:hover{background: #fff; font-weight: normal}
+#top_menu button.areabutton{width: 97%}
+#display_wrap{position: fixed; top: 39px; bottom: 37px; left: 0; right: 0}
+#study_selector{position: absolute; top: 0; bottom: 0; left: 0; right: 0; background: #d2d2d2; padding: 100px 0; text-align: center}
+#study_selector table{width: 100%; border-spacing: 0}
+#study_selector input, #signin_prompt{text-align: center; width: 100%; padding: 6px 0; font-size: 1.5em}
+#signin_prompt{padding: 15px 0}
+#study_selector > div{max-width: 500px; margin: auto}
+#study_selector > div > p button{margin: 50px 0 0 0}
+#studies_wrap tHead tr{height: 70px}
+#studies_wrap tr{height: 50px}
+#studies_wrap button{width: 100%; padding: 10px}
+#studies_wrap td:last-child{width: 72px}
+#timeline_wrap{
+  top: 0; width: 100%; height: 100px; overflow-x: auto;
+  background: #333; overflow-y: hidden
+}
+#timeline_wrap div.selected{background: #000}
+#clock{position: absolute; background: #d2d2d2; width: 100px; padding: 5px 0; height: 17px}
+#clock span{position:absolute; right: 0; top: 0; height: 100px; width: 2px; background: #d2d2d2}
+.upnext_wrap{position: absolute; left: 100px; right: 0; top: 0}
+.upnext_wrap table{width: 100%}
+div.nearest, .upnext_wrap table{background: #0060ea; color: #fff}
+.upnext_wrap table{border-spacing: 0}
+.upnext_wrap td{padding: 5px; color: #fff; width: 1px}
+.upnext_wrap td:last-child{width: auto}
+.upnext_wrap td.label{font-weight: bold; padding: 0 0 0 15px; color: #cacaca}
+.upnext_wrap tr:last-child{background: #000}
+.upnext_wrap tr td:first-child{width: 100px}
+#timeline{position: absolute; height: 100px}
+#timeline div{position: absolute; width: 10px; height: 100%; border-left: 1px solid #fff; border-right: 1px solid #fff; cursor: pointer}
+#timeline div p{display: none}
+#schedule_wrap{position: absolute; width: 100%; top: 100px; bottom: 0; overflow: auto}
+#schedule_wrap tr{height: 50px; text-align: center}
+#schedule_ids{position: sticky; position: -webkit-sticky; left: 0; width: 100px; background: #fff; border-spacing: 0}
+#schedule_ids td{padding: 0; vertical-align: top}
+#schedule_ids button{width: 100%; height: 52px; border-radius: 0}
+.entries_wrap{position: absolute; left: 100px; right: 0; top: 0}
+.entries_wrap tr table tr:last-child{display: none}
+.entries_wrap tr table.selected tr:last-child{display: table-row}
+#schedule_entries{width: 100%}
+#schedule_entries tr table{border-top: 1px solid #fff; border-bottom: 1px solid #fff; width: 100%}
+#schedule_entries tr table:hover{border-top: 1px solid #000; border-bottom: 1px solid #000}
+#schedule_entries tr table tr:first-child{cursor: pointer}
+#schedule_entries tr:last-child td p:first-child{font-size: .95em}
+#schedule_entries td p{font-size: .8em}
+#schedule_entries td p:first-child{font-size: 1em}
+#protocol_fills button{margin: 0 5px 0 0}
+.screen{
+  position: fixed; top: 0; bottom: 0; left: 0; right: 0; cursor: not-allowed; background: #000; z-index: 3;
+  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=60)"; filter: alpha(opacity=60); -moz-opacity: .6; -khtml-opacity: .6; opacity: .6
+}
+#options_input div{padding: 0 0 5px 0}
+#user_options tr:hover{background: #dadada}
+#user_options td{text-align: center}
+#user_options td:first-child{text-align: left}
+.hide, #menu_schedule .index, table.selected tr:last-child p.index{display: none}
+.send_received, .remind_received{background: #dedede}
+#menu_schedule button.pending, .pending{background: #afcfff}
+#menu_schedule button.pause, .pause{background: #b8eef1}
+.sent{background: #fdff81}
+.reminded{background: #f9c361}
+.missed{background: #f38d0e}
+.menu_wrap{
+  position: relative; z-index: 1; top: 20px; width: 90%; margin: 0 auto 50px auto;
+  border-radius: 20px; background: #fff; max-width: 900px; z-index: 4
+}
+.menu_wrap table{width: 100%}
+.menu_wrap select{width: 100%; padding: 5px 0; margin: 5px 0 10px 0; font-size: 1.2em}
+.menu_wrap input{padding: 0; margin: 0; width: 100%; height: 25px}
+.menu_tabs{border-spacing: 0}
+.menu_tabs button{width: 100%; padding: 10px 5px; background: #fff; color: #000}
+.menu_tabs button:hover{background: #666; color: #fff}
+.menu_tabs button.selected{background: #d2d2d2}
+.menu_tabs th, .menu_tabs button{font-size: 1.2em; cursor: pointer; border-radius: 15px 15px 0 0}
+.menu_tabs button.selected:hover{background: #d2d2d2; color: initial; cursor: default}
+.menu_tabs_wrap{width: 100%; overflow-x: auto}
+.menu_panes{border-radius: 0 0 20px 20px; background: #d2d2d2}
+.button_row{text-align: left}
+.button_row button:last-child{float: right}
+#logs_panes{height: 500px; overflow-y: auto; padding: 10px}
+#menu_schedule{width: 100%; overflow-x: auto; margin: 10px 0 0 0}
+#menu_schedule td > button{background: #c3c3c3; color: #000; width: 100%; padding: 0; height: 20px}
+#menu_schedule td > button:hover{background: #484848; color: #fff}
+#menu_schedule tr:first-child td:hover{cursor: pointer; color: #fff}
+#menu_schedule td > div:hover{cursor: pointer; border: 1px solid #696969}
+#menu_schedule td.editing > div:hover{cursor: initial}
+#menu_schedule .editing > p{display: none}
+.menu_inner{padding: 5px}
+.menu_inner table{border-spacing: 10px}
+.menu_inner table select{font-size: 1em}
+#tick_editor{min-width: 185px; top: 0; background: inherit; padding: 5px}
+#tick_editor button{margin: 0 2px}
+#tick_editor div > p{margin: 0 2px}
+#tick_editor tr:first-child td, #tick_editor tr:first-child td:hover{cursor: default; color: initial}
+.schedule td > div.temp_update, .schedule td.temp_update{border: 1px solid #000}
+.pending_submit{background: #000}
+.schedule table{border-spacing: 0}
+.schedule td{vertical-align: top; min-width: 100px}
+.schedule td > div{padding: 3px; margin: 0 0 2px 0; position: relative; border: 1px solid #d2d2d2}
+.schedule td > div.selected{background: #000; color: #fff}
+.schedule div > div p:last-child{display: initial}
+.schedule td p{font-size: .8em}
+.schedule tr td p:first-child{font-size: 1em}
+.schedule tr:first-child td{padding: 3px}
+.schedule tr:first-child td p:first-child{font-size: 1.2em}
+.preadd, .canceled, #menu_schedule td.canceled{background: #afafaf}
+.participant_spec td:first-child{width: 90px}
+#scheduler_notification{padding: 5px; margin: 10px; background: #ffff87; position: absolute; opacity: 0}
+#protocol_order{border-spacing: 10px 5px}
+#protocol_order td:nth-child(2), #protocols_order td:last-of-type{width: 150px}
+#protocol_order span{
+  display: inline-block; cursor: pointer; background: #fff; padding: 3px 6px;
+  border-radius: 20px
+}
+#protocol_select{background: #fff; max-height: 100px}
+#protocol_select p{cursor: copy; padding: 3px}
+#protocol_select p:hover{background: #e2e2e2}
+#protocol_order span:hover{background: #d2d2d2; text-decoration: line-through}
+#message_preview p, #notifications td:last-child p{
+  text-align: left; width: 80%; left: 0; background: #868686; color: #dedede; border-radius: 15px;
+  padding: 8px 10px; margin: 5px auto 5px 0; word-break: break-all; word-break: break-word; max-width: 225px
+}
+.packed input:first-of-type{float: left; width: 92%}
+.packed input:last-of-type{float: right; width: 7%}
+.foot_buttons{border-radius: 0 0 18px 18px; background: #484848; color: #dedede; border-spacing: 0}
+.foot_buttons td{padding: 0}
+.foot_buttons button{width: 100%; padding: 12px; font-size: 1.2em}
+.foot_buttons td:first-child{width: 150px}
+.foot_buttons td:first-child button{border-radius: 0 0 0 18px; background: #ab0000}
+.foot_buttons td:first-child button:hover{background: #801515}
+.foot_buttons td:last-child{padding: 0}
+.foot_buttons td:last-child button{border-radius: 0 0 18px 0}
+.foot_buttons button:hover{background: #801515}
+.notifications_wrap{
+  position: fixed; bottom: -537px; right: 17px; width: 450px; max-width: 100%; background: #fff; padding: 0 0 37px 0;
+  transition: bottom .3s; -webkit-transition: bottom .3s; -moz-transition: bottom .3s; -o-transition: bottom .3s
+}
+.notifications_wrap div{height: 500px; max-height: 100%; overflow-y: auto; vertical-align: baseline}
+.notifications_wrap table:first-child, .notifications_wrap table:first-child button{width: 100%}
+.notifications_wrap.expanded{bottom: 0px}
+#notifications p{padding: 10px}
+#notifications a{color: #0020ff; text-decoration: underline; cursor: pointer}
+#notifications td:first-child{vertical-align: top; width: 100px}
+#foot_menu{bottom: 0; background: #fff; height: 37px}
+#foot_menu table{width: 100%; border-spacing: 0}
+#foot_menu td{padding: 5px}
+#foot_menu td:last-child{cursor: pointer; text-align: right; opacity: 0}
+#foot_menu td:last-child.showing, #scheduler_notification.showing{
+  display: table-cell; opacity: 1; transition: opacity .5s ease-in; -webkit-transition: opacity .5s ease-in;
+  -moz-transition: opacity .5s ease-in; -o-transition: opacity .5s ease-in
+}
+#latest_notification{padding: 0 5px; white-space: nowrap}
+/* #display_wrap, #foot_menu, #side_menu{transition: left .3s; -webkit-transition: left .3s; -moz-transition: left .3s; -o-transition: left .3s} */
