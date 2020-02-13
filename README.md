@@ -34,14 +34,62 @@ The app needs AWS access to run these services, which can be set up through [IAM
 1. Add user
 1. Name whatever, and check Programmatic access
 1. Select Attach existing policies directly, and add these policies:
-    1. AmazonCognitoPowerUser
-    1. AmazonDynamoDBFullAccess
-    1. AmazonSNSFullAccess
+    * AmazonCognitoPowerUser
+    * AmazonDynamoDBFullAccess
+    * AmazonSNSFullAccess
 1. Add the Access key ID and Secret access key to a "credentials" file in, e.g., c:/users/name/.aws:
 ```
 [default]
 aws_access_key_id = Access key ID
 aws_secret_access_key = Secret access key
+```
+### Qualtrics
+The app is set up with [Qualtrics](https://www.qualtrics.com) in mind, though other platforms could be used. The app sends survey links with an added participant ID parameter, which the survey would need to extract in order to associate participants with responses through the link. In Qualtrics, you can get this by setting an Embeded Data variable matching the protocol's specified ID parameter:
+1. In a survey, select Survey Flow
+1. Add an Emdeded Data element from the Add a New Element Here menu
+1. Create New Field matching your ID parameter (e.g., "id"), and leave its value blank.
+
+Qualtrics can also checkin with the app when the survey is accessed:
+1. In a survey, select Survey Flow
+1. Add a Web Service element from the Add a New Element Here menu
+1. Enter your URL appended with /checkin
+1. Set Method to POST
+1. Add a body parameter, and set its Body Parameters to application/json, Parameter to your ID parameter, and set a String to the extracted ID via Piped Text (e.g., ${e://Field/id})
+1. Finally, Add Embedded Data..., and set a value for available, day, days, beep, and beeps
+
+If the app recognizes the ID, it responds with an object like this:
+```javascript
+{
+  available: true,
+  day: 0,
+  days: 12,
+  beep: 1,
+  beeps: 6
+}
+```
+Here, available is based on the most recently passed beep and the associated protocol's close after setting. That is, available will be true if a beep was sent no longer ago than the associated protocol's close after setting, or the associated protocol has no close after setting.
+
+This information can be used from within Qualtrics to regulate access or condition questions on schedule status. For example, adding this as a question's JavaScript would prevent proceeding if available is false, and otherwise display schedule information:
+```javascript
+Qualtrics.SurveyEngine.addOnload(function(){
+  var message = $("message"), id = "${e://Field/id}", response = {
+    available: "${e://Field/available}",
+    beeps: "${e://Field/beeps}",
+    beep: "${e://Field/beep}",
+    days: "${e://Field/days}",
+    day: "${e://Field/day}",
+  }
+  this.disableNextButton()
+  if(id.value !== "" && response.available === "true"){
+    message.innerText = "Participant " + id + "; survey " + response.beep + " of "
+      + response.beeps + " for day " + response.day + " of " + response.days + "."
+    this.enableNextButton()
+  }
+});
+```
+Here, message refers to an HTML element in the question's body, with "message" as its id, e.g.:
+```html
+<p id="message">Wait for a text to complete this survey.<p>
 ```
 
 ## environmental variables
