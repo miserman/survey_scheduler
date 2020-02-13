@@ -292,13 +292,20 @@ function maintain_session(){
         setTimeout(options.study ? load_schedule : select_study, 1e7 * options.timeline_scale)
         if(options.study) notify({status: 'study ' + options.study + ' accessed'})
         page.signin.innerText = 'sign out'
-        page.signin.onclick = function(){window.location.pathname = '/signout'}
+        page.signin.onclick = signio
       }
     }else{
       page.signin_prompt.style.display = page.study_selector.style.display = ''
       page.studies_wrap.style.display = 'none'
     }
   })
+}
+function signio(){
+  if(options.study === 'demo'){
+    select_study()
+  }else{
+    window.location.pathname = session && session.signedin ? '/signout' : '/signin'
+  }
 }
 function reload(){
   if(options.study){
@@ -497,6 +504,7 @@ function edit_tick(e){
     if(e.tagName === 'DIV'){
       t = e.firstElementChild.innerText.split(patterns.colonspace)
       t[0] = t[0].replace(patterns.numpunct, '')
+      if(t.length == 2) t[2] = '00'
       h = parseInt(t[0]) + (t[0] !== '12' && patterns.pm.test(t[3]) ? 12 : 0)
       if(!patterns.pm.test(t[3]) && h === 12) h = 0
       page.tick_editor.children[0].style.display = ''
@@ -584,7 +592,7 @@ function tick_editor_action(e){
       }else{
         t = c.firstElementChild.firstElementChild.value.split(patterns.colon), v = parseInt(t[0].replace(patterns.numpunct, '')), ft
         t[1] = t[1].replace(patterns.numpunct, '')
-        t[2] = t[2].replace(patterns.numpunct, '')
+        t[2] = t.length == 2 ? '00' : t[2].replace(patterns.numpunct, '')
         ft = new Date(temp_schedule.schedule[d].date).setHours(v, t[1], t[2])
         p.firstElementChild.innerText = (v > 12 ? v - 12 : v === 0 ? 12 : v) + ':' + t[1] + ':' + t[2] + ' ' + (v > 11 ? 'PM' : 'AM')
         v = parseInt(p.children[2].innerText)
@@ -593,7 +601,7 @@ function tick_editor_action(e){
           temp_schedule.schedule[d].statuses.splice(v, 1)
         }
         i = temp_schedule.schedule[d].times.length + 1
-        if(i > 2) for(; i--;) if(i === 0 || ft > temp_schedule.schedule[d].times[i - 1]){
+        for(; i--;) if(i === 0 || ft > temp_schedule.schedule[d].times[i - 1]){
           temp_schedule.schedule[d].times.splice(i, 0, ft)
           temp_schedule.schedule[d].statuses.splice(i, 0, s - c.children[ep].children[1].selectedIndex)
           if(v !== i) p.parentElement.children[i].insertAdjacentElement(v > i ? 'beforeBegin' : 'afterEnd', p)
@@ -656,7 +664,8 @@ function show_hovered(e){
       d = schedule[id].schedule[parseInt(e.target.children[1].innerText) - 1]
       b = parseInt(e.target.children[2].innerText)
       e.target.classList.add('selected')
-      page.schedule_rows[id].entries.firstElementChild.lastElementChild.children[d.day].children[b - 1].classList.add('selected')
+      if(page.schedule_rows[id].entries.firstElementChild.lastElementChild.children[d.day].childElementCount >= b)
+        page.schedule_rows[id].entries.firstElementChild.lastElementChild.children[d.day].children[b - 1].classList.add('selected')
       c = page.upnext.nextElementSibling.children
       c[0].innerText = former.ftime.format(d.times[b - 1])
       c[2].innerText = id
@@ -760,11 +769,12 @@ function make_schedule(preserve, background){
       display_single_schedule(io.id, io.schedule, page.menu_schedule, true)
       page.menu_schedule.firstElementChild.firstElementChild.firstElementChild.insertAdjacentElement('afterEnd', e = document.createElement('tr'))
       e.insertAdjacentElement('afterEnd', document.createElement('tr'))
-      for(i = io.schedule.length; i--;){
+      for(v = io.schedule.length, i = 0; i < v; i++){
         e.appendChild(document.createElement('td'))
         e.lastElementChild.appendChild(document.createElement('button'))
         e.lastElementChild.lastElementChild.type = 'button'
-        e.lastElementChild.lastElementChild.innerText = e.lastElementChild.lastElementChild.className = 'pause'
+        e.lastElementChild.lastElementChild.innerText = e.lastElementChild.lastElementChild.className =
+          io.schedule[i].statuses.indexOf(6) !== -1 ? 'pending' : 'pause'
         e.nextElementSibling.appendChild(document.createElement('td'))
         e.nextElementSibling.lastElementChild.appendChild(document.createElement('button'))
         e.nextElementSibling.lastElementChild.lastElementChild.type = 'button'
@@ -863,26 +873,26 @@ function display_studies(){
   }
 }
 function select_study(){
+  if(options.study === 'demo'){
+    options.study = ''
+    window.location.href = window.location.href.replace(patterns.query, '')
+  }
   page.selected_study.innerText = 'select study'
   if(!session || !session.signedin){
     pending.select_study = select_study
   }else{
     page.study_selector.style.display = page.studies_wrap.style.display = ''
     page.signin_prompt.style.display = 'none'
-    if(options.study === 'demo'){
-      window.location.href = window.location.href.replace(patterns.query, '')
+    options.study = ''
+    backup()
+    if(options.studies && options.studies.length){
+      display_studies()
     }else{
-      options.study = ''
-      backup()
-      if(options.studies && options.studies.length){
+      request('/operation', function(d){
+        options.studies = JSON.parse(d)
         display_studies()
-      }else{
-        request('/operation', function(d){
-          options.studies = JSON.parse(d)
-          display_studies()
-          backup()
-        }, notify, {type: 'list_studies'})
-      }
+        backup()
+      }, notify, {type: 'list_studies'})
     }
   }
   if(page.side_menu.style.left === '0px') toggle_menu()
@@ -1068,7 +1078,7 @@ function fill_selection(type){
 function prompt(r){
   options.last = r
   backup()
-  window.location.pathname = '/signin'
+  signio()
 }
 function backup(){
   options.participant.phone = ''

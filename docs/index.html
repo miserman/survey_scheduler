@@ -9,7 +9,7 @@
 </head>
 <body>
 <div id='side_menu'>
-  <button type='button' onclick='window.location.pathname="/signin"'>sign in</button>
+  <button type='button' onclick='signio()'>sign in</button>
   <button type='button' onclick='select_study()'>change study</button>
   <button type='button' onclick='reload()'>reload data</button>
   <button type='button' onclick='refresh()'>clear storage</button>
@@ -35,7 +35,7 @@
     <div id='tick_info'></div>
   </div>
   <div id='study_selector'><div>
-    <button id='signin_prompt' type='button' onclick='window.location.pathname="/signin"'>Sign In</button>
+    <button id='signin_prompt' type='button' onclick='signio()'>Sign In</button>
     <div id='studies_wrap' style='display:none'>
       <h1>Studies</h1>
       <table>
@@ -120,7 +120,7 @@
             <td><input name='beeps' type='number'></td>
           </tr>
           <tr>
-            <td title='Minimum minutes between beeps.'>Minimum separtion</td>
+            <td title='Minimum minutes between beeps.'>Minimum separation</td>
             <td><input name='minsep' type='number'></td>
           </tr>
           <tr>
