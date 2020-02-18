@@ -3,7 +3,7 @@ body{margin: 0; padding: 0}
 p{margin: 0; text-align: center}
 h1{text-align: center; font-size: 2em}
 th{padding: 0}
-label, input, button, th, h1, h2, h3, .menu_wrap td, .schedule td, #scheduler_notification, #latest_notification{
+label, button, th, h1, h2, h3, .menu_wrap td, .schedule td, #scheduler_notification, #latest_notification{
   -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none;
   -ms-user-select: none; user-select: none
 }
@@ -53,7 +53,7 @@ div.nearest, .upnext_wrap table{background: #0060ea; color: #fff}
 .upnext_wrap td:last-child{width: auto}
 .upnext_wrap td.label{font-weight: bold; padding: 0 0 0 15px; color: #cacaca}
 .upnext_wrap tr:last-child{background: #000}
-.upnext_wrap tr td:first-child{width: 100px}
+.upnext_wrap tr td:first-child{width: 100px; height: 17px}
 #timeline{position: absolute; height: 100px}
 #timeline div{position: absolute; width: 10px; height: 100%; border-left: 1px solid #fff; border-right: 1px solid #fff; cursor: pointer}
 #timeline div p{display: none}
@@ -172,6 +172,7 @@ div.nearest, .upnext_wrap table{background: #0060ea; color: #fff}
 #foot_menu{bottom: 0; background: #fff; height: 37px}
 #foot_menu table{width: 100%; border-spacing: 0}
 #foot_menu td{padding: 5px}
+#foot_menu td:first-child{min-width: 75px}
 #foot_menu td:last-child{cursor: pointer; text-align: right; opacity: 0}
 #foot_menu td:last-child.showing, #scheduler_notification.showing{
   display: table-cell; opacity: 1; transition: opacity .5s ease-in; -webkit-transition: opacity .5s ease-in;

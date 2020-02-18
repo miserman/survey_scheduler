@@ -60,7 +60,8 @@ var session, module = {exports: {}}, Sanitize, pending = {}, page = {
       submit: $('user_submit')
     }
   }
-}, loading = false, queued = false, update_queue = {}, study = {}, schedule = {}, temp_schedule = {}, nearest,
+}, loading = false, queued = false, update_queue = {}, schedule = {}, temp_schedule = {}, nearest,
+timezone = new Date().getTimezoneOffset(), study = {version: 0, recalls: 0},
 store = window.localStorage || {}, logs = {}, patterns = {
   addRemove: /^(?:add_|remove_)/, add: /^add_/, remove: /^remove_/, noRecord: /not on record/, idPhone: /^(?:id|phone)$/, pm: /PM$/,
   d7: /\d{7}/, dashdate: /^\d{4}-\d{2}-\d{2}$/, stripdate: /\d{2}(?=\d{2}$)|[^0-9]/g, gcm: /[^\u0000-\u007f]/g, http: /(http[s:/]+(.+$))/,
@@ -83,7 +84,7 @@ store = window.localStorage || {}, logs = {}, patterns = {
     start_day: former.dashdate(now),
     end_day: former.dashdate(now + 14 * 864e5),
     start_time: former.mtime.format(now),
-    end_time: former.mtime.format(now + 5 * 36e5)
+    end_time: former.mtime.format(now + 54e6)
   },
   protocol: {
     signal: {
@@ -121,8 +122,8 @@ window.onload = function(){
     var stored_options = JSON.parse(store.options), k, c
     for(k in stored_options) if(stored_options.hasOwnProperty(k)) options[k] = stored_options[k]
   }
-  if(window.location.search && /[?&]study=[^&]/i.test(window.location.search)){
-    options.study = window.location.search.match(/study=([^&]+)(?:&|$)/i)[1]
+  if(window.location.search && /study=[^&?]/i.test(window.location.search)){
+    options.study = window.location.search.match(/study=([^&?]+)(?:&|$)/i)[1]
   }
   backup()
   apply_colors()
@@ -162,7 +163,7 @@ function request(path, fun, error, body){
   if(options.study === 'demo'){
     switch(path){
       case '/session':
-        fun(JSON.stringify({signedin: true, expires: Date.now() + 6e5}))
+        fun(JSON.stringify({signedin: true, expires: Date.now() + 36e5}))
         break
       case '/operation':
         if(patterns.addRemove.test(body.type)){
@@ -180,7 +181,9 @@ function request(path, fun, error, body){
           switch(body.type){
             case 'load_schedule':
               var m = patterns.n.exec(window.location.search), now = Date.now(), n, nn, i, s, p, ra, message, k, t, e
-              study = store.hasOwnProperty('study') ? JSON.parse(store.study) : {participants: {}, protocols: options.protocol, users: {}}
+              study = store.hasOwnProperty('study') ? JSON.parse(store.study) : {
+                version: 0, recalls: 0, timezone: timezone, participants: {}, protocols: options.protocol, users: {}
+              }
               if(m){
                 n = parseInt(m[1])
                 if(options.n !== n){
@@ -223,13 +226,13 @@ function request(path, fun, error, body){
               for(k in study.participants) if(study.participants.hasOwnProperty(k)){
                 for(s = study.participants[k].schedule, p = schedule.hasOwnProperty(k) ? schedule[k].schedule : [], nn = p.length, n = s.length; n--;){
                   ra = study.protocols.hasOwnProperty(s[n].protocol) && study.protocols[s[n].protocol].hasOwnProperty('remind_after')
-                    ? study.protocols[s[n].protocol].remind_after : 0
+                    ? study.protocols[s[n].protocol].remind_after * 6e4 : 0
                   for(i = s[n].times.length; i--;) if(s[n].statuses[i] === 1 && s[n].times[i] < now){
                     s[n].statuses[i] = 0
                   }else if(!update_queue.hasOwnProperty(k) && s[n].statuses[i] === 2 && ra &&
-                    s[n].times[i] < now && s[n].times[i] + ra * 6e4 > now){
-                    update_queue[k] = {after: s[n].times[i] + ra * 6e4, code: 3, day: n, time: i}
-                    setTimeout(load_schedule, s[n].times[i] + ra * 6e4 - Date.now())
+                    s[n].times[i] < now && s[n].times[i] + ra > now){
+                    update_queue[k] = {after: s[n].times[i] + ra, code: 3, day: n, time: i}
+                    setTimeout(load_schedule, s[n].times[i] + ra - Date.now())
                   }
                 }
               }
@@ -281,7 +284,7 @@ function request(path, fun, error, body){
 function maintain_session(){
   request('/session', function(r){
     session = JSON.parse(r)
-    setTimeout(maintain_session, session.expires - Date.now() - 1e4)
+    setTimeout(maintain_session, session.expires - 1e4)
     if(session.signedin){
       for(var k in pending){
         pending[k]()
@@ -322,24 +325,36 @@ function load_schedule(refresh){
     request('/operation', function(r){
       var temp_study
       try{temp_study = JSON.parse(r)}catch(e){}
-      if(temp_study && !temp_study.hasOwnProperty('status')){
-        study = temp_study
-        schedule = study.participants
-        page.selected_study.innerText = options.study
-        page.study_selector.style.display = 'none'
-        page.timeline_wrap.style.display = page.schedule_wrap.style.display = ''
-        display_schedule(refresh)
+      if(temp_study){
+        if(temp_study.hasOwnProperty('status') && page.selected_study.innerText === 'select study'){
+          temp_study = study
+        }
+        if(temp_study.hasOwnProperty('status')){
+          if(study.recalls < 6 && temp_study.status === 'study is up-to-date'){
+            study.recalls++
+            setTimeout(load_schedule, 2e3)
+          }else study.recalls = 0
+        }else{
+          study = temp_study
+          study.recalls = 0
+          schedule = study.participants || {}
+          page.selected_study.innerText = options.study
+          page.study_selector.style.display = 'none'
+          page.timeline_wrap.style.display = page.schedule_wrap.style.display = ''
+          display_schedule(refresh)
+        }
       }
       setTimeout(reset_loading, 10)
     }, function(d){
-      if(patterns.noRecord.test(JSON.parse(d).status)){
+      try{d = JSON.parse(d)}catch(e){}
+      if(patterns.noRecord.test(d.status)){
         options.studies.splice(options.studies.indexOf(options.study), 0)
         options.study = ''
         backup()
         select_study()
       }
       setTimeout(reset_loading, 10)
-    }, {type: 'load_schedule', study: options.study})
+    }, {type: 'load_schedule', study: options.study, version: study.version})
   }else queued = true
 }
 function reset_loading(){
@@ -383,9 +398,9 @@ function display_schedule(refresh){
       page.upnext.children[4].innerText = d + 1
       page.upnext.children[6].innerText = t + 1
       update_queue[k] = {after: p.times[t], code: 2, day: nearest[2].day, time: nearest[2].time}
-      setTimeout(load_schedule, p.times[t] - Date.now())
+      setTimeout(load_schedule, p.times[t] + 200 - Date.now())
       if(study.protocols.hasOwnProperty(p.protocol) && study.protocols[p.protocol].remind_after){
-        setTimeout(load_schedule, p.times[t] + study.protocols[p.protocol].remind_after * 6e4 - Date.now())
+        setTimeout(load_schedule, p.times[t] + 200 + study.protocols[p.protocol].remind_after * 6e4 - Date.now())
       }
     }else{
       notify({status: 'use the "add or edit" menu (ESC) to add participants, protocols, and users'})
@@ -575,7 +590,7 @@ function tick_editor_action(e){
     d = ep ? p.cellIndex : p.parentElement.cellIndex
     if(e.innerText === 'set'){
       if(ep){
-        ft = new Date(c.children[ep].children[0].value.replace(patterns.numpunct, '')).setHours(24, 0, 0, 0)
+        ft = new Date(c.children[ep].children[0].value.replace(patterns.numpunct, '')).setHours(0, 0, 0, 0)
         if(temp_schedule.schedule.length <= d){
           temp_schedule.schedule.push({date: ft, day: d, times: [], statuses: []})
         }else temp_schedule.schedule[d].date = ft
@@ -629,11 +644,12 @@ function tick_editor_action(e){
       }
       p.classList.add('temp_update')
       temp_schedule.updated = true
+      scheduler_pending()
     }
     if((a = p.classList[0] === 'preadd') && e.innerText !== 'add'){
       if(ep){
         p = p.parentElement.parentElement
-        for(i = 3; i--;) p.children[i].removeChild(p.children[i].children[d])
+        for(i = 4; i--;) p.children[i].removeChild(p.children[i].children[d])
         return
       }
       c = p
@@ -728,7 +744,7 @@ function make_schedule(preserve, background){
   if('string' === typeof io.start_day) io.start_day = io.start_day.replace(patterns.numpunct, '')
   io.start_day =  patterns.dashdate.test(io.start_day) ? new Date(io.start_day + 'T00:00:00').getTime() : new Date(io.start_day).setHours(0, 0, 0, 0)
   io.start_time = io.start_time ? toMs(io.start_time) : 0
-  if(!io.end_day) io.start_day = Date.now()
+  if(!io.end_day) io.end_day = io.start_day + 14 * 864e5
   if('string' === typeof io.end_day) io.end_day = io.end_day.replace(patterns.numpunct, '')
   io.end_day = patterns.dashdate.test(io.end_day) ? new Date(io.end_day + 'T00:00:00').getTime() : new Date(io.end_day).setHours(0, 0, 0, 0)
   io.end_time = io.end_time ? toMs(io.end_time) : 864e5
@@ -749,9 +765,8 @@ function make_schedule(preserve, background){
         }else pd++
         io.schedule[d] = {day: d, date: day + 864e5 * d, protocol: io.protocol_order[pi], times: [], statuses: []}
         if(study.protocols.hasOwnProperty(io.protocol_order[pi])) roll_times(d, study.protocols[io.protocol_order[pi]], io)
-        v = io.schedule[d].times[io.schedule[d].times.length - 1]
-        if(v < io.first) io.first = v
-        if(v > io.last) io.last = v
+        if(io.schedule[d].times[0] < io.first) io.first = v
+        if(io.schedule[d].times[io.schedule[d].times.length - 1] > io.last) io.last = io.schedule[d].times[io.schedule[d].times.length - 1]
       }
       backup()
       io.updated = true
@@ -830,7 +845,7 @@ function expand_schedule(e){
     e = e.tagName === 'P' ? e.parentElement.parentElement : e.parentElement
     if(e.tagName === 'TR' && e.rowIndex === 0){
       e = e.parentElement
-      if(e && e.parentElement){
+      if(e && e.parentElement && 'undefined' !== typeof e.parentElement.rowIndex){
         var c = page.ids.children[e.parentElement.rowIndex].firstElementChild.firstElementChild
         if(e.className === 'selected'){
           c.className = e.className = ''
@@ -849,6 +864,7 @@ function add_study(e){
     request('/operation', function(d){
       if(options.studies.indexOf(e.value) === -1) options.studies.push(e.value)
       options.study = e.value
+      notify(d)
       display_studies()
       page.study_selector.style.display = 'none'
       load_schedule()
@@ -902,9 +918,11 @@ function study_selection(e){
     if(e.target.innerText === 'delete'){
       var s = e.target.parentElement.previousElementSibling.firstElementChild.value
       request('/operation', function(d){
+        notify(d)
         options.studies.splice(options.studies.indexOf(s), 1)
         backup()
-      }, notify, {type: 'remove_study', id: s})
+        select_study()
+      }, notify, {type: 'remove_study', study: s})
     }else{
       options.study = e.target.innerText
       backup()
@@ -985,7 +1003,10 @@ function list_logs(){
       page.logs.panes.innerHTML = ''
       var k, r = /(\d{2})(?=\d)/g, e = page.logs.tabs.firstElementChild.firstElementChild, c
       logs = JSON.parse(d)
-      if(logs.hasOwnProperty('status')) logs = {}
+      if(logs.hasOwnProperty('status')){
+        notify(d)
+        logs = {}
+      }
       for(k in logs) if(logs.hasOwnProperty(k)){
         e.appendChild(c = document.createElement('th'))
         c.appendChild(c = document.createElement('button'))
@@ -1314,8 +1335,8 @@ function roll_times(d, p, io){
     for(; i < p.beeps; i++){
       s = start + i * binsize
       e = Math.min(end, s + binsize)
-      if(i && se.times[l + i - 1] - s > p.minsep * 6e4) s = se.times[l + i - 1].getTime() + p.minsep * 6e4
-      se.times.push(v = new Date(Math.floor(s + Math.random() * (e - s + 1))).getTime())
+      if(i && se.times[l + i - 1] - s > p.minsep * 6e4) s = se.times[l + i - 1] + p.minsep * 6e4
+      se.times.push(v = Math.floor(s + Math.random() * (e - s + 1)))
       se.statuses.push(1)
       if(v < io.first){
         io.first = v
@@ -1369,6 +1390,7 @@ function post_form(type, build_only){
         u.object.schedule = temp_schedule.schedule
         u.object.first = temp_schedule.first
         u.object.last = temp_schedule.last
+        u.object.timezone = timezone
         if(temp_schedule.updated) updated = true
         page.scheduler.participant.submit.innerText = 'Add/update'
         page.scheduler.participant.submit.className = ''
@@ -1403,9 +1425,7 @@ function post_form(type, build_only){
           }
         }
       }, function(d){
-        try{d = JSON.parse(d)}catch(e){}
         notify(d)
-        if(!d.signedin) prompt(type)
       }, u)
     }else{
       notify({status: 'fill the first input to post'}, true)

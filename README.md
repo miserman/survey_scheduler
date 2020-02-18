@@ -92,8 +92,8 @@ Here, message refers to an HTML element in the question's body, with "message" a
 <p id="message">Wait for a text to complete this survey.<p>
 ```
 
-## environmental variables
-[server.js](https://github.com/miserman/survey_scheduler/blob/master/server.js) uses these environmental variables:
+## environment variables
+[server.js](https://github.com/miserman/survey_scheduler/blob/master/server.js) uses these environment variables:
 * **PORT**: The port the server listens to; often 3000 or 8081
 * **REGION**: AWS region, e.g., "us-east-1"
 * **USERPOOL**: Cognito Pool ID, from [User Pool](https://console.aws.amazon.com/cognito/users) > General settings

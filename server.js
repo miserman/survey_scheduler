@@ -36,7 +36,7 @@ function verify_jwt(token){
   var i = keys.length, r, t = jwt.decode(token, {complete: true}), p
   if(t && t.header.alg === 'RS256'){
     p = t.payload
-    if(p.exp > Date.now() / 1000 && p.token_use === 'access' && p.iss === process.env.ISSUER && p.client_id === process.env.CLIENT){
+    if(p.exp > Date.now() / 1e3 && p.token_use === 'access' && p.iss === process.env.ISSUER && p.client_id === process.env.CLIENT){
       for(; i--;) if(keys[i].kid === t.header.kid) break
       if(i !== -1) r = jwt.verify(token, pem(keys[i]))
     }
@@ -67,9 +67,18 @@ function update_studies(m, s, name, protocols){
     }
   })
 }
+function time_exists(s, id, day, index){
+  return studies.hasOwnProperty(s) && studies[s].participants.hasOwnProperty(id) &&
+    studies[s].participants[id].hasOwnProperty('schedule') &&
+    studies[s].participants[id].schedule.length > day &&
+    studies[s].participants[id].schedule[day].hasOwnProperty('times') &&
+    studies[s].participants[id].schedule[day].hasOwnProperty('statuses') &&
+    studies[s].participants[id].schedule[day].times.length > index &&
+    studies[s].participants[id].schedule[day].statuses.length > index
+}
 function update_status(s, id, day, index, status){
   status = parseInt(status)
-  database.update({
+  if(time_exists(s, id, day, index)) database.update({
     TableName: s,
     Key: {id: id},
     UpdateExpression: 'SET schedule[' + day + '].statuses[' + index + '] = :v',
@@ -81,38 +90,42 @@ function update_status(s, id, day, index, status){
       m += 'false'
     }else{
       studies[s].participants[id].schedule[day].statuses[index] = status
+      studies[s].version = Date.now()
       m += 'true'
     }
     log(s, m)
   })
 }
 function send_message(s, id, day, index, status){
-  var p = studies[s].participants[id], ds = p.schedule[day], pr = studies[s].protocols[ds.protocol]
-  if(status !== 3 || pr.reminder_message){
-    message.publish({
-      Message: pr[status === 3 ? 'reminder_message' : 'initial_message'] + ' ' +
-        (status !== 3 || pr.reminder_link ? pr.link.replace(/^http[s:/]+/, '') +
-        (/\?/.test(pr.link) ? '&' : '?') + pr.id_parameter + '=' + id : ''),
-      PhoneNumber: '+1' + p.phone
-    }, function(e, d){
-      var m = 'send ' + (status === 3 ? 'reminder' : 'initial') + ' text to ' + id + '[' + day + '][' + index + ']: ', t
-      if(e){
-        console.log(e)
-        m += 'false'
-      }else{
-        console.log(s, 'Beep sent to ' + id + ' at ' + new Date().toLocaleString())
-        ds.statuses[index] = status
-        m += 'true'
-        if(status === 2 && pr.remind_after){
-          beeps['' + s + id + day + index] = setTimeout(function(){
-            send_message(this.s, this.id, this.day, this.index, 3)
-          }.bind({s: s, day: day, id: id, index: index}), (ds.times[index] + pr.remind_after * 6e4) - Date.now())
-          m += '; reminder scheduled'
+  if(time_exists(s, id, day, index)){
+    var p = studies[s].participants[id], ds = p.schedule[day], pr = studies[s].protocols[ds.protocol]
+    if(status === 2 || (status === 3 && pr.reminder_message)){
+      message.publish({
+        Message: pr[status === 3 ? 'reminder_message' : 'initial_message'] + ' ' +
+          (status !== 3 || pr.reminder_link ? pr.link.replace(/^http[s:/]+/, '') +
+          (/\?/.test(pr.link) ? '&' : '?') + pr.id_parameter + '=' + id : ''),
+        PhoneNumber: '+1' + p.phone
+      }, function(e, d){
+        var m = 'send ' + (status === 3 ? 'reminder' : 'initial') + ' text to ' + id + '[' + day + '][' + index + ']: ', t
+        if(e){
+          console.log(e)
+          m += 'false'
+        }else{
+          console.log(s, 'Beep sent to ' + id + ' at ' + new Date().toLocaleString())
+          ds.statuses[index] = status
+          m += 'true'
+          if(status === 2 && pr.remind_after){
+            beeps['' + s + id + day + index] = setTimeout(function(){
+              send_message(this.s, this.id, this.day, this.index, 3)
+            }.bind({s: s, day: day, id: id, index: index}),
+              (ds.times[index] + pr.remind_after * 6e4) - Date.now())
+            m += '; reminder scheduled'
+          }
+          update_status(s, id, day, index, status)
         }
-        update_status(s, id, day, index, status)
-      }
-      log(s, m)
-    })
+        log(s, m)
+      })
+    }
   }
 }
 function schedule(s, id, day){
@@ -136,7 +149,10 @@ function schedule(s, id, day){
 }
 function clear_schedule(s, id){
   var p = studies[s].participants[id].schedule, d, i, sid = ''
-  for(d = p.length; d--;) for(i = p[d].times.length; i--;) if('undefined' !== beeps[sid = '' + s + id + d + i]) clearTimeout(beeps[sid])
+  for(d = p.length; d--;) for(i = p[d].times.length; i--;) if('undefined' !== beeps[sid = '' + s + id + d + i]){
+    clearTimeout(beeps[sid])
+    delete beeps[sid]
+  }
 }
 function scan_database(s){
   database.scan({TableName: s, Select: 'ALL_ATTRIBUTES'}, function(e, d){
@@ -146,6 +162,7 @@ function scan_database(s){
       log(s, m + 'false')
     }else{
       log(s, m + 'true')
+      studies[s].version = Date.now()
       studies[s].participants = {}
       for(i = d.Items.length, day; i--;){
         studies[s].participants[d.Items[i].id] = d.Items[i]
@@ -213,7 +230,7 @@ function scan_studies(){
 scan_studies()
 
 app.get('/session', function(req, res){
-  var r = {signedin: false, expires: Date.now() + 12e4}
+  var r = {signedin: false, expires: Date.now() + 36e5}
   if(req.signedCookies.id && sessions.hasOwnProperty(req.signedCookies.id)){
     sessions[req.signedCookies.id].expires = r.expires
     r.signedin = true
@@ -222,34 +239,44 @@ app.get('/session', function(req, res){
 })
 
 app.post('/checkin', function(req, res){
-  var r = {available: false, days: 0, day: 0, beeps: 0, beep: 0}, td = new Date().setHours(0, 0, 0, 0), pd = td - 864e5, pdm,
-      n = Date.now(), id = Sanitize.gen('id', req.body.id), k, s, p, pp, d, pr, i, t, sid
+  var r = {available: false, days: 0, day: 0, beeps: 0, beep: 0}, td = new Date().setHours(0, 0, 0, 0),
+      pd = td - 864e5, pdm, n = Date.now(), id = Sanitize.gen('id', req.body.id),
+      k, s, p, pp, d, pr, i, t, sid, m, day
   if(id){
     for(k in studies) if(studies.hasOwnProperty(k) && studies[k].participants.hasOwnProperty(id)) s = k
     if(s){
-      log(s, 'checkin by ' + id)
-      for(p = studies[s].participants[id], d = p.schedule.length, pr; d--;) if(td === p.schedule[d].date || (pdm = pd === p.schedule[d].date)){
-        r.days = p.schedule.length
-        r.day = d + 1
-        for(pp = p.schedule[d], pr = studies[s].protocols[pp.protocol], i = pp.times.length; i--;){
-          t = pp.times[i]
-          if(!pr.close_after || (t < n && t + pr.close_after * 6e4 > n)){
-            r.available = true
-            r.beeps = pp.times.length
-            r.beep = i + 1
-            if(pr.reminder_message && pp.statuses[i] < 4){
-              pp.statuses[i] = pp.statuses[i] === 3 ? 5 : 4
-              if(beeps.hasOwnProperty(sid = '' + s + id + d + i)){
-                clearTimeout(beeps[sid])
-                log(s, 'reminder canceled for ' + id + '[' + i + ']')
+      m = 'checkin by ' + id + ', day: '
+      for(p = studies[s].participants[id], d = p.schedule.length; d--;){
+        day = new Date(p.schedule[d].date).setHours(0, 0, 0, 0)
+        console.log('checkin day: ', pd, day, p.schedule[d].date, td)
+        if(td === day || (pdm = pd === day)){
+          r.days = p.schedule.length
+          r.day = d + 1
+          m += r.day + ', times: '
+          for(pp = p.schedule[d], pr = studies[s].protocols[pp.protocol], i = pp.times.length; i--;){
+            t = pp.times[i]
+            m += i + ', available: '
+            if(!pr.close_after || (t < n && t + pr.close_after * 6e4 > n)){
+              r.available = true
+              r.beeps = pp.times.length
+              r.beep = i + 1
+              m += 'true'
+              if(pr.reminder_message && pp.statuses[i] < 4){
+                pp.statuses[i] = pp.statuses[i] === 3 ? 5 : 4
+                if(beeps.hasOwnProperty(sid = '' + s + id + d + i)){
+                  clearTimeout(beeps[sid])
+                  delete beeps[sid]
+                  log(s, 'reminder canceled for ' + id + '[' + i + ']')
+                }
+                update_status(s, id, d, i, pp.statuses[i])
               }
-              update_status(s, id, d, i, pp.statuses[i])
-            }
-            break
+              break
+            }else m += 'false'
           }
+          if(pdm || r.available) break
         }
-        if(pdm || r.available) break
       }
+      log(s, m)
     }
   }
   res.status(200).json(r)
@@ -308,7 +335,7 @@ app.get('/auth', function(req, res){
       r.on('end', function(){
         data = JSON.parse(data.join(''))
         sessions[id] = {
-          expires: now + 12e4,
+          expires: now + 36e5,
           tokens: data,
           access: verify_jwt(data.access_token)
         }
@@ -370,8 +397,8 @@ app.post('/operation', function(req, res){
             },
             BillingMode: 'PROVISIONED'
           }, function(e, d){
-            var exists = /already exists/.test(e.message)
-            if(e && (!e.message || !exists)){
+            var exists = false
+            if(e && (!e.message || !(exists = /already exists/.test(e.message)))){
               console.log(e)
               o.status = 'failed to add study ' + s
               log(s, m + 'false')
@@ -401,7 +428,12 @@ app.post('/operation', function(req, res){
     }else{
       switch(type){
         case 'load_schedule':
-          var k, r = {participants: {}, protocols: studies[s].protocols, users: {}}
+          req.body.version = parseInt(req.body.version)
+          if(req.body.version && req.body.version === studies[s].version){
+            res.json({status: 'study is up-to-date'})
+            break
+          }
+          var k, r = {version: studies[s].version, participants: {}, protocols: studies[s].protocols, users: {}}
           if(check.perms.view_participant){
             r.participants = studies[s].participants
           }else for(k in studies[s].participants) if(studies[s].participants.hasOwnProperty(k)){
@@ -421,7 +453,21 @@ app.post('/operation', function(req, res){
             TableName: s
           }, function(e, d){
             m += e ? 'false' : 'true'
-            res.json({status: (e ? 'failed to remove' : 'removed') + ' study ' + s})
+            database.delete({
+              TableName: 'studies',
+              Key: {study: s}
+            }, function(e, d){
+              if(e){
+                console.log(e)
+                log(s, m + ', failed to remove from database')
+                o.status = /does not exists/.test(e.message) ? 'study ' + s + ' does not exist' : 'failed to remove study ' + s
+                res.json(o)
+              }else{
+                delete studies[s]
+                log(s, m + ', removes from database')
+                res.json({status: 'removed study ' + s})
+              }
+            })
           })
           break
         case 'add_participant':
@@ -452,6 +498,7 @@ app.post('/operation', function(req, res){
               studies[s].participants[nid] = req.body.object
               for(var day = req.body.object.schedule.length; day--;) schedule(s, nid, day)
               res.json({id: nid, schedule: req.body.object.schedule})
+              studies[s].version = Date.now()
             }
           })
           break
@@ -470,6 +517,7 @@ app.post('/operation', function(req, res){
             }else{
               delete studies[s].participants[nid]
               log(s, m + 'true')
+              studies[s].version = Date.now()
               res.json({status: 'removed participant ' + nid})
             }
           })
@@ -487,6 +535,7 @@ app.post('/operation', function(req, res){
             if(d){
               studies[s].protocols[nid] = req.body.object
               o.status = 'added protocol ' + nid
+              studies[s].version = Date.now()
             }
             if(e){
               console.log(e)
@@ -510,6 +559,7 @@ app.post('/operation', function(req, res){
             }else{
               delete studies[s].protocols[nid]
               o.status = 'removed protocol "' + nid + '".'
+              studies[s].version = Date.now()
             }
             log(s, m + (e ? 'false' : 'true'))
             res.json(o)
@@ -532,10 +582,13 @@ app.post('/operation', function(req, res){
             }, function(e, d){
               if(e){
                 log(s, m + 'false')
+                console.log(e)
                 res.json({status: /already exists/.test(e.message) ? 'user ' + nid + ' already exists' : 'failed to add user'})
               }else{
-                var username = d.User.Username
+                var username = d.User.Username, k
                 req.body.object = Sanitize.user(req.body.object)
+                for(k in req.body.object) if(req.body.object.hasOwnProperty(k) && 'boolean' === typeof req.body.object[k])
+                  req.body.object[k] = req.body.object[k] && studies[s].users[name].hasOwnProperty(k) && studies[s].users[name][k]
                 database.update({
                   TableName: 'studies',
                   Key: {study: s},
@@ -543,7 +596,10 @@ app.post('/operation', function(req, res){
                   ExpressionAttributeNames: {'#u': 'users', '#n': username},
                   ExpressionAttributeValues: {':p': req.body.object}
                 }, function(e, d){
-                  if(d) studies[s].users[username] = req.body.object
+                  if(d){
+                    studies[s].users[username] = req.body.object
+                    studies[s].version = Date.now()
+                  }
                   if(e) console.log(e)
                   log(s, m + 'true, ' + (e ? 'not ' : '') + 'added to database')
                   res.json({status: 'added user ' + nid + ', and sent them a temporary password'})
@@ -574,6 +630,7 @@ app.post('/operation', function(req, res){
                     for(var k in sessions) if(sessions.hasOwnProperty(k) && sessions[k].access.username === nid){
                       delete sessions[k]
                     }
+                    studies[s].version = Date.now()
                   }
                   if(e) console.log(e)
                   log(s, m + 'true, ' + (e ? 'not ' : '') + 'removed from database')
@@ -629,3 +686,5 @@ app.post('/operation', function(req, res){
 app.listen(process.env.PORT, function(req){
   console.log('listening on port ' + process.env.PORT)
 })
+
+module.exports = app

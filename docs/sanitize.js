@@ -72,6 +72,7 @@ module.exports = {
     return r
   },
   schedule_day: function(o){
+    o = Object(o)
     return {
       date: parseInt(o.date),
       day: parseInt(o.day),
@@ -88,9 +89,11 @@ module.exports = {
     return r
   },
   participant: function(o){
+    o = Object(o)
     return {
       id: this.gen('id', o.id),
       phone: this.phone(o.phone),
+      timezone: o.hasOwnProperty('timezone') ? parseInt(o.timezone) : new Date().getTimezoneOffset(),
       start_day: this.dashdate(o.start_day),
       end_day: this.dashdate(o.end_day),
       start_time: this.timestamp(o.start_time),
@@ -103,6 +106,7 @@ module.exports = {
     }
   },
   protocol: function(o){
+    o = Object(o)
     var k, r = {
       name: this.gen('type', o.name),
       color: this.gen('color', o.color),
@@ -148,8 +152,9 @@ module.exports = {
   },
   user: function(o){
     var r = this.perms_template(false), k
+    o = Object(o)
     r.email = this.gen('email', o.email)
-    for(k in o) if(r.hasOwnProperty(k)){
+    for(k in o) if(r.hasOwnProperty(k) && k !== 'email'){
       r[k] = 'true' === String(o[k])
     }
     return r
