@@ -66,7 +66,7 @@ var session, module = {exports: {}}, Sanitize, pending = {}, page = {
     }
   }
 }, loading = false, queued = false, edit = {t: 0, b: 0, e: false}, update_queue = {}, schedule = {}, temp_schedule = {}, nearest,
-timezone = new Date().getTimezoneOffset(), study = {version: 0, recalls: 0},
+timezone = new Date().getTimezoneOffset(), study = {participants: {}, protocols: {}, version: 0, recalls: 0},
 store = window.localStorage || {}, logs = {}, patterns = {
   addRemove: /^(?:add_|remove_)/, add: /^add_/, remove: /^remove_/, noRecord: /not on record/, idPhone: /^(?:id|phone)$/, pm: /PM$/,
   d7: /\d{7}/, dashdate: /^\d{4}-\d{2}-\d{2}$/, stripdate: /\d{2}(?=\d{2}$)|[^0-9]/g, gcm: /[^\u0000-\u007f]/g, http: /(http[s:/]+(.+$))/,
@@ -301,7 +301,7 @@ function request(path, fun, error, body){
 function maintain_session(){
   request('/session', function(r){
     session = JSON.parse(r)
-    setTimeout(maintain_session, session.expires - 6e4)
+    setTimeout(maintain_session, session.expires - 6e4 - Date.now())
     if(session.signedin){
       for(var k in pending){
         pending[k]()
@@ -442,7 +442,7 @@ function display_schedule(refresh){
       if(study.protocols.hasOwnProperty(p.protocol) && study.protocols[p.protocol].remind_after){
         setTimeout(load_schedule, p.times[t] + 200 + study.protocols[p.protocol].remind_after * 6e4 - Date.now())
       }
-    }else if(!options.n){
+    }else if(!options.n && !page.notifications.childElementCount){
       notify({status: 'use the "add or edit" menu (ESC) to add participants, protocols, and users'})
     }
     if(ticker) clearInterval(ticker)

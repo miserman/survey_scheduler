@@ -163,11 +163,11 @@ function schedule(s, id, day){
           }.bind({s: s, id: id, day: day, index: i}), t - Date.now())
         }else{
           updated = true
-          statuses[i] = 0
+          d.statuses[i] = 0
         }
       }
     }
-    if(update){
+    if(updated){
       studies[s].version = Date.now()
       update_multi_status(s, id, day)
     }
@@ -275,7 +275,6 @@ app.post('/checkin', function(req, res){
       m = 'checkin by ' + id + ', day: '
       for(p = studies[s].participants[id], d = p.schedule.length; d--;){
         day = new Date(p.schedule[d].date).setHours(0, 0, 0, 0)
-        console.log('checkin day: ', pd, day, p.schedule[d].date, td)
         if(td === day || (pdm = pd === day)){
           r.days = p.schedule.length
           r.day = d + 1
@@ -401,7 +400,7 @@ app.post('/operation', function(req, res){
       if(s && !studies.hasOwnProperty(s)) s = s.replace(/[^a-z0-9]+/gi, '_')
     }
   }
-  o = {version: studies[s].version}
+  o = {version: 0}
   if(check.pass){
     if(!studies.hasOwnProperty(s)){
       switch(type){
@@ -452,6 +451,7 @@ app.post('/operation', function(req, res){
           res.json(o)
       }
     }else{
+      o.version = studies[s].version
       switch(type){
         case 'load_schedule':
           req.body.version = parseInt(req.body.version)
