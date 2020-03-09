@@ -14,6 +14,15 @@
   <button type='button' onclick='reload()'>reload data</button>
   <button type='button' onclick='refresh()'>clear storage</button>
   <button type='button' onclick='toggle_logs()'>logs</button>
+  <div id='display_options'>
+    <p title='Resolution of the timeline; increase to see more distant beeps.'>timeline scale</p>
+    <table><tr><td><input name='timeline_scale' type='number' step='.01'></input></td></tr></table>
+    <p title='Number of days before and after the current time to show schedules, based on their first last beep.'>day range</p>
+    <table><tr>
+      <td><input name='days_passed' min='0' type='number'></input></td>
+      <td><input name='days_future' min='0' type='number'></input></td>
+    </tr></table>
+  </div>
 </div>
 <table class='menu' id='top_menu'><tr>
   <td><button type='button' onclick='toggle_menu()'>menu</button></td>
@@ -22,7 +31,10 @@
 </tr></table>
 <div id='display_wrap'>
   <div id='schedule_wrap' style='display:none'>
-    <div class='entries_wrap schedule'><table id='schedule_entries'></table></div>
+    <div class='entries_wrap schedule'>
+      <table id='schedule_entries'></table>
+    </div>
+    <div id='tick_info' style='display: none'><p></p><p></p></div>
     <table id='schedule_ids'></table>
   </div>
   <div id='timeline_wrap' style='display:none'>
@@ -59,45 +71,104 @@
         <select id='participant_list' onchange='fill_existing(this, "participant")'><option value=''>New Participant</option></select>
         <table class='participant_spec'>
           <tr>
-            <td title='Unique string identifying this participant, to be added to their survey link.'>ID</td>
-            <td><input id='participant_id' name='id' type='text'></td>
-            <td><button type='button' onclick='genid(this)' tabindex='-1'>Generate ID</button></td>
-          </tr>
-          <tr>
-            <td title='10 dignit number (e.g., 5550005555).'>Phone</td>
-            <td><input name='phone' type='tel'></td>
-          </tr>
-          <tr>
-            <td title='First and last day of collection.'>Study days</td>
-            <td><input type='date' name='start_day'></td>
-            <td><input type='date' name='end_day'></td>
-          </tr>
-          <tr>
-            <td title='Starting and ending times within each day, in which beeps might be scheduled.'>Active hours</td>
-            <td><input type='time' name='start_time'></td>
-            <td><input type='time' name='end_time'></td>
+            <td class='name_col' title='Unique string identifying this participant, to be added to their survey link.'>ID</td>
+            <td>
+              <input id='participant_id' name='id' type='text'  tabindex='1'>
+              <button title='Generate a random, unused ID.' type='button' onclick='genid(this)'>↻</button>
+            </td>
+          </tr><tr>
+            <td class='name_col' title='10 dignit number (e.g., 5550005555).'>Phone</td>
+            <td><input name='phone' type='tel'  tabindex='2'></td>
           </tr>
         </table>
         <table class='participant_spec'>
-          <tr><td></td><td>Available</td><td>Selected</td><td title='Sampling strategy for the selected protocols. Hover over each option for details.'>Order Type</td></tr>
           <tr>
-            <td title='Select from the available protocols to identify the protocols to apply across study days.'>Protocols</td>
-            <td><div id='protocol_select'></div></td>
-            <td id='protocol_order'></td>
-            <td><select id='protocol_type' name='order_type' type='select'>
+            <td class='name_col' title='Select from the available protocols to identify the protocols to apply across study days.'>Protocols</td>
+            <td width='100px' title='Sampling strategy for the selected protocols. Hover over each option for details.'>Order Type</td>
+            <td width='150px'>Available</td><td></td><td>Selected</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td><select id='protocol_type' name='order_type' type='select' tabindex='3'>
               <option value='shuffle' title='randomize the order of protocols, applying each before repeating'>Shuffle</option>
               <option value='sample' title='independently sample from protocols to fill the study period'>Sample</option>
               <option value='ordered' title='repeat in the entered order'>Ordered</option>
             </select></td>
+            <td><div id='protocol_select'></div></td>
+            <td id='protocol_fills'>
+              <button type='button'>all</button>
+              <button type='button'>none</button>
+            </td>
+            <td id='protocol_order'></td>
           </tr>
-          <tr><td></td><td></td><td id='protocol_fills'><button type='button'>all</button><button type='button'>none</button></td><td></td></tr>
         </table>
+        <div class='schedule_wrap'>
+          <div class='named_table'>
+            <div><p title='Days in which beeps can be scheduled; unchecked days are skipped.'>Days of the week</p></div>
+            <div><table>
+              <tr>
+                <td>Sunday</td>
+                <td>Monday</td>
+                <td>Tuesday</td>
+                <td>Wednesday</td>
+                <td>Thursday</td>
+                <td>Friday</td>
+                <td>Saturday</td>
+              </tr>
+              <tr id='daysofweek'>
+                <td><input type='checkbox' checked='true'></td>
+                <td><input type='checkbox' checked='true'></td>
+                <td><input type='checkbox' checked='true'></td>
+                <td><input type='checkbox' checked='true'></td>
+                <td><input type='checkbox' checked='true'></td>
+                <td><input type='checkbox' checked='true'></td>
+                <td><input type='checkbox' checked='true'></td>
+              </tr>
+            </table></div>
+          </div>
+          <div class='named_table'>
+            <div>
+              <p title='Start and end dates on and between which beeps cannot be scheduled.'>Blackout Days</p>
+              <button onclick='add_blackout()' type='button'>+</button>
+            </div>
+            <div><table><tr id='blackouts'></tr></table></div>
+          </div>
+          <table class='row_table'><tr>
+            <td title="First and last days of the participant's full study period.">Day range</td>
+            <td><input type='date' name='start_day'  tabindex='4'></td><td><input type='date' name='end_day'  tabindex='5'></td>
+          </tr></table>
+          <div>
+            <div class='timeline_y'>
+              <p title='Earliest and latest time each day between which beeps can be scheduled.'>Time range</p>
+              <input type='time' name='start_time'  tabindex='6'>
+              <div id='menu_timeline'></div>
+              <input type='time' name='end_time'  tabindex='7'>
+            </div>
+            <div id='menu_schedule' class='schedule'></div>
+            <div id='tick_editor' style='display: none'>
+              <div>
+                <input type='time' step=1>
+                <select></select>
+              </div>
+              <div style='display: none'>
+                <input type='date'>
+                <select></select>
+              </div>
+              <div style='display: none'>
+                <input type='time' step=1>
+                <input type='time' step=1>
+              </div>
+              <p><button>revert</button><button>remove</button></p>
+            </div>
+          </div>
+        </div>
         <p class='button_row'>
-          <button type='button' onclick='add_day()'>add day</button>
           <button type='button' id='pause_toggle' onclick='toggle_pause(this)'>pause all</button>
+          <button type='button' onclick='add_day()'>add day</button>
+          <button type='button' onclick='toggle_active(this)'>add beep</button>
+          <button type='button' onclick='toggle_active(this)'>add blackout</button>
           <button type='button' onclick='make_schedule()'>reroll schedule</button>
         </p>
-        <div id='menu_schedule' class='schedule'></div>
       </div>
       <table class='foot_buttons'><tr>
         <td><button type='button' onclick='remove("participant")'>Remove</button></td>
@@ -130,6 +201,14 @@
           <tr>
             <td title='If checked, the first beep is randomized like all other beeps. If not checked, the first beep is set for initial active hour + start offset.'>Random start</td>
             <td><input name='random_start' type='checkbox'></td>
+          </tr>
+          <tr>
+            <td title='Options dictate how beeps are placed within days; hover over each option for more.'>Randomization</td>
+            <td><select name='randomization'>
+              <option title='Places beeps exactly every Minimum separation apart.'>none</option>
+              <option title="Divides the participant's time range into Beeps bins, and randomly places a beep within each." selected=true>binned</option>
+              <option title="Draws a time between the participant's time range, and places a beep if the time is not within a blackout range or within Minimum separation from another beep.">independent</option>
+            </select></td>
           </tr>
           <tr>
             <td title='Minutes after each beep to schedule a reminder text, which is canceled if the survey is accessed. 0 = No reminder.'>Remind after</td>
@@ -221,18 +300,6 @@
     <div class='menu_panes' id='logs_panes'><p>Select a study to view its logs.</p></div>
   </div>
   <div class='screen' onclick='toggle_logs()'></div>
-</div>
-<div id='tick_editor' style='display: none'>
-  <div>
-    <input type='time' step=1>
-    <select></select>
-  </div>
-  <div style='display: none'>
-    <input type='date'>
-    <select></select>
-    <table><tr><td>Reroll times</td><td><input type='checkbox'></td></tr></table>
-  </div>
-  <p><button>cancel</button><button>remove</button><button>set</button></p>
 </div>
 <div class='notifications_wrap'>
   <table><tr>

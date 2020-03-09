@@ -71,15 +71,33 @@ module.exports = {
     }
     return r
   },
+  boolObject: function(a){
+    a = Object(a)
+    for(var n = a.length, i = 0, r = []; i < n; i++){
+      r.push(Boolean(a[i]))
+    }
+    return r
+  },
+  blackouts: function(a){
+    a = Object(a)
+    for(var n = a.length, i = 0, r = [], s, e; i < n; i++){
+      s = parseInt(a[i].start)
+      e = parseInt(a[i].end) || s
+      if(!isNaN(s) && !isNaN(e)) r.push({start: s, end: e})
+    }
+    return r
+  },
   schedule_day: function(o){
     o = Object(o)
-    return {
+    var no = {
       date: parseInt(o.date),
       day: parseInt(o.day),
       protocol: this.gen('type', o.protocol),
       statuses: this.intObject(o.statuses),
       times: this.intObject(o.times)
     }
+    if(o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
+    return no
   },
   schedule: function(a){
     a = Object(a)
@@ -90,7 +108,7 @@ module.exports = {
   },
   participant: function(o){
     o = Object(o)
-    return {
+    var no = {
       id: this.gen('id', o.id),
       phone: this.phone(o.phone),
       timezone: o.hasOwnProperty('timezone') ? parseInt(o.timezone) : new Date().getTimezoneOffset(),
@@ -102,8 +120,11 @@ module.exports = {
       last: parseInt(o.last),
       order_type: this.gen('type', o.order_type),
       protocols: this.protocol_names(o.protocols),
+      daysofweek: this.boolObject(o.daysofweek),
       schedule: this.schedule(o.schedule)
     }
+    if(o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
+    return no
   },
   protocol: function(o){
     o = Object(o)
@@ -114,6 +135,7 @@ module.exports = {
       beeps: parseInt(o.beeps) || 0,
       minsep: parseFloat(o.minsep) || 0,
       offset: parseFloat(o.offset) || 0,
+      randomization: String(o.randomization) || 'binned',
       random_start: 'true' === String(o.random_start),
       remind_after: parseFloat(o.remind_after) || 0,
       close_after: parseFloat(o.close_after) || 0,
