@@ -1461,7 +1461,7 @@ function roll_times(d, p, io){
           }
           break
         default:
-          s = i ? s + binsize : start
+          s = s && i ? s + binsize : start
           e = !i && se.hasOwnProperty('blackouts') ? n : Math.min(end, s + binsize)
           if(i && s - se.times[l + i - 1] < p.minsep * 6e4) s = se.times[l + i - 1] + p.minsep * 6e4
           if(se.hasOwnProperty('blackouts')){
@@ -1524,7 +1524,7 @@ function post_form(type, build_only){
         if(!temp_schedule.schedule || !temp_schedule.protocols || !temp_schedule.daysofweek){
           sort = false
           make_schedule()
-        }
+        }else make_schedule(true)
         u.object.daysofweek = temp_schedule.daysofweek
         if(temp_schedule.hasOwnProperty('blackouts')) u.object.blackouts = temp_schedule.blackouts
         u.object.protocols = temp_schedule.protocols
@@ -1571,7 +1571,7 @@ function post_form(type, build_only){
           schedule[u.id] = u.object
           options.id = ''
           backup()
-          display_schedule()
+          display_schedule(true)
           if(page.schedule_rows.hasOwnProperty(u.id)) page.schedule_rows[u.id].id.firstElementChild.firstElementChild.style.height =
             page.schedule_rows[u.id].entries.getBoundingClientRect().height + 'px'
           if(page.scheduler.frame.style.display === '') toggle_scheduler()
