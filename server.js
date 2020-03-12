@@ -4,7 +4,7 @@ var express = require('express'), app = express(), aws = require('aws-sdk'),
     fs = require('fs'), http = require('https'), Sanitize = require('./docs/sanitize.js'), date_formatter = Intl.DateTimeFormat('en-us',
     {day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: 'numeric'}),
     ddb, database, users, message, studies = {'demo': {dbcopy: {Items: []}, participants: {}, protocols: {}, users: {}}},
-    keys = [], sessions = {}, beeps = {}, cookie_options = {
+    keys = [], sessions = {}, beeps = {}, logs = {enabled: true, dir: 'var/log/scheduler'}, cookie_options = {
       signed: true,
       secure: true,
       httpOnly: true,
@@ -16,7 +16,12 @@ var express = require('express'), app = express(), aws = require('aws-sdk'),
       'list_studies': true
     }
 
-fs.mkdir('logs', function(e){})
+if(logs.enabled) try{
+  fs.mkdir(logs.dir, {recursive: true}, function(e){})
+}catch(e){
+  console.log('failed to create logs directory, so disabled logging')
+  logs.enabled = false
+}
 
 app.use(require('body-parser').json())
 app.use(require('cookie-parser')(cookie_options.secret))
@@ -45,8 +50,9 @@ function verify_jwt(token){
 }
 function log(s, entry){
   var date = date_formatter.format(new Date()).split(', ')
-  fs.appendFile('logs/' + s + '_' + date[0].replace(/\//g, '') + '.txt', date[1] + ': ' + entry + '\n', function(e){if(e) console.log(e)})
-  // console.log(s + '_' + date[0].replace(/\//g, '') + '.txt - ' + date[1] + ': ' + entry)
+  if(logs.enabled){
+    fs.appendFile(logs.dir + '/' + s + '_' + date[0].replace(/\//g, '') + '.txt', date[1] + ': ' + entry + '\n', function(e){if(e) console.log(e)})
+  }else console.log(s + '_' + date[0].replace(/\//g, '') + '.txt - ' + date[1] + ': ' + entry)
 }
 function update_studies(m, s, name, protocols){
   if(!studies.hasOwnProperty(s)){
@@ -256,6 +262,28 @@ function scan_studies(){
 }
 scan_studies()
 
+function add_user(o, m, s, name, nid, username, req, res){
+  req.body.object = Sanitize.user(req.body.object)
+  for(var k in req.body.object) if(req.body.object.hasOwnProperty(k) && 'boolean' === typeof req.body.object[k])
+    req.body.object[k] = req.body.object[k] && studies[s].users[name].hasOwnProperty(k) && studies[s].users[name][k]
+  database.update({
+    TableName: 'studies',
+    Key: {study: s},
+    UpdateExpression: 'SET #u.#n = :p',
+    ExpressionAttributeNames: {'#u': 'users', '#n': username},
+    ExpressionAttributeValues: {':p': req.body.object}
+  }, function(e, d){
+    if(d){
+      studies[s].users[username] = req.body.object
+      studies[s].version = o.version = Date.now()
+    }
+    if(e) console.log(e)
+    log(s, m + 'true, ' + (e ? 'not ' : '') + 'added to database')
+    o.status = 'added user ' + nid + ', and sent them a temporary password'
+    res.json(o)
+  })
+}
+
 app.get('/session', function(req, res){
   var r = {signedin: false, expires: Date.now() + 36e5}
   if(req.signedCookies.id && sessions.hasOwnProperty(req.signedCookies.id)){
@@ -283,10 +311,10 @@ app.post('/checkin', function(req, res){
             t = pp.times[i]
             m += i
             if(t < n && (!pr.close_after || t + pr.close_after * 6e4 > n)){
-              r.available = true
+              r.available = pr.close_after_accessed ? pp.statuses[i] === 1 || pp.statuses[i] === 2 : true
               r.beeps = pp.times.length
               r.beep = i + 1
-              m += ', available'
+              m += r.available ? ', available' : ', not available'
               if(pr.reminder_message && pp.statuses[i] < 4){
                 pp.statuses[i] = pp.statuses[i] === 3 ? 5 : 4
                 if(beeps.hasOwnProperty(sid = '' + s + id + d + i)){
@@ -599,7 +627,7 @@ app.post('/operation', function(req, res){
           m = (studies[s].users.hasOwnProperty(nid) ? 'update' : 'add') + ' user ' + nid + ': '
           if(!nid){
             log(s, m + 'false')
-            o.status
+            o.status = 'no email provided'
             res.json(o)
           }else{
             users.adminCreateUser({
@@ -610,34 +638,23 @@ app.post('/operation', function(req, res){
                 Value: nid
               }]
             }, function(e, d){
-              if(e){
-                log(s, m + 'false')
-                console.log(e)
-                o.status = /already exists/.test(e.message) ? 'user ' + nid + ' already exists'
-                  : 'failed to ' + (studies[s].user.hasOwnProperty(nid) ? 'update' : 'add') + ' user'
-                res.json(o)
-              }else{
-                var username = d.User.Username, k
-                req.body.object = Sanitize.user(req.body.object)
-                for(k in req.body.object) if(req.body.object.hasOwnProperty(k) && 'boolean' === typeof req.body.object[k])
-                  req.body.object[k] = req.body.object[k] && studies[s].users[name].hasOwnProperty(k) && studies[s].users[name][k]
-                database.update({
-                  TableName: 'studies',
-                  Key: {study: s},
-                  UpdateExpression: 'SET #u.#n = :p',
-                  ExpressionAttributeNames: {'#u': 'users', '#n': username},
-                  ExpressionAttributeValues: {':p': req.body.object}
+              if(/already exists/.test(e.message)){
+                m = 'user ' + nid + ' exists but is not in database, so adding them: '
+                users.adminGetUser({
+                  UserPoolId: process.env.USERPOOL,
+                  Username: nid
                 }, function(e, d){
-                  if(d){
-                    studies[s].users[username] = req.body.object
-                    studies[s].version = o.version = Date.now()
-                  }
-                  if(e) console.log(e)
-                  log(s, m + 'true, ' + (e ? 'not ' : '') + 'added to database')
-                  o.status = 'added user ' + nid + ', and sent them a temporary password'
-                  res.json(o)
+                  if(e){
+                    log(s, m + 'false')
+                    o.status = 'failed to retrieve user; try removing them from Cognito manually and readding'
+                    res.json(o)
+                  }else add_user(o, m, s, name, nid, d.Username, req, res)
                 })
-              }
+              }else if(e){
+                log(s, m + 'false')
+                o.status = 'failed to ' + (studies[s].users.hasOwnProperty(nid) ? 'update' : 'add') + ' user'
+                res.json(o)
+              }else add_user(o, m, s, name, nid, d.User.Username, req, res)
             })
           }
           break
@@ -680,38 +697,44 @@ app.post('/operation', function(req, res){
           }
           break
         case 'list_logs':
-          m = 'list logs: '
-          fs.readdir('logs', function(e, d){
-            if(e){
-              console.log(e)
-              log(s, m + 'false')
-              o.status = 'failed to retrieve list of logs'
-              res.json(o)
-            }else{
-              for(var n = d.length, i = 0, sl = new RegExp('^' + s + '_'), r = /[0-9]{6}/; i < n; i++)
-                if(sl.test(d[i])) o[d[i].match(r)[0]] = ''
-              log(s, m + 'true')
-              res.json(o)
-            }
-          })
-          // o.status = 'local logging is currently disabled'
-          // res.json(o)
+          if(logs.enabled){
+            m = 'list logs: '
+            fs.readdir(logs.dir, function(e, d){
+              if(e){
+                console.log(e)
+                log(s, m + 'false')
+                o.status = 'failed to retrieve list of logs'
+                res.json(o)
+              }else{
+                for(var n = d.length, i = 0, sl = new RegExp('^' + s + '_'), r = /[0-9]{6}/; i < n; i++)
+                  if(sl.test(d[i])) o[d[i].match(r)[0]] = ''
+                log(s, m + 'true')
+                res.json(o)
+              }
+            })
+          }else{
+            o.status = 'logging is disabled'
+            res.json(o)
+          }
           break
         case 'view_log':
-          m = 'retrieve log of ' + req.body.file + ': '
-          fs.readFile('logs/' + s + '_' + Sanitize.file(req.body.file) + '.txt', 'utf-8', function(e, d){
-            if(e){
-              console.log(e)
-              log(s, m + 'false')
-              o.status = 'failed to retrieve log of ' + req.body.file
-              res.json(o)
-            }else{
-              log(s, m + 'true')
-              res.json({log: d})
-            }
-          })
-          // o.status = 'local logging is currently disabled'
-          // res.json(o)
+          if(logs.enabled){
+            m = 'retrieve log of ' + req.body.file + ': '
+            fs.readFile(logs.dir + '/' + s + '_' + Sanitize.file(req.body.file) + '.txt', 'utf-8', function(e, d){
+              if(e){
+                console.log(e)
+                log(s, m + 'false')
+                o.status = 'failed to retrieve log of ' + req.body.file
+                res.json(o)
+              }else{
+                log(s, m + 'true')
+                res.json({log: d})
+              }
+            })
+          }else{
+            o.status = 'logging is disabled'
+            res.json(o)
+          }
           break
         default:
           console.log('operation of uncaught type: ' + type)

@@ -139,6 +139,7 @@ module.exports = {
       random_start: 'true' === String(o.random_start),
       remind_after: parseFloat(o.remind_after) || 0,
       close_after: parseFloat(o.close_after) || 0,
+      close_after_accessed: Boolean(o.close_after_accessed),
       initial_message: this.string(o.initial_message),
       reminder_message: this.string(o.reminder_message),
       reminder_link: 'true' === String(o.reminder_link),

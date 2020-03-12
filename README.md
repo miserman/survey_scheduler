@@ -43,10 +43,12 @@ The app needs AWS access to run these services, which can be set up through [IAM
 aws_access_key_id = Access key ID
 aws_secret_access_key = Secret access key
 ```
+Alternatively, if the app is running on a service with an IAM role, these policies can be attached to the role rather than a user.
+
 ### Qualtrics
-The app is set up with [Qualtrics](https://www.qualtrics.com) in mind, though other platforms could be used. The app sends survey links with an added participant ID parameter, which the survey would need to extract in order to associate participants with responses through the link. In Qualtrics, you can get this by setting an Embeded Data variable matching the protocol's specified ID parameter:
+The app is set up with [Qualtrics](https://www.qualtrics.com) in mind, though other platforms could be used. The app sends survey links with an added participant ID parameter, which the survey would need to extract in order to associate participants with responses through the link. In Qualtrics, you can get this by setting an Embedded Data variable matching the protocol's specified ID parameter:
 1. In a survey, select Survey Flow
-1. Add an Emdeded Data element from the Add a New Element Here menu
+1. Add an Embedded Data element from the Add a New Element Here menu
 1. Create New Field matching your ID parameter (e.g., "id"), and leave its value blank.
 
 Qualtrics can also checkin with the app when the survey is accessed:
@@ -80,7 +82,7 @@ Qualtrics.SurveyEngine.addOnload(function(){
     day: "${e://Field/day}",
   }
   this.disableNextButton()
-  if(id.value !== "" && response.available === "true"){
+  if(id !== "" && response.available === "true"){
     message.innerText = "Participant " + id + "; survey " + response.beep + " of "
       + response.beeps + " for day " + response.day + " of " + response.days + "."
     this.enableNextButton()

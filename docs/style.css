@@ -46,7 +46,7 @@ button:hover{background: #000}
   top: 0; width: 100%; height: 100px; overflow-x: auto;
   background: #333; overflow-y: hidden
 }
-#timeline_wrap div.selected{background: #000}
+#timeline_wrap div.selected, .schedule td > div.selected{background: #000; border: 2px solid #fff}
 #clock{position: absolute; background: #d2d2d2; width: 100px; padding: 5px 0; height: 17px}
 #clock span{position:absolute; right: 0; top: 0; height: 100px; width: 2px; background: #d2d2d2}
 .upnext_wrap{position: absolute; left: 100px; right: 0; top: 0}
@@ -148,13 +148,12 @@ tr.active{cursor: copy}
 .row_table td:last-child input{float: right}
 .timeline_y{position: absolute}
 .timeline_y span{display: block; border-top: 1px solid #3e3e3e; text-indent: 60px}
-.timeline_y input{position: relative; margin: 2px 0}
+.timeline_y input{position: relative; margin: 2px 0; height: 21px}
 .timeline_y > p{margin: 40px 0 2px 0; text-align: left}
 #menu_timeline{overflow: hidden; position: relative; width: 9999px}
 #menu_timeline p{font-family: monospace; text-align: left; position: absolute; width: 890px}
 .schedule td{vertical-align: top; min-width: 70px; position: relative}
 /* .schedule td > div{padding: 3px; margin: 0 0 2px 0; position: relative; border: 1px solid #d2d2d2} */
-.schedule td > div.selected{background: #000; color: #fff; position: relative}
 .schedule div > div p:last-child{display: initial}
 .schedule td > p{font-size: .8em}
 .schedule tr td > p:first-child{font-size: 1em}
