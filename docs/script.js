@@ -684,15 +684,16 @@ function show_hovered(e){
 function tick_info(e){
   if(e.target && (e.target.className === 'blackout' || e.target.classList[0] === 'ping')){
     e.target.parentElement.appendChild(page.tick_info)
-    var d = e.target.parentElement.cellIndex, i = parseInt(e.target.children[1].innerText), s,
-        b = e.target.parentElement.getBoundingClientRect(), ie
+    var d = e.target.parentElement.cellIndex, i, s, b = e.target.parentElement.getBoundingClientRect(), ie
     page.tick_info.style.display = ''
     if(e.target.className === 'blackout'){
+      i = parseInt(e.target.children[1].innerText)
       s = study.participants[e.target.children[2].innerText]
       page.tick_info.firstElementChild.innerText = former.ftime.format(s.schedule[d].blackouts[i].start)
       page.tick_info.lastElementChild.innerText = former.ftime.format(s.schedule[d].blackouts[i].end)
       page.tick_info.className = 'blackout_display'
     }else{
+      i = parseInt(e.target.children[2].innerText)
       s = study.participants[e.target.firstElementChild.innerText]
       page.tick_info.firstElementChild.innerText = former.ftime.format(s.schedule[d].times[i])
       page.tick_info.className = page.tick_info.lastElementChild.innerText = names.status[s.schedule[d].statuses[i]]
