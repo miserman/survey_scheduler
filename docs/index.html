@@ -16,11 +16,11 @@
   <button type='button' onclick='toggle_logs()'>logs</button>
   <div id='display_options'>
     <p title='Resolution of the timeline; increase to see more distant beeps.'>timeline scale</p>
-    <table><tr><td><input name='timeline_scale' type='number' step='.01'></input></td></tr></table>
+    <table><tr><td><input name='timeline_scale' type='number' step='.01'/></td></tr></table>
     <p title='Number of days before and after the current time to show schedules, based on their first last beep.'>day range</p>
     <table><tr>
-      <td><input name='days_passed' min='0' type='number'></input></td>
-      <td><input name='days_future' min='0' type='number'></input></td>
+      <td><input name='days_passed' min='0' type='number'/></td>
+      <td><input name='days_future' min='0' type='number'/></td>
     </tr></table>
   </div>
 </div>
@@ -180,7 +180,11 @@
         <table id='protocol_options'>
           <tr>
             <td title='Unique name to identify this protocol.'>Name</td>
-            <td class='packed'><input id='protocol_id' name='name' type='text'><input name='color' type='color'></td>
+            <td><input id='protocol_id' name='name' type='text'></td>
+          </tr>
+          <tr>
+            <td title='Color representing this protocol, which is the background of each displayed day.'>Color</td>
+            <td><input name='color' type='color' value='#868686'></td>
           </tr>
           <tr>
             <td title='Number of days this protocol spans; 0 = An even portion of study days, < 1 = A given percentage of study days, >= 1 Number of days.'>Days</td>
@@ -313,6 +317,7 @@
   <div><table id='notifications'></table></div>
 </div>
 <div class='menu' id='foot_menu'><table><tr>
+  <td width='50px' id='ndisplay'>0 / 0</td>
   <td width='80px'>Filter IDs:</td>
   <td width='50px'><input type='text' onkeyup='filter(this)'></td>
   <td width='50px'><button type='button' onclick='clear_filter(this)'>clear</button></td>

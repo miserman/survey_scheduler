@@ -3,7 +3,8 @@ var express = require('express'), app = express(), aws = require('aws-sdk'),
     crypto = require('crypto'), jwt = require('jsonwebtoken'), pem = require('jwk-to-pem'),
     fs = require('fs'), http = require('https'), Sanitize = require('./docs/sanitize.js'), date_formatter = Intl.DateTimeFormat('en-us',
     {day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: 'numeric'}),
-    ddb, database, users, message, studies = {'demo': {dbcopy: {Items: []}, participants: {}, protocols: {}, users: {}}},
+    ddb, database, users, message, patterns = {colon: /:/g},
+    studies = {'demo': {dbcopy: {Items: []}, participants: {}, protocols: {}, users: {}}},
     keys = [], sessions = {}, beeps = {}, logs = {enabled: true, dir: 'var/log/scheduler'}, cookie_options = {
       signed: true,
       secure: true,
@@ -154,15 +155,21 @@ function send_message(s, id, day, index, status){
     }
   }
 }
+function timeadj(d, e){
+  var p = e.split(patterns.colon)
+  return d.date + parseInt(p[0]) * 36e5 + parseInt(p[1]) * 6e4 + (p.length === 3 ? parseInt(p[2]) * 1e3 : 0)
+}
 function schedule(s, id, day){
-  var d = studies[s].participants[id].schedule[day], t, n = Date.now(), m, i, updated = false, any = false
+  var d = studies[s].participants[id].schedule[day], t, minsep, end, n, now = Date.now(), m, i, updated = false, any = false
   if(!d){
     studies[s].participants[id].schedule.splice(day, 1)
   }else if(d.times){
-    for(i = d.times.length; i--;){
-      t = parseInt(d.times[i])
-      if(d.statuses[i] === 1 && t - n < 6e8){
-        if(t > n){
+    minsep = studies[s].protocols[d.protocol].minsep * 6e4
+    end = timeadj(d, studies[s].participants[id].end_time)
+    for(n = d.times.length, i = 0; i < n; i++){
+      t = d.times[i]
+      if(d.statuses[i] === 1 && t - now < 6e8){
+        if(t > now || now < i === n - 1 ? end : d.times[i + 1] - minsep){
           any = true
           beeps['' + s + id + day + i] = setTimeout(function(){
             send_message(this.s, this.id, this.day, this.index, 2)
@@ -262,10 +269,10 @@ function scan_studies(){
 }
 scan_studies()
 
-function add_user(o, m, s, name, nid, username, req, res){
+function add_user(o, m, s, base_perms, email, username, req, res){
   req.body.object = Sanitize.user(req.body.object)
   for(var k in req.body.object) if(req.body.object.hasOwnProperty(k) && 'boolean' === typeof req.body.object[k])
-    req.body.object[k] = req.body.object[k] && studies[s].users[name].hasOwnProperty(k) && studies[s].users[name][k]
+    req.body.object[k] = req.body.object[k] && base_perms.hasOwnProperty(k) && base_perms[k]
   database.update({
     TableName: 'studies',
     Key: {study: s},
@@ -273,14 +280,23 @@ function add_user(o, m, s, name, nid, username, req, res){
     ExpressionAttributeNames: {'#u': 'users', '#n': username},
     ExpressionAttributeValues: {':p': req.body.object}
   }, function(e, d){
-    if(d){
+    if(e){
+      m += 'false'
+      console.log(e)
+      res.status(400).json(o)
+    }else{
+      if(studies[s].users.hasOwnProperty(username)){
+        m += 'true'
+        o.status = 'updated user ' + email
+      }else{
+        m += 'true, added to database'
+        o.status = 'added user ' + email + ', and sent them a temporary password'
+      }
       studies[s].users[username] = req.body.object
       studies[s].version = o.version = Date.now()
+      res.json(o)
     }
-    if(e) console.log(e)
-    log(s, m + 'true, ' + (e ? 'not ' : '') + 'added to database')
-    o.status = 'added user ' + nid + ', and sent them a temporary password'
-    res.json(o)
+    log(s, m)
   })
 }
 
@@ -306,15 +322,14 @@ app.post('/checkin', function(req, res){
         if(td === day || (pdm = pd === day)){
           r.days = p.schedule.length
           r.day = d + 1
-          m += r.day + ', times: '
+          m += r.day + ', beep: '
           for(pp = p.schedule[d], pr = studies[s].protocols[pp.protocol], i = pp.times.length; i--;){
             t = pp.times[i]
-            m += i
             if(t < n && (!pr.close_after || t + pr.close_after * 6e4 > n)){
               r.available = pr.close_after_accessed ? pp.statuses[i] === 1 || pp.statuses[i] === 2 : true
               r.beeps = pp.times.length
               r.beep = i + 1
-              m += r.available ? ', available' : ', not available'
+              m += i + ', ' + (r.available ? '' : 'not ') + 'available'
               if(pr.reminder_message && pp.statuses[i] < 4){
                 pp.statuses[i] = pp.statuses[i] === 3 ? 5 : 4
                 if(beeps.hasOwnProperty(sid = '' + s + id + d + i)){
@@ -453,13 +468,16 @@ app.post('/operation', function(req, res){
             var exists = false
             if(e && (!e.message || !(exists = /already exists/.test(e.message)))){
               console.log(e)
+              m += 'false'
               o.status = 'failed to add study ' + s
-              log(s, m + 'false')
+              res.status(400).json(o)
             }else{
+              m += 'true'
               o.status = exists ? 'study ' + s + ' already exists' : 'added study ' + s
               update_studies(m, s, name, req.body.protocols)
+              res.json(o)
             }
-            res.json(o)
+            log(s, m)
           })
           break
         case 'list_studies':
@@ -476,7 +494,7 @@ app.post('/operation', function(req, res){
         default:
           o.status = 'study ' + s + ' not on record'
           o.signedin = check.signedin
-          res.json(o)
+          res.status(400).json(o)
       }
     }else{
       o.version = studies[s].version
@@ -516,7 +534,7 @@ app.post('/operation', function(req, res){
                 console.log(e)
                 log(s, m + ', failed to remove from database')
                 o.status = /does not exists/.test(e.message) ? 'study ' + s + ' does not exist' : 'failed to remove study ' + s
-                res.json(o)
+                res.status(400).json(o)
               }else{
                 delete studies[s]
                 log(s, m + ', removes from database')
@@ -539,7 +557,7 @@ app.post('/operation', function(req, res){
               console.log(e)
               log(s, m + 'false')
               o.status = 'failed to add participant ' + nid
-              res.json(o)
+              res.status(400).json(o)
             }else{
               log(s, m + 'true')
               if(existing){
@@ -554,8 +572,9 @@ app.post('/operation', function(req, res){
               }
               studies[s].participants[nid] = req.body.object
               for(var day = req.body.object.schedule.length; day--;) schedule(s, nid, day)
-              res.json({id: nid, schedule: req.body.object.schedule})
-              studies[s].version = o.version = Date.now()
+              studies[s].version = o.status = Date.now()
+              o.status = (existing ? 'updated' : 'created') + ' participant ' + nid
+              res.json(o)
             }
           })
           break
@@ -570,7 +589,7 @@ app.post('/operation', function(req, res){
               console.log(e)
               log(s, m + 'false')
               o.status = /does not exists/.test(e.message) ? 'participant ' + nid + ' does not exist' : 'failed to remove participant ' + nid
-              res.json(o)
+              res.status(400).json(o)
             }else{
               delete studies[s].participants[nid]
               log(s, m + 'true')
@@ -591,16 +610,19 @@ app.post('/operation', function(req, res){
             ExpressionAttributeValues: {':p': req.body.object}
           }, function(e, d){
             if(d){
+              m += 'true'
               o.status = (studies[s].protocols.hasOwnProperty(nid) ? 'updated' : 'added') + ' protocol ' + nid
               studies[s].protocols[nid] = req.body.object
               studies[s].version = o.version = Date.now()
+              res.json(o)
             }
             if(e){
+              m += 'false'
               console.log(e)
               o.status = 'failed to ' + (studies[s].protocols.hasOwnProperty(nid) ? 'update' : 'add') + ' protocol ' + nid
+              res.status(400).json(o)
             }
-            log(s, m + (e ? 'false' : 'true'))
-            res.json(o)
+            log(s, m)
           })
           break
         case 'remove_protocol':
@@ -613,49 +635,64 @@ app.post('/operation', function(req, res){
           }, function(e, d){
             if(e){
               console.log(e)
+              m += 'false'
               o.status = 'failed to remove protocol ' + nid
+              res.status(400).json(o)
             }else{
               delete studies[s].protocols[nid]
+              m += 'true'
               o.status = 'removed protocol "' + nid + '".'
               studies[s].version = o.version = Date.now()
+              res.json(o)
             }
-            log(s, m + (e ? 'false' : 'true'))
-            res.json(o)
+            log(s, m)
           })
           break
         case 'add_user':
-          m = (studies[s].users.hasOwnProperty(nid) ? 'update' : 'add') + ' user ' + nid + ': '
-          if(!nid){
-            log(s, m + 'false')
-            o.status = 'no email provided'
-            res.json(o)
+          var email = nid, k
+          for(k in studies[s].users) if(studies[s].users.hasOwnProperty(k) && studies[s].users[k].email === email){
+            nid = k
+            break
+          }
+          if(email !== nid){
+            m = 'update user ' + email + ': '
+            add_user(o, m, s, studies[s].users[name], email, nid, req, res)
           }else{
-            users.adminCreateUser({
-              UserPoolId: process.env.USERPOOL,
-              Username: nid,
-              UserAttributes: [{
-                Name: 'email',
-                Value: nid
-              }]
-            }, function(e, d){
-              if(/already exists/.test(e.message)){
-                m = 'user ' + nid + ' exists but is not in database, so adding them: '
-                users.adminGetUser({
-                  UserPoolId: process.env.USERPOOL,
-                  Username: nid
-                }, function(e, d){
-                  if(e){
+            m = 'add user ' + email + ': '
+            if(!nid){
+              log(s, m + 'false')
+              o.status = 'no email provided'
+              res.status(400).json(o)
+            }else{
+              users.adminCreateUser({
+                UserPoolId: process.env.USERPOOL,
+                Username: nid,
+                UserAttributes: [{
+                  Name: 'email',
+                  Value: nid
+                }]
+              }, function(e, d){
+                if(e){
+                  if(e.message && /already exists/.test(e.message)){
+                    m = 'user ' + nid + ' exists but is not in database, so adding them: '
+                    users.adminGetUser({
+                      UserPoolId: process.env.USERPOOL,
+                      Username: nid
+                    }, function(e, d){
+                      if(e){
+                        log(s, m + 'false')
+                        o.status = 'failed to retrieve user; try removing them from Cognito manually and readding'
+                        res.status(400).json(o)
+                      }else add_user(o, m, s, studies[s].users[name], nid, d.Username, req, res)
+                    })
+                  }else{
                     log(s, m + 'false')
-                    o.status = 'failed to retrieve user; try removing them from Cognito manually and readding'
-                    res.json(o)
-                  }else add_user(o, m, s, name, nid, d.Username, req, res)
-                })
-              }else if(e){
-                log(s, m + 'false')
-                o.status = 'failed to ' + (studies[s].users.hasOwnProperty(nid) ? 'update' : 'add') + ' user'
-                res.json(o)
-              }else add_user(o, m, s, name, nid, d.User.Username, req, res)
-            })
+                    o.status = 'failed to ' + (studies[s].users.hasOwnProperty(nid) ? 'update' : 'add') + ' user'
+                    res.status(400).json(o)
+                  }
+                }else add_user(o, m, s, studies[s].users[name], nid, d.User.Username, req, res)
+              })
+            }
           }
           break
         case 'remove_user':
@@ -668,7 +705,7 @@ app.post('/operation', function(req, res){
               if(e && !/does not exist/.test(e.message)){
                 log(s, m + 'false')
                 o.status = 'failed to remove user ' + uid
-                res.json(o)
+                res.status(400).json(o)
               }else{
                 database.update({
                   TableName: 'studies',
@@ -693,7 +730,7 @@ app.post('/operation', function(req, res){
           }else{
             o.status += 'no user with that email exists'
             log(s, m + 'false')
-            res.json(o)
+            res.status(400).json(o)
           }
           break
         case 'list_logs':
@@ -704,7 +741,7 @@ app.post('/operation', function(req, res){
                 console.log(e)
                 log(s, m + 'false')
                 o.status = 'failed to retrieve list of logs'
-                res.json(o)
+                res.status(400).json(o)
               }else{
                 for(var n = d.length, i = 0, sl = new RegExp('^' + s + '_'), r = /[0-9]{6}/; i < n; i++)
                   if(sl.test(d[i])) o[d[i].match(r)[0]] = ''
@@ -714,7 +751,7 @@ app.post('/operation', function(req, res){
             })
           }else{
             o.status = 'logging is disabled'
-            res.json(o)
+            res.status(400).json(o)
           }
           break
         case 'view_log':
@@ -725,7 +762,7 @@ app.post('/operation', function(req, res){
                 console.log(e)
                 log(s, m + 'false')
                 o.status = 'failed to retrieve log of ' + req.body.file
-                res.json(o)
+                res.status(400).json(o)
               }else{
                 log(s, m + 'true')
                 res.json({log: d})
@@ -733,18 +770,18 @@ app.post('/operation', function(req, res){
             })
           }else{
             o.status = 'logging is disabled'
-            res.json(o)
+            res.status(400).json(o)
           }
           break
         default:
           console.log('operation of uncaught type: ' + type)
           o.status = 'unknown operation type'
-          res.json(o)
+          res.status(400).json(o)
       }
     }
   }else{
     log('sessions', 'rejected operation attempt from ' + req.ip)
-    res.json({status: 'not authorized'})
+    res.status(403).json({status: 'not authorized'})
   }
 })
 

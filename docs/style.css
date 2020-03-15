@@ -10,7 +10,7 @@ label, button, th, h1, h2, h3, p, .menu_wrap td, .schedule td, #scheduler_notifi
 input[type='checkbox'], select{cursor: pointer}
 input[type='text'], input[type='number'], input[type='email'], input[type='tel'], input[type='url']{text-indent: 6px}
 input[type='time'], input[type='date']{cursor: text}
-.packed input[type='color']{cursor: pointer; padding: 0; max-width: 25px}
+.menu_wrap input[type='color']{padding: 0}
 input, select{display: inline-block; border: none}
 button{
   cursor: pointer; background: #4a4a4a; color: #e6e6e6; border-radius: 5px;
@@ -76,7 +76,7 @@ div.nearest, .upnext_wrap table{background: #0060ea; color: #fff}
 #schedule_entries tr:last-child td > p:first-child{font-size: .95em}
 #schedule_entries td > p{font-size: .8em}
 #schedule_entries td > p:first-child{font-size: 1em}
-#schedule_entries table.selected tr:last-child, #menu_timeline{background: url('timeline.svg') no-repeat; background-size: 9999px}
+#schedule_entries table.selected tr:last-child, #menu_timeline{background: url('timeline.svg') no-repeat; background-size: 9999px; background-color: #292929}
 #schedule_entries table.selected tr:last-child{background-position-x: -60px}
 #protocol_fills{width: 25px; padding: 0 5px}
 #protocol_fills button{margin: 0 0 1px 0; width: 100%}
@@ -148,7 +148,7 @@ tr.active{cursor: copy}
 .row_table td:last-child input{float: right}
 .timeline_y{position: absolute}
 .timeline_y span{display: block; border-top: 1px solid #3e3e3e; text-indent: 60px}
-.timeline_y input{position: relative; margin: 2px 0; height: 21px}
+.timeline_y input{position: relative; margin: 2px 0; height: 21px; width: 100px}
 .timeline_y > p{margin: 40px 0 2px 0; text-align: left}
 #menu_timeline{overflow: hidden; position: relative; width: 9999px}
 #menu_timeline p{font-family: monospace; text-align: left; position: absolute; width: 890px}
@@ -176,8 +176,6 @@ tr.active{cursor: copy}
 .rowinfo p{text-align: right; padding: 4px 0}
 .table_wrap{overflow-x: auto}
 #protocol_options tr input, #user_options input{width: 100%}
-#protocol_options tr:first-child input:first-of-type{float: left; width: 92%}
-#protocol_options tr:first-child input:last-of-type{float: right; width: 8%; height: 29px}
 #scheduler_notification{padding: 5px; margin: 10px; background: #ffff87; position: fixed; left: 0; bottom: 0; opacity: 0}
 #protocol_order{border-spacing: 10px 5px}
 #protocol_order td:nth-child(2), #protocols_order td:last-of-type{width: 150px}
@@ -190,6 +188,7 @@ tr.active{cursor: copy}
   text-align: left; width: 80%; left: 0; background: #868686; color: #dedede; border-radius: 15px;
   padding: 8px 10px; margin: 5px auto 5px 0; word-break: break-all; word-break: break-word; max-width: 225px
 }
+#ndisplay{text-align: center}
 .foot_buttons{border-radius: 0 0 18px 18px; background: #484848; color: #dedede; border-spacing: 0}
 .foot_buttons td{padding: 0}
 .foot_buttons button{width: 100%; padding: 12px; font-size: 1.2em}

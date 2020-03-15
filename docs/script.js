@@ -10,6 +10,7 @@ var session, module = {exports: {}}, Sanitize, pending = {}, page = {
   studies: $('studies'),
   top_menu: $('top_menu'),
   foot_menu: $('foot_menu'),
+  ndisplay: $('ndisplay'),
   notifications: $('notifications'),
   latest_notification: $('latest_notification'),
   side_menu: $('side_menu'),
@@ -68,18 +69,20 @@ var session, module = {exports: {}}, Sanitize, pending = {}, page = {
 }, loading = false, queued = false, edit = {t: 0, b: 0, e: false}, update_queue = {}, schedule = {}, temp_schedule = {}, nearest,
 timezone = new Date().getTimezoneOffset(), study = {participants: {}, protocols: {}, version: 0, recalls: 0},
 store = window.localStorage || {}, logs = {}, patterns = {
-  addRemove: /^(?:add_|remove_)/, add: /^add_/, remove: /^remove_/, noRecord: /not on record/, idPhone: /^(?:id|phone)$/, pm: /PM$/, failed: /failed/,
+  addRemove: /^(?:add_|remove_)/, add: /^add_/, remove: /^remove_/, noRecord: /not on record/, idPhone: /^(?:id|phone)$/,
   d7: /\d{7}/, dashdate: /^\d{4}-\d{2}-\d{2}$/, stripdate: /\d{2}(?=\d{2}$)|[^0-9]/g, gcm: /[^\u0000-\u007f]/g, http: /(http[s:/]+(.+$))/,
-  pButton: /^(?:P|BUTTON)$/, crs: /^(?:cancel|remove|set)$/, qmark: /\?/, space: /\s/g, colonspace: /[:\s]/g, apm: /[ap:]/i, colon: /:/g, p: /p/i,
-  numpunct: /[^0-9:\s-]/g, mli: /(?:message$|link$|^id)/, query: /\?.*$/, cmli: /(?:color|id|message|link)/, slash: /\//g, n: /[?&][Nn]=(\d+)/
+  pButton: /^(?:P|BUTTON)$/, crs: /^(?:cancel|remove|set)$/, qmark: /\?/, space: /\s/g, colonspace: /[:\s]/g, apm: /[ap:]/i, anycolon: /:/, colon: /:/g,
+  a: /a/i, p: /p/i, timestamp: /[^0-9:apm\s-]/gi, numpunct: /[^0-9:\s-]/g, mli: /(?:message$|link$|^id)/, query: /\?.*$/, cmli: /(?:color|id|message|link)/,
+  slash: /\//g, n: /[?&][Nn]=(\d+)/
 }, former = {
   time: Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit'}),
   ftime: Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit', second: 'numeric'}),
   mtime: Intl.DateTimeFormat('en-us', {hour: '2-digit', minute: '2-digit', second: 'numeric', hourCycle: 'h23'}),
+  mtime_short: Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit', hourCycle: 'h23'}),
   day: Intl.DateTimeFormat('en-us', {month: '2-digit', day: '2-digit'}),
   date: Intl.DateTimeFormat('en-us', {month: '2-digit', day: '2-digit', year: 'numeric'}),
   dashdate: function(t){var s = this.date.format(t).split(patterns.slash); return s[2] + '-' + s[0] + '-' + s[1]}
-}, now = Math.floor(Date.now() / 6e4) * 6e4, options = {
+}, now = Date.now(), options = {
   study: '',
   studies: false,
   n: 0,
@@ -90,8 +93,8 @@ store = window.localStorage || {}, logs = {}, patterns = {
   participant: {
     start_day: former.dashdate(now),
     end_day: former.dashdate(now + 14 * 864e5),
-    start_time: former.mtime.format(now),
-    end_time: former.mtime.format(now + 54e6)
+    start_time: former.mtime_short.format(now),
+    end_time: former.mtime_short.format(now + 54e6)
   },
   protocol: {
     signal: {
@@ -392,21 +395,29 @@ function update_display_options(){
     }, 50)
   }
 }
+function clear_time_edit(e){
+  page.tick_editor.style.display = 'none'
+  document.body.appendChild(page.tick_editor)
+  if(e) e.innerHTML = ''
+}
 function display_schedule(refresh){
   if(options.study){
-    var k, i, p, e, d, t
+    var k, i, p, e, d, t, disp = 0
     now = Date.now()
     if(refresh) page.timeline.innerHTML = page.ids.innerHTML = page.entries.innerHTML = ''
     nearest = [Infinity, null, null]
-    page.timeline.innerHTML = ''
     options.n = 0
     for(k in schedule) if(schedule.hasOwnProperty(k)){
       options.n++
       if((now - schedule[k].last < 864e5 && schedule[k].first - now < 864e5 * options.days_future) ||
         (schedule[k].first - now < 864e5 && now - schedule[k].last < 864e5 * options.days_passed)){
+        disp++
         p = schedule[k].schedule
         if(refresh || !page.schedule_rows.hasOwnProperty(k)){
-          page.schedule_rows[k] = {id: document.createElement('tr'), entries: document.createElement('tr')}
+          if(page.schedule_rows.hasOwnProperty(k)){
+            page.schedule_rows[k].id.innerHTML = ''
+            page.schedule_rows[k].entries.innerHTML = ''
+          }else page.schedule_rows[k] = {id: document.createElement('tr'), entries: document.createElement('tr')}
           page.schedule_rows[k].id.appendChild(e = document.createElement('td'))
           e.appendChild(e = document.createElement('button'))
           e.innerText = k
@@ -425,6 +436,7 @@ function display_schedule(refresh){
       }
     }
     backup()
+    page.ndisplay.innerText = disp + ' / ' + options.n
     page.timeline.style.left = '100px'
     if(nearest[1]){
       p = page.entries.getElementsByClassName('nearest')
@@ -457,6 +469,7 @@ function display_single_schedule(fs, o, makenew){
       end = 'string' === typeof(fs.end_time) ? toMs(fs.end_time) : fs.end_time,
       n, d, b, i, v, pv, tl = o.id !== 'menu_schedule', e, c, ed, ee
   if(makenew){
+    clear_time_edit()
     o.innerHTML = '<table><tr></tr><tr></tr></table>'
     ed = o.firstElementChild.firstElementChild.firstElementChild
     ee = o.firstElementChild.firstElementChild.lastElementChild
@@ -501,7 +514,7 @@ function display_single_schedule(fs, o, makenew){
       }else{
         e = ee.children[d].children[i]
         e.style.top = v * 360 / 864e5 + 'px'
-        e.classList.replace(e.classList[1], names.status[s[d].statuses[i]])
+        e.className = 'ping ' + names.status[s[d].statuses[i]]
         e.firstElementChild.innerText = id
         e.lastElementChild.innerText = i
       }
@@ -680,8 +693,8 @@ function tick_info(e){
       page.tick_info.className = page.tick_info.lastElementChild.innerText = names.status[s.schedule[d].statuses[i]]
     }
     ie = page.tick_info.getBoundingClientRect()
-    page.tick_info.style.top = (e.clientY - b.y - 1) - ie.height + 'px'
-    page.tick_info.style.left = (e.clientX - b.x - 1) - ie.width + 'px'
+    page.tick_info.style.top = (e.clientY - b.top - 1) - ie.height + 'px'
+    page.tick_info.style.left = (e.clientX - b.left - 1) - ie.width + 'px'
   }else{
     page.tick_info.style.display = 'none'
   }
@@ -699,6 +712,7 @@ function show_nearest(e){
 function add_day(){
   var e, c, d
   if(!page.menu_schedule.childElementCount){
+    clear_time_edit()
     page.menu_schedule.innerHTML = '<table><tr></tr><tr></tr><tr></tr><tr></tr></table>'
   }
   e = page.menu_schedule.firstElementChild.firstElementChild
@@ -733,6 +747,18 @@ function add_day(){
 function refresh(){
   if(window.localStorage) window.localStorage.clear()
   window.location.reload()
+}
+function skip_days(week, day, d, ds){
+  var a = 0, i = new Date(day + 864e5 * (d + ds)).getDay()
+  if(!week[i]) while(!week[i]){
+    i++
+    a++
+    if(i >= week.length){
+      if(a > 6) break
+      i = 0
+    }
+  }
+  return a
 }
 function make_schedule(preserve, background){
   var io = temp_schedule, i, e = page.scheduler.participant.options.getElementsByTagName('INPUT'), day, n, a, v, d, cn, pd, pi, ds, nd, ck, bl = []
@@ -775,33 +801,25 @@ function make_schedule(preserve, background){
       if(edit.holding && edit.holding.className !== 'blackout') edit.e = edit.holding = false
       io.first = Infinity
       io.last = -Infinity
-      for(day = io.start_day, d = 0, ds = 0; d < n; d++){
+      for(day = io.start_day, d = 0, ds = 0; d <= n; d++){
+        ds += skip_days(io.daysofweek, day, d, ds)
         if(i = bl.length){
           for(nd = day + 864e5 * (d + ds); i--;){
             if(nd >= bl[i].start && nd <= bl[i].end){
               ds += (bl[i].end - nd) / 864e5 + 1
+              ds += skip_days(io.daysofweek, day, d, ds)
+              nd = day + 864e5 * (d + ds)
+              i = bl.length
             }
           }
         }
-        if(!io.daysofweek[i = new Date(day + 864e5 * (d + ds)).getDay()]){
-          a = 0
-          while(!io.daysofweek[i]){
-            i++
-            a++
-            if(i >= io.daysofweek.length){
-              if(a > 6) break
-              i = 0
-            }
-          }
-          ds += a
-        }
-        if(day + 864e5 * (d + ds - 1) > io.end_day) break
+        if(day + 864e5 * (d + ds - 1) >= io.end_day) break
         if(io.schedule.length > d && io.schedule[d].date === day + 864e5 * (d + ds)){
           io.schedule[d].times = []
           io.schedule[d].statuses = []
         }else io.schedule[d] = {day: d, date: day + 864e5 * (d + ds), times: [], statuses: []}
       }
-      if(n < io.schedule.length) for(n = io.schedule.length; d < n; d++) io.schedule.splice(d, 1)
+      if(d < io.schedule.length) io.schedule.splice(d, io.schedule.length - d)
       n = io.schedule.length
       roll_protocols(n, io)
       for(pd = 1, pi = 0, d = 0; d < n; d++){
@@ -830,17 +848,19 @@ function make_schedule(preserve, background){
       display_single_schedule(io, page.menu_schedule, true)
       page.menu_schedule.firstElementChild.firstElementChild.firstElementChild.insertAdjacentElement('afterEnd', e = document.createElement('tr'))
       e.insertAdjacentElement('afterEnd', document.createElement('tr'))
-      for(v = io.schedule.length, d = 0; d < v; d++){
+    }
+    for(v = io.schedule.length, d = 0; d < v; d++){
+      io.schedule[d].times_index = []
+      for(n = io.schedule[d].times.length, i = 0; i < n; i++) io.schedule[d].times_index.push(i)
+      if(io.schedule[d].hasOwnProperty('blackouts')){
+        io.schedule[d].blackouts_index = []
+        for(n = io.schedule[d].blackouts.length, i = 0; i < n; i++) io.schedule[d].blackouts_index.push(i)
+      }
+      if(!background){
         e.appendChild(document.createElement('td'))
         e.lastElementChild.appendChild(document.createElement('button'))
         e.lastElementChild.lastElementChild.type = 'button'
         cn = io.schedule[d].statuses.indexOf(6) !== -1 ? 'unpause' : 'pause'
-        io.schedule[d].times_index = []
-        for(n = io.schedule[d].times.length, i = 0; i < n; i++) io.schedule[d].times_index.push(i)
-        if(io.schedule[d].hasOwnProperty('blackouts')){
-          io.schedule[d].blackouts_index = []
-          for(n = io.schedule[d].blackouts.length, i = 0; i < n; i++) io.schedule[d].blackouts_index.push(i)
-        }
         e.lastElementChild.lastElementChild.innerText = cn
         if(cn === 'unpause'){
           e.lastElementChild.lastElementChild.className = 'pending'
@@ -919,13 +939,11 @@ function add_study(e){
   if(e.value){
     request('/operation', function(d){
       notify(d)
-      if(!patterns.failed.test(d.status)){
-        if(options.studies.indexOf(e.value) === -1) options.studies.push(e.value)
-        options.study = e.value
-        display_studies()
-        page.study_selector.style.display = 'none'
-        load_schedule()
-      }
+      if(options.studies.indexOf(e.value) === -1) options.studies.push(e.value)
+      options.study = e.value
+      display_studies()
+      page.study_selector.style.display = 'none'
+      load_schedule()
     }, notify, {type: 'add_study', study: e.value, protocols: options.protocol})
   }
 }
@@ -1008,6 +1026,7 @@ function fill_protocol_order(e){
       p.lastElementChild.innerText = e[i]
     }
   }
+  make_schedule()
 }
 function edit_protocol_list(e){
   if(e.target && e.target.tagName){
@@ -1021,6 +1040,7 @@ function edit_protocol_list(e){
       }else if(e.target.previousSibling) e.target.previousSibling.parentNode.removeChild(e.target.previousSibling)
       e.target.parentNode.removeChild(e.target)
     }
+    make_schedule()
   }
   options.participant.protocols = page.scheduler.participant.protocol_order.innerText.split(', ')
 }
@@ -1034,13 +1054,17 @@ function update_user(e){
   }
 }
 function filter(e){
-  var s = /^/, k, t
+  var s = /^/, k, t, disp = 0
   try{s = new RegExp(e.value)}catch(e){}
   for(k in page.schedule_rows) if(page.schedule_rows.hasOwnProperty(k)){
-    t = s.test(k) ? 'remove' : 'add'
+    if(s.test(k)){
+      t = 'remove'
+      disp++
+    }else t = 'add'
     page.schedule_rows[k].id.classList[t]('hide')
     page.schedule_rows[k].entries.classList[t]('hide')
   }
+  page.ndisplay.innerText = disp + ' / ' + options.n
 }
 function clear_filter(e){
   e.parentElement.previousElementSibling.firstElementChild.value = ""
@@ -1117,7 +1141,8 @@ function toggle_scheduler(){
     page.scheduler.participant.blackouts.innerHTML = ''
     for(e = page.scheduler.user.options.getElementsByTagName('INPUT'), i = e.length; i--;) if(e[i].name && options.user.hasOwnProperty(e[i].name))
       e[i][e[i].type === 'checkbox' ? 'checked' : 'value'] = options.user[e[i].name]
-    po.innerHTML = page.menu_schedule.innerHTML = ''
+    clear_time_edit(page.menu_schedule)
+    po.innerHTML = ''
     if(options.participant.hasOwnProperty('protocols')){
       for(n = options.participant.protocols.length, i = 0; i < n; i++) if(options.participant.protocols[i] !== '' &&
           options.protocol.hasOwnProperty(options.participant.protocols[i])){
@@ -1148,8 +1173,7 @@ function toggle_scheduler(){
     e[0].value = e[1].value = ''
     page.scheduler.frame.style.display = 'none'
     page.menu_timeline.style.height = '0px'
-    document.body.appendChild(page.tick_editor)
-    page.tick_editor.style.display = 'none'
+    clear_time_edit()
     temp_schedule.updated = false
   }
 }
@@ -1191,8 +1215,12 @@ function fill_existing(e, t){
     if(e.target.tagName === 'BUTTON'){
       options.tab = 0
       toggle_scheduler()
-      page.scheduler.participant.list.selectedIndex = e.target.parentElement.parentElement.rowIndex + 1
-      page.scheduler.participant.list.onchange()
+      for(var i = page.scheduler.participant.list.childElementCount - 1, id = e.target.innerText; i--;)
+        if(page.scheduler.participant.list.options[i + 1].innerText === id){
+          page.scheduler.participant.list.selectedIndex = i + 1
+          page.scheduler.participant.list.onchange()
+          break
+        }
     }
     return
   }
@@ -1205,7 +1233,7 @@ function fill_existing(e, t){
         c.value = pn
         t === 'protocol' ? update_protocol({target: c}) : t === 'participant' ? update_options({target: c}) : update_user({target: c})
       }else if(c.name){
-        c[c.type === 'checkbox' ? 'checked' : 'value'] = p.hasOwnProperty(c.name) && p[c.name] ? p[c.name] : c.name === 'color' ? '#000000': ''
+        c[c.type === 'checkbox' ? 'checked' : 'value'] = p.hasOwnProperty(c.name) && p[c.name] ? p[c.name] : c.name === 'color' ? '#b0b0b0': ''
       }
     }
     e = page.scheduler[t].options.getElementsByTagName('select')
@@ -1229,7 +1257,7 @@ function fill_existing(e, t){
       }
       page.scheduler.participant.pause_toggle.innerText = 'pause all'
       temp_schedule = p ? JSON.parse(JSON.stringify(p)) : {}
-      pn === '' ? page.menu_schedule.innerHTML = '' : make_schedule(true)
+      pn === '' ? clear_time_edit(page.menu_schedule) : make_schedule(true)
       temp_schedule.updated = false
     }
   }else{
@@ -1250,22 +1278,24 @@ function remove(s){
         notify({status: 'click again to remove'}, true)
       }else{
         page.scheduler[s].submit.parentElement.previousElementSibling.firstElementChild.innerText = 'Remove'
-        request('/operation', notify, notify, {type: 'remove_' + s, study: options.study, id: n})
-        if(study[s + 's'].hasOwnProperty(n)) delete study[s + 's'][n]
-        if(s === 'participant' && page.schedule_rows.hasOwnProperty(n)){
-          schedule = study.participants
-          page.schedule_rows[n].id.parentElement.removeChild(page.schedule_rows[n].id)
-          page.schedule_rows[n].entries.parentElement.removeChild(page.schedule_rows[n].entries)
-          delete page.schedule_rows[n]
-        }
-        fill_existing(false, s)
-        fill_selection(['participant', 'protocol', 'user'].indexOf(s))
-        if(options[s].hasOwnProperty(n)){
-          if(s !== 'participant') delete options[s][n]
-        }else{
-          toggle_scheduler()
-        }
-        if(s !== 'users') load_schedule()
+        request('/operation', function(d){
+          notify(d)
+          if(study[s + 's'].hasOwnProperty(n)) delete study[s + 's'][n]
+          if(s === 'participant' && page.schedule_rows.hasOwnProperty(n)){
+            schedule = study.participants
+            page.schedule_rows[n].id.parentElement.removeChild(page.schedule_rows[n].id)
+            page.schedule_rows[n].entries.parentElement.removeChild(page.schedule_rows[n].entries)
+            delete page.schedule_rows[n]
+          }
+          fill_existing(false, s)
+          fill_selection(['participant', 'protocol', 'user'].indexOf(s))
+          if(options[s].hasOwnProperty(n)){
+            if(s !== 'participant') delete options[s][n]
+          }else{
+            toggle_scheduler()
+          }
+          if(s !== 'users') load_schedule()
+        }, function(d){notify(d, true)}, {type: 'remove_' + s, study: options.study, id: n})
       }
     }else notify({status: 'fill the first input to remove'}, true)
   }else notify({status: 'select a study to remove anything'}, true)
@@ -1368,28 +1398,43 @@ function update_options(e){
       options.participant[e.name] = e.options[e.selectedIndex].value
     }
     backup()
-    make_schedule(e.names !== 'id' && e.names !== 'phone')
+    make_schedule(e.name === 'id' || e.name === 'phone')
   }else if(e.type === 'checkbox'){
     temp_schedule.daysofweek = options.participant.daysofweek = get_daysofweek()
+    make_schedule()
   }
 }
 function get_daysofweek(){
   for(var i = 0, r = []; i < 7; i++) r.push(page.scheduler.participant.daysofweek.children[i].firstElementChild.checked)
   return r
 }
+function to23h(time){
+  var s = time.toString(), p = ['', ''], n = 0
+  if(patterns.apm.test(s)){
+    p = s.replace(patterns.numpunct, '').split(patterns.colon)
+    n = parseInt(p[0])
+    if(n < 12 && patterns.p.test(s)){
+      n += 12
+    }else if(n === 12 && patterns.a.test(s)) n = 0
+    s = (n < 10 ? '0' : '') + n
+    n = parseInt(p[1])
+    s = s + ':' + (n < 10 ? '0' : '') + n
+  }
+  return s
+}
 function toMs(time){
   var s = time.toString(), p = ['', ''], n = 0
   if(patterns.apm.test(s)){
-    s = s.replace(patterns.numpunct, '')
-    patterns.colon.lastIndex = -1
-    if(patterns.colon.test(s)){
-      p = s.split(patterns.colon)
+    if(patterns.anycolon.test(s)){
+      p = s.replace(patterns.numpunct, '').split(patterns.colon)
       n = parseInt(p[0])
-      if(patterns.p.test(time)) n += 12
+      if(n < 12 && patterns.p.test(s)){
+        n += 12
+      }else if(n === 12 && patterns.a.test(s)) n = 0
       n = n * 36e5 + parseInt(p[1]) * 6e4 + (p.length === 3 ? parseInt(p[2]) * 1e3 : 0)
     }else{
-      n = parseFloat(s)
-      if(patterns.p.test(time)) n += 12
+      n = parseFloat(s.replace(patterns.numpunct, ''))
+      if(n < 12 && patterns.p.test(s)) n += 12
       n *= 36e5
     }
   }else{
@@ -1527,12 +1572,13 @@ function post_form(type, build_only){
     }
     if(u.id){
       for(e = page.scheduler[type].options.getElementsByTagName('select'), i = e.length; i--;) if(e[i].name)
-        u.object[e[i].name] = e[i].options[e[i].selectedIndex].innerText
+        u.object[e[i].name] = e[i].options[e[i].selectedIndex === -1 ? 0 : e[i].selectedIndex].innerText
       if(!updated) for(k in u.object) if(u.object.hasOwnProperty(k) && (!study[stype][u.id].hasOwnProperty(k) || u.object[k] !== study[stype][u.id][k])){
         updated = true
         break
       }
       if(type === 'participant'){
+        if(options.study !== 'demo' && !temp_schedule.phone) return notify({status: 'provide a phone number to create this participant'}, true)
         if(!temp_schedule.schedule || !temp_schedule.protocols || !temp_schedule.daysofweek){
           sort = false
           make_schedule()
@@ -1544,6 +1590,8 @@ function post_form(type, build_only){
         u.object.first = temp_schedule.first
         u.object.last = temp_schedule.last
         u.object.timezone = timezone
+        u.object.start_time = to23h(u.object.start_time)
+        u.object.end_time = to23h(u.object.end_time)
         if(temp_schedule.updated){
           updated = true
           temp_schedule.updated = false
@@ -1579,10 +1627,11 @@ function post_form(type, build_only){
         }
       }
       request('/operation', function(d){
+        if(d.hasOwnProperty('version')) study.version = d.version
         study[stype][u.id] = u.object
+        notify(d)
         if(type === 'participant'){
           fill_selection(0)
-          notify({status: (page.schedule_rows.hasOwnProperty(u.id) ? 'updated ' : 'added ') + ' participant ' + u.id})
           schedule[u.id] = u.object
           options.id = ''
           backup()
@@ -1591,7 +1640,6 @@ function post_form(type, build_only){
             page.schedule_rows[u.id].entries.getBoundingClientRect().height + 'px'
           if(page.scheduler.frame.style.display === '') toggle_scheduler()
         }else{
-          notify(d)
           if(type === 'user'){
             options.tab = 0
             backup()
@@ -1602,9 +1650,7 @@ function post_form(type, build_only){
             page.scheduler_tabs[0].click()
           }
         }
-      }, function(d){
-        notify(d)
-      }, u)
+      }, function(d){notify(d, true)}, u)
     }else{
       notify({status: 'fill the first input to post'}, true)
     }
@@ -1714,13 +1760,15 @@ function add_blackout(){
 function update_blackout(e){
   var i = e.target.parentElement.cellIndex, v = e.target.value
   if(v && temp_schedule.hasOwnProperty('blackouts') && i < temp_schedule.blackouts.length){
-    temp_schedule.blackouts[i][e.target.previousElementSibling ? 'end' : 'start'] = new Date(v.replace(patterns.numpunct, '')).setHours(24, 0, 0, 0)
+    temp_schedule.blackouts[i][e.target.previousElementSibling ? 'end' : 'start'] = new Date(v.replace(patterns.timestamp, '')).setHours(24, 0, 0, 0)
   }
+  make_schedule()
 }
 function remove_blackout(e){
   var i = e.target.parentElement.cellIndex
   if(temp_schedule.hasOwnProperty('blackouts') && i < temp_schedule.blackouts.length) temp_schedule.blackouts.splice(i, 1)
   e.target.parentElement.parentElement.removeChild(e.target.parentElement)
+  make_schedule()
 }
 function toggle_active(e){
   if(e.className === 'active'){
@@ -1742,7 +1790,7 @@ function position_editor(p, b, ed, e){
     page.tick_editor.style.left = '0px'
   }else{
     page.tick_editor.style.top = b.top + ed.height + b.height > p.bottom ? b.top - p.top - ed.height + b.height + 'px' : e.style.top
-    page.tick_editor.style.left = (b.x - p.x < ed.width ? b.width : -ed.width) + 'px'
+    page.tick_editor.style.left = (b.left - p.left < ed.width ? b.width : -ed.width) + 'px'
   }
 }
 function show_time(e){
@@ -1760,7 +1808,7 @@ function show_time(e){
         page.tick_editor.children[0].style.display = page.tick_editor.children[1].style.display = 'none'
         i = s.blackouts_index.indexOf(parseInt(e.children[1].innerText))
         page.tick_editor.children[2].firstElementChild.value = former.mtime.format(s.blackouts[i].start)
-        page.tick_editor.children[2].children[1].value = former.mtime.format(s.blackouts[i].end)
+        page.tick_editor.children[2].children[1].value = s.blackouts[i].hasOwnProperty('end') ? former.mtime.format(s.blackouts[i].end) : ''
         page.tick_editor.className = 'blackout_display'
       }else{
         page.tick_editor.children[0].style.display = ''
@@ -1784,7 +1832,7 @@ function schedule_action_start(e){
       edit.b = e.target.getBoundingClientRect()
       if(edit.active.innerText === 'add beep'){
         var p = e.target.parentElement.getBoundingClientRect(), d = e.target.cellIndex, s = temp_schedule.schedule[d],
-            v = e.clientY - edit.b.y, t = Math.floor(s.date + temp_schedule.start_time + v / 360 * 864e5), i = s.times.length
+            v = e.clientY - edit.b.top, t = Math.floor(s.date + temp_schedule.start_time + v / 360 * 864e5), i = s.times.length
         edit.active.classList.remove('active')
         edit.holding = edit.active = false
         page.scheduler.notification.classList.remove('showing')
@@ -1801,12 +1849,12 @@ function schedule_action_start(e){
         edit.e.appendChild(document.createElement('p'))
         edit.e.lastElementChild.className = 'index'
         edit.e.lastElementChild.innerText = i
-        edit.e.style.top = e.clientY - edit.b.y + 'px'
+        edit.e.style.top = e.clientY - edit.b.top + 'px'
         show_time({target: edit.e})
         edit.moved = true
         edit.holding = edit.e
       }else{
-        var d = e.target.cellIndex, s = temp_schedule.schedule[d], v = e.clientY - edit.b.y
+        var d = e.target.cellIndex, s = temp_schedule.schedule[d], v = e.clientY - edit.b.top
         if(!s.hasOwnProperty('blackouts')){
           s.blackouts = []
           s.blackouts_index = []
@@ -1833,7 +1881,7 @@ function schedule_action_start(e){
       edit.p = edit.e.parentElement.getBoundingClientRect()
       edit.b = edit.e.getBoundingClientRect()
       edit.b.init = e.clientY
-      edit.b.offset = e.clientY - edit.b.y
+      edit.b.offset = e.clientY - edit.b.top
       edit.b.ntop = edit.b.top
       edit.b.nbottom = edit.b.bottom
     }
@@ -1843,7 +1891,7 @@ function schedule_action_update(){
   if(edit.holding){
     if(edit.holding.tagName === 'TD'){
       var td, v, i, a, d = edit.holding.cellIndex, c = page.tick_editor.children[1],
-          t = new Date(c.firstElementChild.value.replace(patterns.numpunct, '')).setHours(24, 0, 0, 0)
+          t = new Date(c.firstElementChild.value.replace(patterns.timestamp, '')).setHours(24, 0, 0, 0)
       if(temp_schedule.schedule.length <= d){
         temp_schedule.schedule.push({date: t, day: d, times: [], statuses: []})
       }else temp_schedule.schedule[d].date = t
@@ -1874,7 +1922,7 @@ function schedule_action_update(){
         i = se.times_index.indexOf(parseInt(edit.holding.lastElementChild.innerText))
         se.statuses[i] = s
         se.times[i] = se.date + t
-        edit.holding.classList.replace(edit.holding.classList[1], names.status[s])
+        edit.holding.className = 'ping ' + names.status[s]
         page.tick_editor.className = names.status[s]
       }
       edit.holding.style.top = (t - temp_schedule.start_time) * 360 / 864e5 + 'px'
@@ -1892,7 +1940,7 @@ function scheduler_edit_button(){
       edit.moved = true
       edit.e = edit.holding
       edit.e.style.top = (temp_schedule.schedule[d].times[i] - temp_schedule.schedule[d].date - temp_schedule.start_time) * 360 / 864e5 + 'px'
-      edit.e.classList.replace(edit.e.classList[1], names.status[temp_schedule.schedule[d].statuses[i]])
+      edit.e.className = 'ping ' + names.status[temp_schedule.schedule[d].statuses[i]]
       edit.holding = false
       show_time({target: edit.e})
       schedule_action_end({which: 1, target: edit.e})
@@ -1987,7 +2035,7 @@ function schedule_action_end(e){
                 temp_schedule.schedule[d].statuses[i] = study.participants[temp_schedule.id].schedule[d].statuses[i]
                 edit.moved = true
                 edit.e.style.top = (temp_schedule.schedule[d].times[i] - temp_schedule.schedule[d].date - temp_schedule.start_time) * 360 / 864e5 + 'px'
-                edit.e.classList.replace(edit.e.classList[1], names.status[temp_schedule.schedule[d].statuses[i]])
+                edit.e.className = 'ping ' + names.status[temp_schedule.schedule[d].statuses[i]]
               }
               show_time({target: edit.e})
               edit.holding = edit.e
@@ -2046,7 +2094,7 @@ function schedule_action_end(e){
           bp = e.parentElement.getBoundingClientRect()
           eb = page.tick_editor.getBoundingClientRect()
           page.tick_editor.style.top = b.top - bp.top + 'px'
-          page.tick_editor.style.left = (b.x - bp.x < eb.width ? b.width : -eb.width) + 'px'
+          page.tick_editor.style.left = (b.left - bp.left < eb.width ? b.width : -eb.width) + 'px'
           edit.holding = e
         }
       }else if(e.tagName === 'BUTTON'){
@@ -2060,7 +2108,7 @@ function schedule_action_end(e){
             temp_schedule.schedule[h].times_index = []
             temp_schedule.schedule[h].statuses = []
             roll_times(h, study.protocols[temp_schedule.schedule[h].protocol], temp_schedule)
-            c.innerHTML = ''
+            clear_time_edit(c)
             c.style.height = page.menu_timeline.style.height = 15 + (temp_schedule.end_time - temp_schedule.start_time) * 360 / 864e5 + 'px'
             page.menu_timeline.style.backgroundPositionY = -temp_schedule.start_time * 360 / 864e5 + 'px'
             for(v = study.protocols[temp_schedule.schedule[h].protocol].beeps, i = 0; i < v; i++){
@@ -2098,7 +2146,7 @@ function schedule_action_end(e){
           s = names.status.indexOf(e.innerText === 'pause' ? 'pause' : 'pending')
           for(i = c.childElementCount, u = false; i--;) if(c.children[i].children[1].innerText === st){
             c.children[i].children[1].innerText = nt
-            c.children[i].classList.replace(c.children[i].classList[1], nt)
+            c.children[i].className = 'ping ' + nt
             temp_schedule.schedule[h].statuses[i] = s
             u = true
           }
@@ -2119,7 +2167,7 @@ function schedule_action_end(e){
     }else if(edit.active || e.classList.contains('ping') || e.className === 'blackout' || e.parentElement.className === 'blackout'){
       if(edit.active){
         if(edit.e.className === 'blackout'){
-          var d = edit.e.parentElement.cellIndex, i = s.blackouts_index.indexOf(parseInt(edit.e.children[1].innerText)), s = temp_schedule.schedule[d],
+          var d = edit.e.parentElement.cellIndex, s = temp_schedule.schedule[d], i = s.blackouts_index.indexOf(parseInt(edit.e.children[1].innerText)),
               b =  edit.e.getBoundingClientRect(), p = edit.e.parentElement.getBoundingClientRect(), t
           s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time + (b.top - p.top) / 360 * 864e5)
           s.blackouts[i].end = Math.floor(s.blackouts[i].start + b.height / 360 * 864e5)
@@ -2164,14 +2212,12 @@ function schedule_action_end(e){
 }
 function make_timeline_background(){
   for(var s = "<svg xmlns='http://www.w3.org/2000/svg' " +
-     "viewBox='0 0 9999 999' style='background: #292929; width: 9999px'>" +
+     "viewBox='0 0 9999 999' style='width: 9999px'>" +
      "<style>line{stroke: #3e3e3e}text{font: 14px monospace; fill: #bdbdbd}</style>",
-      i = 0, y = 0, h = 12, am = false, n = 48; i < n; i++){
+      i = 0, y = 0, h = 12, am = true, n = 48; i < n; i++){
     s += "<line x1='0' x2='9999' y1='" + y + "' y2='" + y + "'/><text x='60' y='" + (y + 12) + "'>" + ((h < 10 ? '0' + h : h) + (am ? ' am' : ' pm')) + "</text>"
-    if(++h > 12){
-      h = 1
-      am = !am
-    }
+    if(++h > 12) h = 1
+    if(h === 12) am = !am
     y += 15
   }
   s += '</svg>'
