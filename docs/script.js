@@ -30,6 +30,17 @@ var session, module = {exports: {}}, Sanitize, pending = {}, page = {
   tick_editor: $('tick_editor'),
   tick_info: $('tick_info'),
   schedule_rows: {},
+  filter: {
+    frame: $('filter'),
+    id: $('filter_id'),
+    phone: $('filter_phone'),
+    order: $('filter_order'),
+    protocols: $('filter_protocols'),
+    first_before: $('filter_first_before'),
+    first_after: $('filter_first_after'),
+    last_before: $('filter_last_before'),
+    last_after: $('filter_last_after')
+  },
   logs: {
     frame: $('logs'),
     tabs: $('logs_tabs'),
@@ -89,8 +100,8 @@ store = window.localStorage || {}, logs = {}, patterns = {
   n: 0,
   tab: 0,
   timeline_scale: 1,
-  days_passed: 0,
-  days_future: 0,
+  days_passed: 1,
+  days_future: 1,
   participant: {
     start_day: former.dashdate(now),
     end_day: former.dashdate(now + 14 * 864e5),
@@ -107,7 +118,7 @@ store = window.localStorage || {}, logs = {}, patterns = {
       minsep: 30,
       remind_after: 10,
       close_after: 30,
-      close_after_accessed: true,
+      accesses: 1,
       initial_message: "Please complete this survey within 30 minutes:",
       reminder_message: "Reminder: complete your survey within 20 minutes.",
       reminder_link: true,
@@ -125,11 +136,12 @@ store = window.localStorage || {}, logs = {}, patterns = {
   },
   user: {}
 }, ticker, names = {
-  status: ['missed', 'pending', 'sent', 'reminded', 'send_received', 'remind_received', 'pause'],
+  status: ['missed', 'pending', 'sent', 'reminded', 'send_received', 'remind_received', 'pause', 'skipped'],
   tabs: ['Participant', 'Protocol', 'User'],
   types: ['participant', 'protocol', 'user'],
   order_type: ['shuffle', 'sample', 'ordered'],
-  randomization: ['none', 'binned', 'independent']
+  randomization: ['none', 'binned', 'independent'],
+  days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 }
 window.onload = function(){
   if(store.hasOwnProperty('options')){
@@ -202,7 +214,7 @@ function request(path, fun, error, body){
         }else{
           switch(body.type){
             case 'load_schedule':
-              var m = patterns.n.exec(window.location.search), now = Date.now(), n, nn, i, s, p, ra, message, k, t, e
+              var m = patterns.n.exec(window.location.search), now = Date.now(), n, nn, i, s, p, ra, message, k, sk, t, e
               page.selected_study.style.background = '#ff6565'
               study = store.hasOwnProperty('study') ? JSON.parse(store.study) : {
                 version: 0, recalls: 0, timezone: timezone, participants: {}, protocols: options.protocol, users: {}
@@ -216,7 +228,16 @@ function request(path, fun, error, body){
                   backup_demo()
                 }
               }
-              for(k in update_queue) if(update_queue.hasOwnProperty(k) && study.participants.hasOwnProperty(k) && update_queue[k].after <= now){
+              for(k in update_queue) if(update_queue.hasOwnProperty(k) && update_queue[k].after <= now){
+                if(!study.participants.hasOwnProperty(k)){
+                  sk = k.split('_')[0]
+                  if(study.participants.hasOwnProperty(sk) && update_queue[k].code === 6){
+                    s = study.participants[sk].schedule[update_queue[k].day]
+                    if(s.statuses[update_queue[k].time] === 6) s.statuses[update_queue[k].time] = 7
+                  }
+                  delete update_queue[k]
+                  continue
+                }
                 s = study.participants[k].schedule[update_queue[k].day]
                 if(!study.protocols.hasOwnProperty(s.protocol) || update_queue[k].code > 3 || s.statuses[update_queue[k].time] !== update_queue[k].code - 1){
                   delete update_queue[k]
@@ -264,7 +285,7 @@ function request(path, fun, error, body){
               page.selected_study.innerText = options.study
               page.study_selector.style.display = 'none'
               page.timeline_wrap.style.display = page.schedule_wrap.style.display = ''
-              display_schedule()
+              display_schedule(false, true)
               setTimeout(reset_loading, 10)
               break
             case 'list_studies':
@@ -346,6 +367,7 @@ function load_schedule(refresh){
     queued = false
     request('/operation', function(r){
       var temp_study
+      update_queue = {}
       try{temp_study = JSON.parse(r)}catch(e){}
       if(temp_study){
         if(temp_study.hasOwnProperty('status') && page.selected_study.innerText === 'select study'){
@@ -363,7 +385,7 @@ function load_schedule(refresh){
           page.selected_study.innerText = options.study
           page.study_selector.style.display = 'none'
           page.timeline_wrap.style.display = page.schedule_wrap.style.display = ''
-          display_schedule(refresh)
+          display_schedule(refresh, true)
         }
       }
       setTimeout(reset_loading, 10)
@@ -388,10 +410,13 @@ function update_display_options(){
     loading = true
     for(var e = page.display_options.getElementsByTagName('input'), i = e.length; i--;){
       if(e[i].name) options[e[i].name] = parseFloat(e[i].value)
+      if(e[i].name === 'days_passed'){
+        page.filter.last_after.value = former.dashdate(Date.now() - 864e5 * options.days_passed)
+      }else if(e[i].name === 'days_future') page.filter.first_before.value = former.dashdate(Date.now() + 864e5 * options.days_future)
     }
     backup()
     setTimeout(function(){
-      page.expand.innerText = 'collapse'
+      page.expand.innerText = 'collapse schedules'
       toggle_expand()
       display_schedule()
       loading = false
@@ -403,43 +428,36 @@ function clear_time_edit(e){
   document.body.appendChild(page.tick_editor)
   if(e) e.innerHTML = ''
 }
-function display_schedule(refresh){
+function display_schedule(refresh, reset_filter){
   if(options.study){
-    var k, i, p, e, d, t, disp = 0
+    var k, i, p, e, d, t, ra, filtered = filter(reset_filter)
     now = Date.now()
-    if(refresh) page.timeline.innerHTML = page.ids.innerHTML = page.entries.innerHTML = ''
+    page.timeline.innerHTML = ''
+    if(refresh) page.ids.innerHTML = page.entries.innerHTML = ''
     nearest = [Infinity, null, null]
-    options.n = 0
     for(k in schedule) if(schedule.hasOwnProperty(k)){
-      options.n++
-      if((now - schedule[k].last < 864e5 && schedule[k].first - now < 864e5 * options.days_future) ||
-        (schedule[k].first - now < 864e5 && now - schedule[k].last < 864e5 * options.days_passed)){
-        disp++
-        p = schedule[k].schedule
-        if(refresh || !page.schedule_rows.hasOwnProperty(k)){
-          if(page.schedule_rows.hasOwnProperty(k)){
-            page.schedule_rows[k].id.innerHTML = ''
-            page.schedule_rows[k].entries.innerHTML = ''
-          }else page.schedule_rows[k] = {id: document.createElement('tr'), entries: document.createElement('tr')}
-          page.schedule_rows[k].id.appendChild(e = document.createElement('td'))
-          e.appendChild(e = document.createElement('button'))
-          e.innerText = k
-          page.ids.appendChild(page.schedule_rows[k].id)
-          page.schedule_rows[k].entries.appendChild(e = document.createElement('table'))
-          e.appendChild(document.createElement('tr'))
-          e.appendChild(document.createElement('tr'))
-        }else if(page.schedule_rows.hasOwnProperty(k)){
-          page.schedule_rows[k].entries.classList.remove('range_hide')
-          page.schedule_rows[k].id.classList.remove('range_hide')
-        }
-        display_single_schedule(schedule[k], page.entries)
-      }else if(page.schedule_rows.hasOwnProperty(k)){
-        page.schedule_rows[k].entries.classList.add('range_hide')
-        page.schedule_rows[k].id.classList.add('range_hide')
+      p = schedule[k].schedule
+      if(refresh || !page.schedule_rows.hasOwnProperty(k)){
+        if(page.schedule_rows.hasOwnProperty(k)){
+          page.schedule_rows[k].id.innerHTML = ''
+          page.schedule_rows[k].entries.innerHTML = ''
+        }else page.schedule_rows[k] = {id: document.createElement('tr'), entries: document.createElement('tr')}
+        page.schedule_rows[k].id.appendChild(e = document.createElement('td'))
+        e.appendChild(e = document.createElement('button'))
+        e.innerText = k
+        page.ids.appendChild(page.schedule_rows[k].id)
+        page.schedule_rows[k].entries.appendChild(e = document.createElement('table'))
+        e.appendChild(document.createElement('tr'))
+        e.appendChild(document.createElement('tr'))
       }
+      if(page.schedule_rows.hasOwnProperty(k)){
+        ra = filtered.hasOwnProperty(k) ? 'remove' : 'add'
+        page.schedule_rows[k].entries.classList[ra]('hide')
+        page.schedule_rows[k].id.classList[ra]('hide')
+      }
+      display_single_schedule(schedule[k], page.entries)
     }
     backup()
-    page.ndisplay.innerText = disp + ' / ' + options.n
     page.timeline.style.left = '100px'
     if(nearest[1]){
       p = page.entries.getElementsByClassName('nearest')
@@ -462,9 +480,10 @@ function display_schedule(refresh){
     }else if(!options.n && !page.notifications.childElementCount){
       notify({status: 'use the "add or edit" menu (ESC) to add participants, protocols, and users'})
     }
-    if(ticker) clearInterval(ticker)
-    tick_clock()
-    ticker = setInterval(tick_clock, 1e3)
+    if(!ticker){
+      tick_clock()
+      ticker = setInterval(tick_clock, 1e3)
+    }
   }
 }
 function display_single_schedule(fs, o, makenew){
@@ -522,6 +541,10 @@ function display_single_schedule(fs, o, makenew){
         e.firstElementChild.innerText = id
         e.lastElementChild.innerText = i
       }
+      if(s[d].statuses[i] === 6 && s[d].times[i] > now && s[d].times[i] - now < 6e8){
+        update_queue[id + '_pause_' + d + '_' + i] = {after: s[d].times[i], code: 6, day: d, time: i}
+        setTimeout(load_schedule, s[d].times[i] + 200 - now)
+      }
       if(tl){
         v = s[d].times[i] - now
         pv = v / (1e3 * options.timeline_scale)
@@ -563,8 +586,7 @@ function display_time(id, v, e, i, status){
   c.style.top = v * 360 / 864e5 + 'px'
   c.appendChild(t = document.createElement('p'))
   t.innerText = id
-  c.appendChild(t = document.createElement('p'))
-  c.className = 'ping ' + (t.innerText = names.status[status])
+  c.className = 'ping ' + names.status[status]
   c.appendChild(t = document.createElement('p'))
   t.innerText = i
   t.className = 'index'
@@ -619,13 +641,13 @@ function scheduler_status(type, reset){
           i = t[d].times.length
           if(i === s[d].times.length){
             c = page.menu_schedule.lastElementChild.lastElementChild.lastElementChild.children[d].getElementsByClassName('ping')
-            for(; i--;){
+            for(; i--;) if(c[i]){
               c[i].classList.remove('temp_update')
               if(t[d].times[i] !== s[d].times[i] || t[d].statuses[i] !== s[d].statuses[i]){
                 c[i].classList.add('temp_update')
                 same = false
               }
-            }
+            }else same = false
           }else same = false
         }else same = false
         same = same && t[d].hasOwnProperty('blackouts') === s[d].hasOwnProperty('blackouts')
@@ -693,10 +715,12 @@ function tick_info(e){
       page.tick_info.lastElementChild.innerText = former.ftime.format(s.schedule[d].blackouts[i].end)
       page.tick_info.className = 'blackout_display'
     }else{
-      i = parseInt(e.target.children[2].innerText)
+      i = parseInt(e.target.children[1].innerText)
       s = study.participants[e.target.firstElementChild.innerText]
       page.tick_info.firstElementChild.innerText = former.ftime.format(s.schedule[d].times[i])
       page.tick_info.className = page.tick_info.lastElementChild.innerText = names.status[s.schedule[d].statuses[i]]
+      if(s.schedule[d].accessed_n[i]) page.tick_info.lastElementChild.innerHTML = names.status[s.schedule[d].statuses[i]] +
+        '<br>(' + s.schedule[d].accessed_n[i] + ') ' + former.ftime.format(s.schedule[d].accessed_first[i])
     }
     ie = page.tick_info.getBoundingClientRect()
     page.tick_info.style.top = (e.clientY - b.top - 1) - ie.height + 'px'
@@ -736,7 +760,10 @@ function add_day(){
     c.appendChild(document.createElement('p'))
     if(!temp_schedule.hasOwnProperty('schedule') || e.firstElementChild.childElementCount === 1) temp_schedule.schedule = []
     d = temp_schedule.schedule.length
-    temp_schedule.schedule.push({day: d, date: d ? temp_schedule.schedule[d - 1].date + 864e5 : new Date().setHours(24, 0, 0, 0), times: [], statuses: []})
+    temp_schedule.schedule.push({
+      day: d, date: d ? temp_schedule.schedule[d - 1].date + 864e5 : new Date().setHours(24, 0, 0, 0),
+      times: [], statuses: [], accessed_n: [], accessed_first: []
+    })
     c.lastElementChild.innerText = former.day.format(temp_schedule.schedule[d].date)
     c.appendChild(document.createElement('p'))
     if(page.scheduler.participant.protocol_select.childElementCount && d < e.children[2].childElementCount){
@@ -823,7 +850,9 @@ function make_schedule(preserve, background){
         if(io.schedule.length > d && io.schedule[d].date === day + 864e5 * (d + ds)){
           io.schedule[d].times = []
           io.schedule[d].statuses = []
-        }else io.schedule[d] = {day: d, date: day + 864e5 * (d + ds), times: [], statuses: []}
+          io.schedule[d].accessed_n = []
+          io.schedule[d].accessed_first = []
+        }else io.schedule[d] = {day: d, date: day + 864e5 * (d + ds), times: [], statuses: [], accessed_n: [], accessed_first: []}
       }
       if(d < io.schedule.length) io.schedule.splice(d, io.schedule.length - d)
       n = io.schedule.length
@@ -884,15 +913,15 @@ function make_schedule(preserve, background){
 }
 function toggle_expand(){
   var c, i, e = page.expand
-  if(e.innerText === 'collapse'){
+  if(e.innerText === 'collapse schedules'){
     c = page.entries.getElementsByClassName('selected'), i = c.length
     for(; i--;) if(c[i].className !== 'hide') expand_schedule({target: c[i].firstElementChild.firstElementChild.firstElementChild})
-    e.innerText = 'expand'
+    e.innerText = 'expand schedules'
   }else{
     c = page.entries.children, i = c.length
     for(; i--;) if(c[i].className !== 'hide' && c[i].firstElementChild.className !== 'selected')
       expand_schedule({target: c[i].firstElementChild.firstElementChild.firstElementChild})
-    e.innerText = 'collapse'
+    e.innerText = 'collapse schedules'
   }
 }
 function toggle_panes(e){
@@ -1014,25 +1043,38 @@ function study_selection(e){
   }
 }
 function fill_protocol_order(e){
-  var p = page.scheduler.participant.protocol_order, k, i, n
-  if(e.target && e.target.tagName === 'BUTTON'){
-    p.innerHTML = ''
-    if(e.target.innerText === 'all'){
-      for(k in study.protocols) if(k !== '' && study.protocols.hasOwnProperty(k)){
-        if(p.childElementCount) p.appendChild(document.createTextNode(', '))
+  var p = page.scheduler.participant.protocol_order, k, i, n, c
+  if(e){
+    if(e.target && e.target.tagName === 'BUTTON'){
+      p.innerHTML = ''
+      if(e.target.innerText === 'all'){
+        for(k in study.protocols) if(k !== '' && study.protocols.hasOwnProperty(k)){
+          if(p.childElementCount) p.appendChild(document.createTextNode(', '))
+          p.appendChild(document.createElement('span'))
+          p.lastElementChild.innerText = k
+        }
+      }
+    }else if(e.length){
+      p.innerHTML = ''
+      for(n = e.length, i = 0; i < n; i++) if(e[i] !== ''){
+        if(i !== 0) p.appendChild(document.createTextNode(', '))
         p.appendChild(document.createElement('span'))
-        p.lastElementChild.innerText = k
+        p.lastElementChild.innerText = e[i]
       }
     }
-  }else if(e.length){
-    p.innerHTML = ''
-    for(n = e.length, i = 0; i < n; i++) if(e[i] !== ''){
-      if(i !== 0) p.appendChild(document.createTextNode(', '))
-      p.appendChild(document.createElement('span'))
-      p.lastElementChild.innerText = e[i]
+    make_schedule()
+  }else{
+    page.filter.protocols.innerHTML = ''
+    for(k in study.protocols) if(k !== '' && study.protocols.hasOwnProperty(k)){
+      page.filter.protocols.appendChild(c = document.createElement('div'))
+      c.appendChild(document.createElement('input'))
+      c.lastElementChild.type = 'checkbox'
+      c.lastElementChild.checked = true
+      c.lastElementChild.name = k
+      c.appendChild(document.createElement('label'))
+      c.lastElementChild.innerText = k
     }
   }
-  make_schedule()
 }
 function edit_protocol_list(e){
   if(e.target && e.target.tagName){
@@ -1059,22 +1101,70 @@ function update_user(e){
     backup()
   }
 }
-function filter(e){
-  var s = /^/, k, t, disp = 0
-  try{s = new RegExp(e.value)}catch(e){}
-  for(k in page.schedule_rows) if(page.schedule_rows.hasOwnProperty(k)){
-    if(s.test(k)){
+function filter(clear){
+  var f = function(){return true}, t = {test: f}, id = t, phone = t, order = f, protocols = f, first_before = f, first_after = f, last_before = f,
+      last_after = f, fb = 0, fa = 0, lb = 0, la = 0, k, a, order_sel = [], protocol_sel = [], i, t, p, disp = 0, show = {}
+  function mvf(s, after){
+    var t = new Date(s.replace(patterns.numpunct, '') + 'T00:00:00').getTime()
+    return after ? function(v){return t < v} : function(v){return t > v}
+  }
+  if(page.filter.protocols.innerHTML === '') fill_protocol_order()
+  if(clear){
+    page.filter.id.value = page.filter.phone.value = page.filter.first_after.value = page.filter.last_before.value = ''
+    page.filter.first_before.value = former.dashdate(Date.now() + 864e5 * options.days_future)
+    page.filter.last_after.value = former.dashdate(Date.now() - 864e5 * options.days_passed)
+    for(a = page.filter.order.getElementsByTagName('input'), i = a.length; i--;) a.checked = true
+    a = page.filter.protocols.getElementsByTagName('input')
+    for(a = page.filter.protocols.getElementsByTagName('input'), i = a.length; i--;) a.checked = true
+  }
+  if(page.filter.id.value) try{id = new RegExp(page.filter.id.value)}catch(e){}
+  if(page.filter.phone.value) try{phone = new RegExp(page.filter.phone.value)}catch(e){}
+  if(page.filter.first_before.value) first_before = mvf(page.filter.first_before.value)
+  if(page.filter.first_after.value) first_after = mvf(page.filter.first_after.value, true)
+  if(page.filter.last_before.value) last_before = mvf(page.filter.last_before.value)
+  if(page.filter.last_after.value) last_after = mvf(page.filter.last_after.value, true)
+  for(a = page.filter.order.getElementsByTagName('input'), i = a.length; i--;) if(a[i].checked) order_sel.push(a[i].name)
+  order = function(t){return order_sel.indexOf(t) !== -1}
+  for(a = page.filter.protocols.getElementsByTagName('input'), i = a.length; i--;) if(a[i].checked) protocol_sel.push(a[i].name)
+  protocols = function(a){
+    for(var any = false, i = a.length; i--;){
+      if(protocol_sel.indexOf(a[i]) !== -1){
+        any = true
+        break
+      }
+    }
+    return any
+  }
+  options.n = 0
+  for(k in study.participants) if(study.participants.hasOwnProperty(k)){
+    options.n++
+    p = study.participants[k]
+    if(id.test(k) && phone.test(p.phone) && order(p.order_type) && protocols(p.protocols) &&
+       first_before(p.first) && first_after(p.first) && last_before(p.last) && last_after(p.last)){
       t = 'remove'
       disp++
+      show[k] = true
     }else t = 'add'
-    page.schedule_rows[k].id.classList[t]('hide')
-    page.schedule_rows[k].entries.classList[t]('hide')
+    if(page.schedule_rows.hasOwnProperty(k)){
+      page.schedule_rows[k].id.classList[t]('hide')
+      page.schedule_rows[k].entries.classList[t]('hide')
+    }
   }
   page.ndisplay.innerText = disp + ' / ' + options.n
+  if(!clear && page.filter.frame.style.display === '') page.filter.frame.style.display = 'none'
+  return show
 }
-function clear_filter(e){
-  e.parentElement.previousElementSibling.firstElementChild.value = ""
-  filter({value: ''})
+function toggle_filter(){
+  if(page.filter.frame.style.display === 'none'){
+    if(page.filter.protocols.innerHTML === '') fill_protocol_order()
+    if(page.filter.first_before.value === '') page.filter.first_before.value = former.dashdate(Date.now() + 864e5 * options.days_future)
+    if(page.filter.last_after.value === '') page.filter.last_after.value = former.dashdate(Date.now() - 864e5 * options.days_passed)
+    page.filter.frame.style.display = ''
+    page.logs.frame.style.display = 'none'
+    page.scheduler.frame.style.display = 'none'
+  }else{
+    page.filter.frame.style.display = 'none'
+  }
 }
 function toggle_logs(){
   if(page.logs.frame.style.display === 'none'){
@@ -1082,6 +1172,7 @@ function toggle_logs(){
     if(!page.logs.tabs.firstElementChild.firstElementChild.childElementCount) list_logs()
     page.logs.frame.style.display = ''
     page.scheduler.frame.style.display = 'none'
+    page.filter.frame.style.display = 'none'
   }else{
     page.logs.frame.style.display = 'none'
   }
@@ -1167,6 +1258,7 @@ function toggle_scheduler(){
       page.scheduler.participant.protocol_type.selectedIndex = i
     for(i = 3; i--;) fill_selection(i)
     page.logs.frame.style.display = 'none'
+    page.filter.frame.style.display = 'none'
     page.scheduler.frame.style.display = ''
     toggle_panes({target: page.scheduler.frame.getElementsByTagName('BUTTON')[options.tab || 0]})
     page.scheduler.notification.classList.remove('showing')
@@ -1494,6 +1586,8 @@ function roll_times(d, p, io){
       }
       se.times.push(start)
       se.statuses.push(1)
+      se.accessed_n.push(0)
+      se.accessed_first.push(0)
     }
     for(; i < n; i++){
       switch(t){
@@ -1554,6 +1648,8 @@ function roll_times(d, p, io){
       }
       se.times.push(v)
       se.statuses.push(1)
+      se.accessed_n.push(0)
+      se.accessed_first.push(0)
       if(v < io.first){
         io.first = v
       }else if(v > io.last){
@@ -1736,6 +1832,8 @@ function checkin(id, day, time){
   var s = study.participants[id].schedule[day], p = study.protocols[s.protocol]
   if(s.statuses[time] < 4 && Date.now() < s.times[time] + p.close_after * 6e4){
     s.statuses[time] += 2
+    s.accessed_n[time]++
+    if(s.accessed_n[time] === 1) s.accessed_first[time] = Date.now()
     backup_demo()
     if(update_queue.hasOwnProperty(id)) delete update_queue[id]
     load_schedule()
@@ -1794,6 +1892,7 @@ function toggle_active(e){
     }
   }else{
     edit.active = false
+    edit.holding = false
     for(var p = page.scheduler.participant.options.getElementsByClassName('active'), i = p.length; i--;){
       p[0].classList.remove('active')
     }
@@ -1802,7 +1901,8 @@ function toggle_active(e){
 function position_editor(p, e){
   var b = e.getBoundingClientRect(), ed = page.tick_editor.getBoundingClientRect(), f
   if(b.width > ed.width * 2){
-    page.tick_editor.style.top = (b.top + ed.height + b.height > p.bottom ? b.top - p.top - ed.height : b.top - p.top + b.height) + 'px'
+    page.tick_editor.style.top = (b.top + ed.height + b.height > p.bottom ? e.parentElement.rowIndex ? b.top - p.top - ed.height - 1 :
+      0 : b.top - p.top + b.height + 1) + 'px'
     page.tick_editor.style.left = '0px'
   }else{
     f = page.menu_schedule.previousElementSibling.getBoundingClientRect()
@@ -2051,7 +2151,7 @@ function schedule_action_end(e){
               }else{
                 i = temp_schedule.schedule[d].times_index.indexOf(parseInt(edit.holding.lastElementChild.innerText))
                 p = study.participants[temp_schedule.id].schedule[d]
-                if(u = p.times.length > i){
+                if(p && (u = p.times.length) > i){
                   temp_schedule.schedule[d].times[i] = study.participants[temp_schedule.id].schedule[d].times[i]
                   temp_schedule.schedule[d].statuses[i] = study.participants[temp_schedule.id].schedule[d].statuses[i]
                   edit.moved = true
@@ -2166,8 +2266,7 @@ function schedule_action_end(e){
             nt = 'pending'
           }
           s = names.status.indexOf(e.innerText === 'pause' ? 'pause' : 'pending')
-          for(i = c.childElementCount, u = false; i--;) if(c.children[i].children[1].innerText === st){
-            c.children[i].children[1].innerText = nt
+          for(i = c.childElementCount, u = false; i--;) if(names.status[temp_schedule.schedule[h].statuses[i]] === st){
             c.children[i].className = 'ping ' + nt
             temp_schedule.schedule[h].statuses[i] = s
             u = true
@@ -2231,6 +2330,41 @@ function schedule_action_end(e){
       }
     }
   }
+}
+function download_participants(){
+  var p = study.participants, e = document.createElement('a'), content, b = '\n', sep = ',', k, n, i, s, bn, bi, ts = '',
+      h = 'pid,phone,timezone,start_day,end_day,start_time,end_time,protocol_order_type,protocols' +
+          ',daysofweek,blackout_days,day,date,protocol,blackouts,times,statuses,first_access,accesses'
+  for(k in p){
+    ts = p[k].id + sep + (p[k].phone ? p[k].phone : 'NA') + sep + p[k].timezone + sep + p[k].start_day + sep +
+         p[k].end_day + sep + p[k].start_time + sep + p[k].end_time + sep + p[k].order_type + sep + p[k].protocols.join(' ') + sep
+    for(n = 7, i = 0; i < n; i++) if(p[k].daysofweek[i]) ts += names.days[i] + (i === 7 ? '' : ' ')
+    ts += sep
+    if(p[k].hasOwnProperty('blackouts')){
+      for(n = p[k].blackouts.length, i = 0; i < n; i++)
+        ts += former.day.format(p[k].blackouts[i].start) + '-' + former.day.format(p[k].blackouts[i].end) + (i === n - 1 ? '' : ' ')
+    }else ts += 'NA'
+    ts += sep
+    for(n = p[k].schedule.length, i = 0; i < n; i++){
+      s = p[k].schedule[i]
+      b += ts + (s.day + 1) + sep + s.date + sep + s.protocol + sep
+      if(s.hasOwnProperty('blackouts')){
+        for(bn = s.blackouts.length, bi = 0; bi < bn; bi++)
+          b += former.mtime.format(s.blackouts[bi].start) + '-' + former.mtime.format(s.blackouts[bi].end) + (bi === bn - 1 ? '' : ' ')
+      }else b += 'NA'
+      b += sep + s.times.join(' ') + sep + s.statuses.join(' ') + sep + s.accessed_first.join(' ') + sep + s.accessed_n.join(' ') + sep + '\n'
+    }
+  }
+  content = new Blob([h + b], {type: 'text/csv'})
+	if('undefined' !== typeof e.download){
+		e.setAttribute('href', URL.createObjectURL(content))
+		e.setAttribute('download', options.study + '_' + former.dashdate(Date.now()) + '.csv')
+		document.body.appendChild(e)
+		e.click()
+		document.body.removeChild(e)
+	}else if(navigator && navigator.msSaveBlob){
+		navigator.msSaveBlob(content, options.study + '_' + former.dashdate(Date.now()) + '.csv')
+	}else throw 'Browser does not seem to support downloading.'
 }
 function make_timeline_background(){
   for(var s = "<svg xmlns='http://www.w3.org/2000/svg' " +

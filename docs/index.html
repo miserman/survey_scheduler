@@ -11,9 +11,12 @@
 <div id='side_menu'>
   <button type='button' onclick='signio()'>sign in</button>
   <button type='button' onclick='select_study()'>change study</button>
-  <button type='button' onclick='reload()'>reload data</button>
-  <button type='button' onclick='refresh()'>clear storage</button>
-  <button type='button' onclick='toggle_logs()'>logs</button>
+  <h1>data</h1>
+  <button title='have the server rescan the database, then reload the schedule' type='button' onclick='reload()'>rescan data</button>
+  <button title="download the current study's participant information in CSV format" type='button' onclick='download_participants()'>export data</button>
+  <button title='view logs from the server' type='button' onclick='toggle_logs()'>logs</button>
+  <h1>options</h1>
+  <button title='clear local storage and reload' type='button' onclick='refresh()'>clear storage</button>
   <div id='display_options'>
     <p title='Resolution of the timeline; increase to see more distant beeps.'>timeline scale</p>
     <table><tr><td><input name='timeline_scale' type='number' step='.01'/></td></tr></table>
@@ -223,8 +226,8 @@
             <td><input name='close_after' type='number'></td>
           </tr>
           <tr>
-            <td title='If checked, only allows one survey per period.'>Close after accessed</td>
-            <td><input name='close_after_accessed' type='checkbox'></td>
+            <td title='Number of times the survey can be accessed within each beep period; 0 means unrestricted.'>Allowed accesses</td>
+            <td><input name='accesses' min=0 type='number'></td>
           </tr>
           <tr>
             <td title='Message to send with each beep.'>Initial message</td>
@@ -309,6 +312,32 @@
   </div>
   <div class='screen' onclick='toggle_logs()'></div>
 </div>
+<div style='display:none' id='filter'>
+  <div class='menu_wrap'>
+    <h1>Filter Participants</h1>
+    <div class='menu_inner'><table>
+      <tr><td>ID contains</td><td><input id='filter_id' type='text'/></td></tr>
+      <tr><td>Phone contains</td><td><input id='filter_phone' type='text'/></td></tr>
+      <tr><td>Protocols</td><td>Order type</td><td>Used</td></tr>
+      <tr>
+        <td></td><td id='filter_order'>
+          <div><input type='checkbox' name='Shuffle' checked='true'/><label>Shuffle</label></div>
+          <div><input type='checkbox' name='Sample' checked='true'/><label>Sample</label></div>
+          <div><input type='checkbox' name='Ordered' checked='true'/><label>Ordered</label></div>
+        </td>
+        <td id='filter_protocols'></td>
+      </tr>
+      <tr><td>First beep</td><td>After</td><td>Before</td></tr>
+      <tr><td></td><td><input id='filter_first_after' type='date'/></td><td><input  id='filter_first_before' type='date'/></td></tr>
+      <tr><td>Last beep</td><td>After</td><td>Before</td></tr>
+      <tr><td></td><td><input id='filter_last_after' type='date'/></td><td><input id='filter_last_before' type='date'/></td></tr>
+    </table></div>
+    <table class='foot_buttons'><tr>
+      <td><button type='button' onclick='filter()'>Apply</button></td>
+    </tr></table>
+  </div>
+  <div class='screen' onclick='toggle_filter()'></div>
+</div>
 <div class='notifications_wrap'>
   <table><tr>
     <td><button type='button' onclick='toggle_notifications()'>collapse</button></td>
@@ -317,11 +346,10 @@
   <div><table id='notifications'></table></div>
 </div>
 <div class='menu' id='foot_menu'><table><tr>
-  <td width='50px' id='ndisplay'>0 / 0</td>
-  <td width='80px'>Filter IDs:</td>
-  <td width='50px'><input type='text' onkeyup='filter(this)'></td>
-  <td width='50px'><button type='button' onclick='clear_filter(this)'>clear</button></td>
-  <td width='50px'><button type='button' id='expand' onclick='toggle_expand(this)'>expand</button></td>
+  <td id='ndisplay'>0 / 0</td>
+  <td><button type='button' onclick='toggle_filter()'>filter</button></td>
+  <td><button type='button' onclick='filter(true)'>reset filter</button></td>
+  <td><button type='button' id='expand' onclick='toggle_expand(this)'>expand schedules</button></td>
   <td id='latest_notification' onclick='toggle_notifications()'></td>
 </tr></table></div>
 <script type='text/javascript' src="script.js" defer></script>

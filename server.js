@@ -16,23 +16,19 @@ var express = require('express'), app = express(), aws = require('aws-sdk'),
       'list_logs': true,
       'list_studies': true
     }
-
 if(logs.enabled) try{
   fs.mkdir(logs.dir, {recursive: true}, function(e){})
 }catch(e){
   console.log('failed to create logs directory, so disabled logging')
   logs.enabled = false
 }
-
 app.use(require('body-parser').json())
 app.use(require('cookie-parser')(cookie_options.secret))
 app.use(express.static('./docs'))
-
 message = new aws.SNS({region: process.env.REGION})
 ddb = new aws.DynamoDB({region: process.env.REGION})
 database = new aws.DynamoDB.DocumentClient({region: process.env.REGION})
 users = new aws.CognitoIdentityServiceProvider({region: process.env.REGION})
-
 process.env.ISSUER = 'https://cognito-idp.' + process.env.REGION + '.amazonaws.com/' + process.env.USERPOOL
 http.get(process.env.ISSUER + '/.well-known/jwks.json', function(res){
   res.on('data', function(d){keys.push(d)})
@@ -84,34 +80,43 @@ function time_exists(s, id, day, index){
     studies[s].participants[id].schedule[day].times.length > index &&
     studies[s].participants[id].schedule[day].statuses.length > index
 }
-function update_status(s, id, day, index, status){
-  status = parseInt(status)
-  if(time_exists(s, id, day, index)) database.update({
-    TableName: s,
-    Key: {id: id},
-    UpdateExpression: 'SET schedule[' + day + '].statuses[' + index + '] = :v',
-    ExpressionAttributeValues: {':v': status}
-  }, function(e, d){
-    var m = 'update status of ' + id + '[' + day + '][' + index + ']: '
-    if(e){
-      console.log(s, e)
-      m += 'false'
-    }else{
-      studies[s].participants[id].schedule[day].statuses[index] = status
-      studies[s].version = Date.now()
-      m += 'true'
-    }
-    log(s, m)
-  })
+function update_status(s, id, day, index, status, first){
+  var l = 'schedule[' + day + '].', n = 0
+  if(time_exists(s, id, day, index)){
+    status = status ? parseInt(status) : studies[s].participants[id].schedule[day].statuses[index]
+    first = first || studies[s].participants[id].schedule[day].accessed_first[index]
+    n = studies[s].participants[id].schedule[day].accessed_n[index]
+    if(first) n++
+    database.update({
+      TableName: s,
+      Key: {id: id},
+      UpdateExpression: 'SET ' + l + 'statuses[' + index + '] = :s, ' + l + 'accessed_first[' + index + '] = :f, '
+        + l + 'accessed_n[' + index + '] = :n',
+      ExpressionAttributeValues: {':s': status, ':f': first, ':n': n}
+    }, function(e, d){
+      var m = 'update status of ' + id + '[' + day + '][' + index + ']: '
+      if(e){
+        console.log(s, e)
+        m += 'false'
+      }else{
+        studies[s].participants[id].schedule[day].statuses[index] = status
+        if(first) studies[s].participants[id].schedule[day].accessed_first[index] = first
+        studies[s].participants[id].schedule[day].accessed_n[index] = n
+        studies[s].version = Date.now()
+        m += 'true'
+      }
+      log(s, m)
+    })
+  }
 }
-function update_multi_status(s, id, day){
+function update_day(s, id, day){
   if(time_exists(s, id, day, 0)) database.update({
     TableName: s,
     Key: {id: id},
-    UpdateExpression: 'SET schedule[' + day + '].statuses = :v',
-    ExpressionAttributeValues: {':v': studies[s].participants[id].schedule[day].statuses}
+    UpdateExpression: 'SET schedule[' + day + '] = :v',
+    ExpressionAttributeValues: {':v': studies[s].participants[id].schedule[day]}
   }, function(e, d){
-    var m = 'update statuses of ' + id + '[' + day + ']: '
+    var m = 'update day ' + day + ' of ' + id + ': '
     if(e){
       console.log(s, e)
       m += 'false'
@@ -124,7 +129,9 @@ function update_multi_status(s, id, day){
 function send_message(s, id, day, index, status){
   if(time_exists(s, id, day, index)){
     var p = studies[s].participants[id], ds = p.schedule[day], pr = studies[s].protocols[ds.protocol]
-    if(ds.statuses[index] === status - 1 && (status === 2 || (status === 3 && pr.reminder_message))){
+    if(ds.statuses[index] === 6){
+      update_status(s, id, day, index, 7)
+    }else if(ds.statuses[index] === status - 1 && (status === 2 || (status === 3 && pr.reminder_message))){
       ds.statuses[index] += .1
       message.publish({
         Message: pr[status === 3 ? 'reminder_message' : 'initial_message'] + ' ' +
@@ -132,7 +139,8 @@ function send_message(s, id, day, index, status){
           (/\?/.test(pr.link) ? '&' : '?') + pr.id_parameter + '=' + id : ''),
         PhoneNumber: '+1' + p.phone
       }, function(e, d){
-        var m = 'send ' + (status === 3 ? 'reminder' : 'initial') + ' text to ' + id + '[' + day + '][' + index + ']: ', t
+        var m = 'send ' + (status === 3 ? 'reminder' : 'initial') + ' text to ' + id + '[' + day + '][' + index + ']: ', t,
+            now = Date.now()
         if(e){
           console.log(e)
           m += 'false'
@@ -141,14 +149,11 @@ function send_message(s, id, day, index, status){
           console.log(s, 'Beep sent to ' + id + ' at ' + new Date().toLocaleString())
           ds.statuses[index]++
           m += 'true'
-          if(status === 2 && pr.remind_after){
-            beeps['' + s + id + day + index] = setTimeout(function(){
-              send_message(this.s, this.id, this.day, this.index, 3)
-            }.bind({s: s, day: day, id: id, index: index}),
-              (ds.times[index] + pr.remind_after * 6e4) - Date.now())
+          if(status === 2 && ds.accessed_n[index] === 0 && pr.remind_after && ds.times[index] + pr.remind_after * 6e4 > now){
+            beeps['' + s + id + day + index] = setTimeout(send_message.bind(s, day, id, index, 3), (ds.times[index] + pr.remind_after * 6e4) - now)
             m += '; reminder scheduled'
           }
-          update_status(s, id, day, index, status)
+          update_status(s, id, day, index, status, 0)
         }
         log(s, m)
       })
@@ -160,29 +165,43 @@ function timeadj(d, e){
   return d.date + parseInt(p[0]) * 36e5 + parseInt(p[1]) * 6e4 + (p.length === 3 ? parseInt(p[2]) * 1e3 : 0)
 }
 function schedule(s, id, day){
-  var d = studies[s].participants[id].schedule[day], t, minsep, end, n, now = Date.now(), m, i, updated = false, any = false
+  var d = studies[s].participants[id].schedule[day], pr = studies[s].protocols[d.protocol],
+      t, minsep, remind, end, n, now = Date.now(), m, i, updated = false, any = false
   if(!d){
     studies[s].participants[id].schedule.splice(day, 1)
-  }else if(d.times){
-    minsep = studies[s].protocols[d.protocol].minsep * 6e4
-    end = timeadj(d, studies[s].participants[id].end_time)
+  }else if(d.hasOwnProperty('times')){
+    minsep = pr.minsep * 6e4
+    remind = pr.remind_after * 6e4 || 0
+    end = timeadj(d, studies[s].participants[id].end_time) + studies[s].participants[id].timezone * 36e4
     for(n = d.times.length, i = 0; i < n; i++){
       t = d.times[i]
-      if(d.statuses[i] === 1 && t - now < 6e8){
-        if(t > now || now < i === n - 1 ? end : d.times[i + 1] - minsep){
+      if(t - now < 6e8 && (d.statuses[i] === 6 || d.statuses[i] === 1 || (d.statuses[i] === 2 && pr.remind_after && t + remind < now))){
+        if(d.statuses[i] === 6){
+          if(t < now){
+            updated = true
+            d.statuses[i] = 7
+          }else setTimeout(send_message.bind(null, s, id, day, i, 7), t - Date.now())
+        }else if(t > now || (now < (i === n - 1 ? end : d.times[i + 1] - minsep) && (!pr.close_after || t + pr.close_after * 6e4 > now))){
           any = true
-          beeps['' + s + id + day + i] = setTimeout(function(){
-            send_message(this.s, this.id, this.day, this.index, 2)
-          }.bind({s: s, id: id, day: day, index: i}), t - Date.now())
+          beeps['' + s + id + day + i] = setTimeout(send_message.bind(null, s, id, day, i, d.statuses[i] === 1 ? 2 : 3), t - Date.now())
         }else{
           updated = true
           d.statuses[i] = 0
         }
       }
     }
+    if(!d.hasOwnProperty('accessed_first') || !d.hasOwnProperty('accessed_n')){
+      updated = true
+      d.accessed_first = []
+      d.accessed_n = []
+      for(; n--;){
+        d.accessed_first.push(0)
+        d.accessed_n.push(0)
+      }
+    }
     if(updated){
       studies[s].version = Date.now()
-      update_multi_status(s, id, day)
+      update_day(s, id, day)
     }
   }
   return any
@@ -268,7 +287,6 @@ function scan_studies(){
   })
 }
 scan_studies()
-
 function add_user(o, m, s, base_perms, email, username, req, res){
   req.body.object = Sanitize.user(req.body.object)
   for(var k in req.body.object) if(req.body.object.hasOwnProperty(k) && 'boolean' === typeof req.body.object[k])
@@ -299,7 +317,6 @@ function add_user(o, m, s, base_perms, email, username, req, res){
     log(s, m)
   })
 }
-
 app.get('/session', function(req, res){
   var r = {signedin: false, expires: Date.now() + 36e5}
   if(req.signedCookies.id && sessions.hasOwnProperty(req.signedCookies.id)){
@@ -308,11 +325,10 @@ app.get('/session', function(req, res){
   }
   res.json(r)
 })
-
 app.post('/checkin', function(req, res){
-  var r = {available: false, days: 0, day: 0, beeps: 0, beep: 0}, td = new Date().setHours(0, 0, 0, 0),
+  var r = {available: false, accessed: 0, days: 0, day: 0, beeps: 0, beep: 0}, td = new Date().setHours(0, 0, 0, 0),
       pd = td - 864e5, pdm, n = Date.now(), id = Sanitize.gen('id', req.body.id),
-      k, s, p, pp, d, pr, i, t, sid, m, day
+      k, s, p, pp, d, pr, i, t, sid, m, day, status
   if(id){
     for(k in studies) if(studies.hasOwnProperty(k) && studies[k].participants.hasOwnProperty(id)) s = k
     if(s){
@@ -326,19 +342,21 @@ app.post('/checkin', function(req, res){
           for(pp = p.schedule[d], pr = studies[s].protocols[pp.protocol], i = pp.times.length; i--;){
             t = pp.times[i]
             if(t < n && (!pr.close_after || t + pr.close_after * 6e4 > n)){
-              r.available = pr.close_after_accessed ? pp.statuses[i] === 1 || pp.statuses[i] === 2 : true
+              status = pp.statuses[i]
+              r.accessed = pp.accessed_n[i]
+              r.available = pr.accesses ? r.accessed > pr.accesses : true
               r.beeps = pp.times.length
               r.beep = i + 1
               m += i + ', ' + (r.available ? '' : 'not ') + 'available'
-              if(pr.reminder_message && pp.statuses[i] < 4){
-                pp.statuses[i] = pp.statuses[i] === 3 ? 5 : 4
+              if(pr.reminder_message && status < 4){
+                status = status === 3 ? 5 : 4
                 if(beeps.hasOwnProperty(sid = '' + s + id + d + i)){
                   clearTimeout(beeps[sid])
                   delete beeps[sid]
-                  log(s, 'reminder canceled for ' + id + '[' + i + ']')
+                  log(s, 'reminder canceled for ' + id + '[' + d + '][' + i + ']')
                 }
-                update_status(s, id, d, i, pp.statuses[i])
               }
+              update_status(s, id, d, i, status, r.accessed === 0 ? n - p.timezone * 36e4 : 0)
               break
             }
           }
@@ -350,7 +368,6 @@ app.post('/checkin', function(req, res){
   }
   res.json(r)
 })
-
 app.get('/signin', function(req, res){
   var id = crypto.randomBytes(50).toString('hex')
   cookie_options.sameSite = 'lax'
@@ -362,7 +379,6 @@ app.get('/signin', function(req, res){
     'state=' + id + '&client_id=' + process.env.CLIENT
   )
 })
-
 app.get('/signout', function(req, res){
   var id = req.signedCookies.id
   if(id && sessions.hasOwnProperty(id)){
@@ -378,7 +394,6 @@ app.get('/signout', function(req, res){
     'state=' + id + '&client_id=' + process.env.CLIENT
   )
 })
-
 app.get('/auth', function(req, res){
   if(req.query && req.query.code && req.query.state && req.signedCookies.id && req.query.state === req.signedCookies.id){
     var body = 'grant_type=authorization_code&redirect_uri=' + process.env.REDIRECT + '&client_id=' + process.env.CLIENT + '&code=' + req.query.code,
@@ -423,7 +438,6 @@ app.get('/auth', function(req, res){
     res.redirect('/')
   }
 })
-
 app.post('/operation', function(req, res){
   var id = req.signedCookies.id, nid = Sanitize.gen('id', req.body.id), name, type = 'none',
       check = {valid: false, expired: false, pass: false}, s = Sanitize.gen('study', req.body.study), o, m
@@ -784,9 +798,7 @@ app.post('/operation', function(req, res){
     res.status(403).json({status: 'not authorized'})
   }
 })
-
 app.listen(process.env.PORT, function(req){
   console.log('listening on port ' + process.env.PORT)
 })
-
 module.exports = app

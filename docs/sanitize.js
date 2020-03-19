@@ -6,7 +6,7 @@ module.exports = {
     time: /^[0-9]{2}:[0-9]{2}/,
     date: /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/,
     study: /^[a-z0-9._-]+$/i,
-    type: /^[a-z_]+$/i,
+    type: /^[a-z0-9_]+$/i,
     color: /^#[a-f0-9]{6}$/i,
     word: /^[a-z]$/i,
     non_number: /[^0-9]+/g,
@@ -94,7 +94,17 @@ module.exports = {
       day: parseInt(o.day),
       protocol: this.gen('type', o.protocol),
       statuses: this.intObject(o.statuses),
-      times: this.intObject(o.times)
+      times: this.intObject(o.times),
+      accessed_first: o.hasOwnProperty('accessed_first') ? this.intObject(o.accessed_first) : [],
+      accessed_n: o.hasOwnProperty('accessed_n') ? this.intObject(o.accessed_n) : []
+    }, l = no.times.length
+    if(no.accessed_first.length !== l || no.accessed_n.length !== l){
+      no.accessed_first = []
+      no.accessed_n = []
+      for(; l--;){
+        no.accessed_first.push(0)
+        no.accessed_n.push(0)
+      }
     }
     if(o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
     return no
@@ -139,7 +149,7 @@ module.exports = {
       random_start: 'true' === String(o.random_start),
       remind_after: parseFloat(o.remind_after) || 0,
       close_after: parseFloat(o.close_after) || 0,
-      close_after_accessed: Boolean(o.close_after_accessed),
+      accesses: parseInt(o.accesses) || 0,
       initial_message: this.string(o.initial_message),
       reminder_message: this.string(o.reminder_message),
       reminder_link: 'true' === String(o.reminder_link),

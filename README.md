@@ -57,12 +57,13 @@ Qualtrics can also checkin with the app when the survey is accessed:
 1. Enter your URL appended with /checkin
 1. Set Method to POST
 1. Add a body parameter, and set its Body Parameters to application/json, Parameter to your ID parameter, and set a String to the extracted ID via Piped Text (e.g., ${e://Field/id})
-1. Finally, Add Embedded Data..., and set a value for available, day, days, beep, and beeps
+1. Finally, Add Embedded Data..., and set a value for available, accessed, day, days, beep, and beeps
 
 If the app recognizes the ID, it responds with an object like this:
 ```javascript
 {
   available: true,
+  accessed: 3,
   day: 0,
   days: 12,
   beep: 1,
@@ -76,6 +77,7 @@ This information can be used from within Qualtrics to regulate access or conditi
 Qualtrics.SurveyEngine.addOnload(function(){
   var message = $("message"), id = "${e://Field/id}", response = {
     available: "${e://Field/available}",
+    accessed: "${e://Field/accessed}",
     beeps: "${e://Field/beeps}",
     beep: "${e://Field/beep}",
     days: "${e://Field/days}",
@@ -84,7 +86,7 @@ Qualtrics.SurveyEngine.addOnload(function(){
   this.disableNextButton()
   if(id !== "" && response.available === "true"){
     message.innerText = "Participant " + id + "; survey " + response.beep + " of "
-      + response.beeps + " for day " + response.day + " of " + response.days + "."
+      + response.beeps + " for day " + response.day + " of " + response.days + ", accessed " + response.accessed + " times."
     this.enableNextButton()
   }
 });
