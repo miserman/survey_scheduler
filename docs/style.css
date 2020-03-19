@@ -154,7 +154,7 @@ tr.active{cursor: copy}
 .row_table td:last-child input{float: right}
 .timeline_y{position: absolute}
 .timeline_y span{display: block; border-top: 1px solid #3e3e3e; text-indent: 60px}
-.timeline_y input{position: relative; margin: 2px 0; height: 21px; width: 100px}
+.timeline_y input{position: relative; margin: 2px 0; height: 21px; width: 103px}
 .timeline_y > p{margin: 40px 0 2px 0; text-align: left}
 #menu_timeline{overflow: hidden; position: relative; width: 9999px}
 #menu_timeline p{font-family: monospace; text-align: left; position: absolute; width: 890px}

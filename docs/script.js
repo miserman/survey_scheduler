@@ -209,8 +209,8 @@ function request(path, fun, error, body){
             m += 'removed'
             delete study[t + 's'][body.id]
           }
-          fun({status: m})
           backup_demo()
+          fun({status: m})
         }else{
           switch(body.type){
             case 'load_schedule':
@@ -1113,9 +1113,9 @@ function filter(clear){
     page.filter.id.value = page.filter.phone.value = page.filter.first_after.value = page.filter.last_before.value = ''
     page.filter.first_before.value = former.dashdate(Date.now() + 864e5 * options.days_future)
     page.filter.last_after.value = former.dashdate(Date.now() - 864e5 * options.days_passed)
-    for(a = page.filter.order.getElementsByTagName('input'), i = a.length; i--;) a.checked = true
+    for(a = page.filter.order.getElementsByTagName('input'), i = a.length; i--;) a[i].checked = true
     a = page.filter.protocols.getElementsByTagName('input')
-    for(a = page.filter.protocols.getElementsByTagName('input'), i = a.length; i--;) a.checked = true
+    for(a = page.filter.protocols.getElementsByTagName('input'), i = a.length; i--;) a[i].checked = true
   }
   if(page.filter.id.value) try{id = new RegExp(page.filter.id.value)}catch(e){}
   if(page.filter.phone.value) try{phone = new RegExp(page.filter.phone.value)}catch(e){}

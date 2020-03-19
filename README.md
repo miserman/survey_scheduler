@@ -86,7 +86,8 @@ Qualtrics.SurveyEngine.addOnload(function(){
   this.disableNextButton()
   if(id !== "" && response.available === "true"){
     message.innerText = "Participant " + id + "; survey " + response.beep + " of "
-      + response.beeps + " for day " + response.day + " of " + response.days + ", accessed " + response.accessed + " times."
+      + response.beeps + " for day " + response.day + " of " + response.days
+      + ", accessed " + response.accessed + " times."
     this.enableNextButton()
   }
 });
