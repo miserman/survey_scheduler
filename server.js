@@ -344,7 +344,7 @@ app.post('/checkin', function(req, res){
             if(t < n && (!pr.close_after || t + pr.close_after * 6e4 > n)){
               status = pp.statuses[i]
               r.accessed = pp.accessed_n[i]
-              r.available = pr.accesses ? r.accessed > pr.accesses : true
+              r.available = pr.accesses ? r.accessed < pr.accesses : true
               r.beeps = pp.times.length
               r.beep = i + 1
               m += i + ', ' + (r.available ? '' : 'not ') + 'available'
@@ -356,7 +356,7 @@ app.post('/checkin', function(req, res){
                   log(s, 'reminder canceled for ' + id + '[' + d + '][' + i + ']')
                 }
               }
-              update_status(s, id, d, i, status, r.accessed === 0 ? n - p.timezone * 36e4 : 0)
+              update_status(s, id, d, i, status, r.accessed === 0 ? n : 0)
               break
             }
           }
