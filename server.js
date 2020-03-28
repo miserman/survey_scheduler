@@ -146,11 +146,11 @@ function send_message(s, id, day, index, status){
           m += 'false'
           ds.statuses[index] = Math.floor(ds.statuses[index])
         }else{
-          console.log(s, 'Beep sent to ' + id + ' at ' + new Date().toLocaleString())
+          console.log(s, 'Beep sent to ' + id + ' at ' + new Date().toString())
           ds.statuses[index]++
           m += 'true'
           if(status === 2 && ds.accessed_n[index] === 0 && pr.remind_after && ds.times[index] + pr.remind_after * 6e4 > now){
-            beeps['' + s + id + day + index] = setTimeout(send_message.bind(s, day, id, index, 3), (ds.times[index] + pr.remind_after * 6e4) - now)
+            beeps['' + s + id + day + index] = setTimeout(send_message.bind(null, s, id, day, index, 3), (ds.times[index] + pr.remind_after * 6e4) - now)
             m += '; reminder scheduled'
           }
           update_status(s, id, day, index, status, 0)
@@ -184,7 +184,7 @@ function schedule(s, id, day){
         }else if(t > now || (now < (i === n - 1 ? end : d.times[i + 1] - minsep) && (!pr.close_after || t + pr.close_after * 6e4 > now))){
           any = true
           beeps['' + s + id + day + i] = setTimeout(send_message.bind(null, s, id, day, i, d.statuses[i] === 1 ? 2 : 3), t - Date.now())
-        }else{
+        }else if(d.statuses[i] === 1){
           updated = true
           d.statuses[i] = 0
         }

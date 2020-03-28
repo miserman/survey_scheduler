@@ -2113,7 +2113,7 @@ function schedule_action_move(e){
         if(edit.b.nbottom < edit.p.bottom && edit.b.height + v > 0){
           v = edit.b.height + v, i = s.blackouts_index.indexOf(parseInt(edit.e.children[1].innerText))
           edit.e.style.height = v + 'px'
-          s.blackouts[i].end = Math.floor(s.date + temp_schedule.start_time + v / 360 * 864e5)
+          s.blackouts[i].end = Math.floor(s.blackouts[i].start + v / 360 * 864e5)
           page.tick_editor.children[2].children[1].value = former.mtime.format(s.blackouts[i].end)
           edit.moved = true
         }
