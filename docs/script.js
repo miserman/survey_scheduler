@@ -799,7 +799,7 @@ function make_schedule(preserve, background){
   io.protocols = page.scheduler.participant.protocol_order.innerText.split(', ')
   e = page.scheduler.participant.options.getElementsByTagName('SELECT')
   for(i = e.length; i--;) if(e[i].name) io[e[i].name] = e[i].options[e[i].selectedIndex].value
-  if(io.phone) io.phone = parseInt(io.phone)
+  if(io.phone) io.phone = Sanitize.phone(io.phone)
   if(!io.start_day) io.start_day = Date.now()
   if('string' === typeof io.start_day) io.start_day = io.start_day.replace(patterns.numpunct, '')
   io.start_day =  patterns.dashdate.test(io.start_day) ? new Date(io.start_day + 'T00:00:00').getTime() : new Date(io.start_day).setHours(24, 0, 0, 0)
@@ -972,6 +972,7 @@ function expand_schedule(e){
 function add_study(e){
   e = e.parentElement.previousElementSibling.firstElementChild
   if(e.value){
+    e.value = e.value.replace(/[^a-z0-9._-]+/gi, '_')
     request('/operation', function(d){
       notify(d)
       if(options.studies.indexOf(e.value) === -1) options.studies.push(e.value)
@@ -1006,6 +1007,10 @@ function select_study(){
     window.location.href = window.location.href.replace(patterns.query, '')
   }
   page.selected_study.innerText = 'select study'
+  study = {participants: {}, protocols: {}, version: 0, recalls: 0}
+  schedule = {}
+  page.schedule_rows = {}
+  page.ids.innerHTML = page.entries.innerHTML = ''
   if(!session || !session.signedin){
     pending.select_study = select_study
   }else{
@@ -1037,6 +1042,10 @@ function study_selection(e){
       }, notify, {type: 'remove_study', study: s})
     }else{
       options.study = e.target.innerText
+      study = {participants: {}, protocols: {}, version: 0, recalls: 0}
+      schedule = {}
+      page.schedule_rows = {}
+      page.ids.innerHTML = page.entries.innerHTML = ''
       backup()
       load_schedule()
     }
@@ -1681,11 +1690,11 @@ function post_form(type, build_only){
         break
       }
       if(type === 'participant'){
-        if(options.study !== 'demo' && !temp_schedule.phone) return notify({status: 'provide a phone number to create this participant'}, true)
         if(!temp_schedule.schedule || !temp_schedule.protocols || !temp_schedule.daysofweek){
           sort = false
           make_schedule()
         }else make_schedule(true)
+        if(options.study !== 'demo' && !temp_schedule.phone) return notify({status: 'provide a phone number to create this participant'}, true)
         u.object.daysofweek = temp_schedule.daysofweek
         if(temp_schedule.hasOwnProperty('blackouts')) u.object.blackouts = temp_schedule.blackouts
         u.object.protocols = temp_schedule.protocols
@@ -1708,25 +1717,22 @@ function post_form(type, build_only){
         notify({status: 'nothing to update'}, true)
         return
       }
-      if(type === 'participant' && sort) for(d = temp_schedule.schedule.length; d--;){
-        ct = temp_schedule.schedule[d].times
+      if(type === 'participant' && sort) for(d = u.object.schedule.length; d--;){
+        ct = u.object.schedule[d].times
         if(ct.length > 1){
-          for(i = ct.length - 1, sort = false, tr = [i], t = 0; i--;){
+          for(i = ct.length - 1, tr = [i], t = 0; i--;){
             for(t = tr.length; t--;) if(t === 0 || ct[i] > ct[tr[t]]){
-              tr.splice(t + 1, 0, i)
-              if(t) sort = true
+              tr.splice(t + (ct[i] < ct[tr[t]] ? 0 : 1), 0, i)
               break
             }
           }
-          if(sort){
-            ct = [], cs = []
-            for(n = tr.length, i = 0; i--;){
-              ct.push(temp_schedule.schedule[d].times[tr[i]])
-              cs.push(temp_schedule.schedule[d].statuses[tr[i]])
-            }
-            temp_schedule.schedule[d].times = ct
-            temp_schedule.schedule[d].statuses = cs
+          ct = [], cs = []
+          for(n = tr.length, i = 0; i < n; i++){
+            ct.push(u.object.schedule[d].times[tr[i]])
+            cs.push(u.object.schedule[d].statuses[tr[i]])
           }
+          u.object.schedule[d].times = ct
+          u.object.schedule[d].statuses = cs
         }
       }
       request('/operation', function(d){
@@ -1739,8 +1745,6 @@ function post_form(type, build_only){
           options.id = ''
           backup()
           display_schedule(true)
-          if(page.schedule_rows.hasOwnProperty(u.id)) page.schedule_rows[u.id].id.firstElementChild.firstElementChild.style.height =
-            page.schedule_rows[u.id].entries.getBoundingClientRect().height + 'px'
           if(page.scheduler.frame.style.display === '') toggle_scheduler()
         }else{
           if(type === 'user'){

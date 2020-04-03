@@ -308,7 +308,7 @@ function add_user(o, m, s, base_perms, email, username, req, res){
         o.status = 'updated user ' + email
       }else{
         m += 'true, added to database'
-        o.status = 'added user ' + email + ', and sent them a temporary password'
+        o.status = 'added user ' + email
       }
       studies[s].users[username] = req.body.object
       studies[s].version = o.version = Date.now()
@@ -450,11 +450,17 @@ app.post('/operation', function(req, res){
       check.pass = check.valid && !check.expired
       if(check.pass){
         name = sessions[id].access.username
-        check.perms = studies.hasOwnProperty(s) && studies[s].users.hasOwnProperty(name)
-          ? studies[s].users[name] : Sanitize.perms_template(process.env.ADMIN === name)
+        if(!studies.hasOwnProperty(s) && process.env.ADMIN !== name){
+          check.perms = Sanitize.perms_template(false)
+          for(m in studies) if(studies.hasOwnProperty(m) && studies[m].users.hasOwnProperty(name) &&
+            studies[m].users[name].add_study) check.perms.add_study = true
+        }else{
+          check.perms = studies.hasOwnProperty(s) && studies[s].users.hasOwnProperty(name)
+            ? studies[s].users[name] : Sanitize.perms_template(process.env.ADMIN === name)
+        }
         check.pass = base_parmissions.hasOwnProperty(type) || (check.perms.hasOwnProperty(type) && check.perms[type])
       }
-      if(s && !studies.hasOwnProperty(s)) s = s.replace(/[^a-z0-9]+/gi, '_')
+      if(s && !studies.hasOwnProperty(s)) s = s.replace(/[^a-z0-9._-]+/gi, '_')
     }
   }
   o = {version: 0}
@@ -712,34 +718,34 @@ app.post('/operation', function(req, res){
         case 'remove_user':
           m = 'remove user ' + nid + ': '
           if(studies[s].users.hasOwnProperty(nid)){
-            users.adminDeleteUser({
-              UserPoolId: process.env.USERPOOL,
-              Username: nid
+            database.update({
+              TableName: 'studies',
+              Key: {study: s},
+              UpdateExpression: 'REMOVE #u.#n',
+              ExpressionAttributeNames: {'#u': 'users', '#n': nid}
             }, function(e, d){
-              if(e && !/does not exist/.test(e.message)){
-                log(s, m + 'false')
-                o.status = 'failed to remove user ' + uid
-                res.status(400).json(o)
-              }else{
-                database.update({
-                  TableName: 'studies',
-                  Key: {study: s},
-                  UpdateExpression: 'REMOVE #u.#n',
-                  ExpressionAttributeNames: {'#u': 'users', '#n': nid}
+              if(d){
+                delete studies[s].users[nid]
+                for(var k in sessions) if(sessions.hasOwnProperty(k) && sessions[k].access.username === nid){
+                  delete sessions[k]
+                }
+                studies[s].version = o.version = Date.now()
+              }
+              if(e) console.log(e)
+              log(s, m + (e ? 'true ' : 'false '))
+              e = true
+              for(m in studies) if(studies.hasOwnProperty(m) && studies[m].users.hasOwnProperty(nid)) e = false
+              if(e){
+                users.adminDeleteUser({
+                  UserPoolId: process.env.USERPOOL,
+                  Username: nid
                 }, function(e, d){
-                  if(d){
-                    delete studies[s].users[nid]
-                    for(var k in sessions) if(sessions.hasOwnProperty(k) && sessions[k].access.username === nid){
-                      delete sessions[k]
-                    }
-                    studies[s].version = o.version = Date.now()
-                  }
-                  if(e) console.log(e)
-                  log(s, m + 'true, ' + (e ? 'not ' : '') + 'removed from database')
-                  o.status = 'removed user ' + nid
-                  res.json(o)
+                  m = 'delete user ' + nid + "'s account: "
+                  log(s, m + (e ? (/does not exist/.test(e.message) ? 'false, account does not exist' : 'false') : 'true'))
                 })
               }
+              o.status = 'removed user ' + nid
+              res.json(o)
             })
           }else{
             o.status += 'no user with that email exists'

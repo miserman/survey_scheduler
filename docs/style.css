@@ -97,8 +97,8 @@ div.nearest, .upnext_wrap table{background: #0060ea; color: #fff}
 .reminded{background: #f9c361}
 .missed{background: #f38d0e}
 .menu_wrap{
-  position: relative; z-index: 1; top: 20px; width: 90%; margin: 0 auto 50px auto;
-  border-radius: 20px; background: #fff; max-width: 900px; z-index: 4
+  position: relative; z-index: 1; top: 20px; width: 97%; margin: 0 auto 50px auto;
+  border-radius: 20px; background: #fff; z-index: 4
 }
 .menu_wrap table{width: 100%; border-spacing: 0}
 .menu_wrap input{padding: 6px 0; margin: 0}
