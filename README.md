@@ -12,10 +12,34 @@ Generated participants are based on the default settings in the add or edit > pa
 
 Clear local storage (menu > clear storage), or change the specified **n** and refresh to generate new participants.
 
+## status codes
+Beeps have associated status codes to keep track of scheduling:
+
+0. missed ![](https://placehold.it/20x10/f38d0e?text=+): Set when a pending beep is outside of its open window.
+1. pending ![](https://placehold.it/20x10/7fb2ff?text=+): Set when a beep is scheduled; only pending beeps are ever sent.
+2. sent ![](https://placehold.it/20x10/fdff81?text=+): Set when a beep that has been sent.
+3. reminded ![](https://placehold.it/20x10/f9c361?text=+): Set when a reminder for a sent beep has been sent.
+4. send_received ![](https://placehold.it/20x10/dedede?text=+): Set after a beep has been sent, and a checkin with access has been received within the beep's window.
+5. remind_received ![](https://placehold.it/20x10/dedede?text=+): Set after a reminder has been sent, and a checkin with access has been received within the beep's window.
+6. pause ![](https://placehold.it/20x10/caf9f9?text=+): Set from the client, to prevent a passing beep from being sent.
+7. skipped ![](https://placehold.it/20x10/8eab79?text=+): Set when a paused beep has passed.
+
+Outside of status codes, a beep might be a colored a darker blue ![](https://placehold.it/20x10/0060ea?text=+) when it is the next pending beep to be sent, or black when a beep in the timeline is hovered over.
+
+# running the app
+The app has these requirements:
+1. Node.js (tested on version 12.16.1).
+1. A single, stable environment for scheduling. The app schedules beeps locally, so it has to be running when a beep is meant to be sent. Each time the app is started, it will initially schedule beeps upcoming within a week. If multiple instances of the app are running, beeps may be sent multiple times.
+1. Ability to receive HTTP requests for checkins from the survey.
+
+The easiest way to run the app may be from Amazon's [Elastic Beanstalk](https://aws.amazon.com/elasticbeanstalk/), but the app does require a secured connection for [Cognito](https://aws.amazon.com/cognito/)'s callback, which is easiest to set up with a load balancer on Elastic Beanstalk.
+
+Another simple hosting option is Google's [App Engine](https://cloud.google.com/appengine/), but it will sometimes maintain multiple instances by default, so that may be something to manage.
+
 ## services
 The app uses these [Amazon Web Services](https://aws.amazon.com/) (AWS):
 
-[**Cognito**](https://aws.amazon.com/cognito/): To manage user accounts
+[**Cognito**](https://aws.amazon.com/cognito/): To manage user accounts.
 1. From the [Cognito console](https://console.aws.amazon.com/cognito/users), make Create a user pool
     1. In Policies, select Only allow administrators to create users
     1. In App Clients, Add an app client, and check only Enable SRP
@@ -26,10 +50,11 @@ The app uses these [Amazon Web Services](https://aws.amazon.com/) (AWS):
     1. In Sign in sign out URLs, enter your URL, with /auth appended to the Callback URL (e.g., http://localhost:3000/auth for testing)
     1. In OAuth 2.0, check Authorization code grant and aws.cognito.signin.user.admin
 
-[**DynamoDB**](https://aws.amazon.com/dynamodb/): To store study information and participant details
+[**DynamoDB**](https://aws.amazon.com/dynamodb/): To store study information and participant details.
 
-[**SNS**](https://aws.amazon.com/sns/): To send the SMS messages
+[**SNS**](https://aws.amazon.com/sns/): To send the SMS messages.
 
+#### AWS access
 The app needs AWS access to run these services, which can be set up through [IAM](https://console.aws.amazon.com/iam/home#/users):
 1. Add user
 1. Name whatever, and check Programmatic access
@@ -57,7 +82,9 @@ Qualtrics can also checkin with the app when the survey is accessed:
 1. Enter your URL appended with /checkin
 1. Set Method to POST
 1. Add a body parameter, and set its Body Parameters to application/json, Parameter to your ID parameter, and set a String to the extracted ID via Piped Text (e.g., ${e://Field/id})
+1. If you want the checkin to also update the corresponding beep's status and access count, add a body parameter called "access" with a Boolean value of True. The "access" parameter can be used to separate an availability check from a status and accessed count update. For example, you might place a Web Services element without an "access" parameter at the start of the survey, and use it to gate access to the survey (if the survey is visited outside of a beep window, or more than allowed accesses), then add another Web Services element with an "access" parameter after the survey has been started. This would help avoid response time or loading issues in the case of limited allowed accesses (e.g., if the checkin goes through but the survey fails to fully load or receive a response in time, the survey can be refreshed without counting as another access).
 1. Finally, Add Embedded Data..., and set a value for available, accessed, day, days, beep, and beeps
+![](docs/example_webservice.png)
 
 If the app recognizes the ID, it responds with an object like this:
 ```javascript
@@ -70,7 +97,7 @@ If the app recognizes the ID, it responds with an object like this:
   beeps: 6
 }
 ```
-Here, available is based on the most recently passed beep and the associated protocol's close after setting. That is, available will be true if a beep was sent no longer ago than the associated protocol's close after setting, or the associated protocol has no close after setting.
+Here, available is based on the most recently passed beep and the associated protocol's allowed accesses and close after settings. That is, available will be true if a beep had been accessed fewer than allowed accesses, and was sent no longer ago than the associated protocol's close after setting (or the associated protocol has no close after setting).
 
 This information can be used from within Qualtrics to regulate access or condition questions on schedule status. For example, adding this as a question's JavaScript would prevent proceeding if available is false, and otherwise display schedule information:
 ```javascript

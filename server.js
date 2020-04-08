@@ -327,12 +327,12 @@ app.get('/session', function(req, res){
 })
 app.post('/checkin', function(req, res){
   var r = {available: false, accessed: 0, days: 0, day: 0, beeps: 0, beep: 0}, td = new Date().setHours(0, 0, 0, 0),
-      pd = td - 864e5, pdm, n = Date.now(), id = Sanitize.gen('id', req.body.id),
+      pd = td - 864e5, pdm, n = Date.now(), id = Sanitize.gen('id', req.body.id), access = Boolean(req.body.access),
       k, s, p, pp, d, pr, i, t, sid, m, day, status
   if(id){
     for(k in studies) if(studies.hasOwnProperty(k) && studies[k].participants.hasOwnProperty(id)) s = k
     if(s){
-      m = 'checkin by ' + id + ', day: '
+      m = (access ? 'access' : 'checkin') + ' by ' + id + ', day: '
       for(p = studies[s].participants[id], d = p.schedule.length; d--;){
         day = new Date(p.schedule[d].date).setHours(0, 0, 0, 0)
         if(td === day || (pdm = pd === day)){
@@ -348,15 +348,17 @@ app.post('/checkin', function(req, res){
               r.beeps = pp.times.length
               r.beep = i + 1
               m += i + ', ' + (r.available ? '' : 'not ') + 'available'
-              if(pr.reminder_message && status < 4){
-                status = status === 3 ? 5 : 4
-                if(beeps.hasOwnProperty(sid = '' + s + id + d + i)){
-                  clearTimeout(beeps[sid])
-                  delete beeps[sid]
-                  log(s, 'reminder canceled for ' + id + '[' + d + '][' + i + ']')
+              if(access){
+                if(pr.reminder_message && status < 4){
+                  status = status === 3 ? 5 : 4
+                  if(beeps.hasOwnProperty(sid = '' + s + id + d + i)){
+                    clearTimeout(beeps[sid])
+                    delete beeps[sid]
+                    log(s, 'reminder canceled for ' + id + '[' + d + '][' + i + ']')
+                  }
                 }
+                update_status(s, id, d, i, status, r.accessed === 0 ? n : 0)
               }
-              update_status(s, id, d, i, status, r.accessed === 0 ? n : 0)
               break
             }
           }
