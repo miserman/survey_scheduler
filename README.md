@@ -17,7 +17,7 @@ Beeps have associated status codes to keep track of scheduling:
 
 0. missed ![](https://placehold.it/20x10/f38d0e?text=+): Set when a pending beep is outside of its open window.
 1. pending ![](https://placehold.it/20x10/7fb2ff?text=+): Set when a beep is scheduled; only pending beeps are ever sent.
-2. sent ![](https://placehold.it/20x10/fdff81?text=+): Set when a beep that has been sent.
+2. sent ![](https://placehold.it/20x10/fdff81?text=+): Set when a beep has been sent.
 3. reminded ![](https://placehold.it/20x10/f9c361?text=+): Set when a reminder for a sent beep has been sent.
 4. send_received ![](https://placehold.it/20x10/dedede?text=+): Set after a beep has been sent, and a checkin with access has been received within the beep's window.
 5. remind_received ![](https://placehold.it/20x10/dedede?text=+): Set after a reminder has been sent, and a checkin with access has been received within the beep's window.

@@ -172,7 +172,7 @@ function schedule(s, id, day){
   }else if(d.hasOwnProperty('times')){
     minsep = pr.minsep * 6e4
     remind = pr.remind_after * 6e4 || 0
-    end = timeadj(d, studies[s].participants[id].end_time) + studies[s].participants[id].timezone * 36e4
+    end = timeadj(d, studies[s].participants[id].end_time)
     for(n = d.times.length, i = 0; i < n; i++){
       t = d.times[i]
       if(t - now < 6e8 && (d.statuses[i] === 6 || d.statuses[i] === 1 || (d.statuses[i] === 2 && pr.remind_after && t + remind < now))){
