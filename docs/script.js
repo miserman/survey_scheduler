@@ -78,14 +78,14 @@ var session, module = {exports: {}}, Sanitize, pending = {}, page = {
       submit: $('user_submit')
     }
   }
-}, loading = false, queued = false, edit = {t: 0, b: 0, e: false}, update_queue = {}, schedule = {}, temp_schedule = {}, nearest,
+}, loading = false, queued = false, edit = {t: 0, b: 0, e: false, ed: false}, update_queue = {}, schedule = {}, temp_schedule = {}, nearest,
 timezone = new Date().getTimezoneOffset(), study = {participants: {}, protocols: {}, version: 0, recalls: 0},
 store = window.localStorage || {}, logs = {}, patterns = {
-  addRemove: /^(?:add_|remove_)/, add: /^add_/, remove: /^remove_/, noRecord: /not on record/, idPhone: /^(?:id|phone)$/,
-  d7: /\d{7}/, dashdate: /^\d{4}-\d{2}-\d{2}$/, stripdate: /\d{2}(?=\d{2}$)|[^0-9]/g, gcm: /[^\u0000-\u007f]/g, http: /(http[s:/]+(.+$))/,
-  pButton: /^(?:P|BUTTON)$/, crs: /^(?:cancel|remove|set)$/, qmark: /\?/, space: /\s/g, colonspace: /[:\s]/g, apm: /[ap:]/i, anycolon: /:/, colon: /:/g,
-  a: /a/i, p: /p/i, timestamp: /[^0-9:apm\s-]/gi, numpunct: /[^0-9:\s-]/g, mli: /(?:message$|link$|^id)/, query: /\?.*$/, cmli: /(?:color|id|message|link)/,
-  slash: /\//g, n: /[?&][Nn]=(\d+)/
+  addRemove: /^(?:add_|remove_)/, add: /^add_/, remove: /^remove_/, noRecord: /not on record/, period: /\./, idPhone: /^(?:id|phone)$/,
+  d7: /\d{7}/, dashdate: /^\d{4}-\d{2}-\d{2}$/, stripdate: /\d{2}(?=\d{2}$)|[^0-9]/g, gcm: /[^\u0000-\u007f]/g, http: /(https?:\/\/(.+$))/,
+  pButton: /^(?:P|BUTTON)$/, crs: /^(?:cancel|remove|set)$/, qmark: /\?/, space: /\s/g, colonspace: /[:\s]/g, apm: /[ap:]/i, anycolon: /:/,
+  colon: /:/g, a: /a/i, p: /p/i, time: /^[0-9]{13}$/, timestamp: /[^0-9:apm\s-]/gi, numpunct: /[^0-9:\s-]/g, mli: /(?:message$|link$|^id)/,
+  query: /\?.*$/, cmli: /(?:color|id|message|link)/, slash: /\//g, n: /[?&][Nn]=(\d+)/
 }, former = {
   time: Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit'}),
   ftime: Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit', second: 'numeric'}),
@@ -385,6 +385,7 @@ function load_schedule(refresh){
           page.selected_study.innerText = options.study
           page.study_selector.style.display = 'none'
           page.timeline_wrap.style.display = page.schedule_wrap.style.display = ''
+          apply_colors()
           display_schedule(refresh, true)
         }
       }
@@ -489,7 +490,7 @@ function display_schedule(refresh, reset_filter){
 function display_single_schedule(fs, o, makenew){
   var id = fs.id, s = fs.schedule, start = 'string' === typeof(fs.start_time) ? toMs(fs.start_time) : fs.start_time,
       end = 'string' === typeof(fs.end_time) ? toMs(fs.end_time) : fs.end_time,
-      n, d, b, i, v, pv, tl = o.id !== 'menu_schedule', e, c, ed, ee
+      classlist = [], n, d, b, i, v, pv, tl = o.id !== 'menu_schedule', e, c, ed, ee
   if(makenew){
     clear_time_edit()
     o.innerHTML = '<table><tr></tr><tr></tr></table>'
@@ -537,7 +538,9 @@ function display_single_schedule(fs, o, makenew){
       }else{
         e = ee.children[d].children[i]
         e.style.top = v * 360 / 864e5 + 'px'
-        e.className = 'ping ' + names.status[s[d].statuses[i]]
+        classlist = e.className.split(patterns.space)
+        classlist[1] = names.status[s[d].statuses[i]]
+        e.className = classlist.join(' ')
         e.firstElementChild.innerText = id
         e.lastElementChild.innerText = i
       }
@@ -581,7 +584,7 @@ function display_day(p, s, d, id){
   p.nextElementSibling.appendChild(e = document.createElement('td'))
 }
 function display_time(id, v, e, i, status){
-  var c, t
+  var c, t, d = e.cellIndex, mtype = status === 2 ? 'initial' : 'reminder'
   e.appendChild(c = document.createElement('div'))
   c.style.top = v * 360 / 864e5 + 'px'
   c.appendChild(t = document.createElement('p'))
@@ -590,6 +593,11 @@ function display_time(id, v, e, i, status){
   c.appendChild(t = document.createElement('p'))
   t.innerText = i
   t.className = 'index'
+  if(schedule.hasOwnProperty(id) && schedule[id].hasOwnProperty('schedule') &&
+    schedule[id].schedule.length > d && schedule[id].schedule[d].hasOwnProperty('messages') &&
+    schedule[id].schedule[d].messages.length > i && schedule[id].schedule[d].messages[i].hasOwnProperty(mtype) &&
+    schedule[id].schedule[d].messages[i][mtype].hasOwnProperty('providerResponse') &&
+    schedule[id].schedule[d].messages[i][mtype].status === 'FAILURE') c.className += ' not_delivered'
 }
 function display_blackout(id, s, i, v, e){
   var c
@@ -703,10 +711,41 @@ function show_hovered(e){
     }
   }
 }
+function fromstamp(time){
+  var ts = time.split(patterns.space), s = ts.length > 1 ? ts[1].split(patterns.colon) : time.split(patterns.colon)
+  return s.length > 2 ?
+    former.ftime.format(new Date().setUTCHours(parseInt(s[0]) || 0, parseInt(s[1]) || 0, parseInt(s[2]) || 0)) : time
+}
+function show_info(c, s, i){
+  if(s.accessed_n[i]){
+    c.appendChild(document.createElement('span'))
+    c.lastElementChild.className = 'response_info'
+    c.lastElementChild.innerText = '(' + s.accessed_n[i] + ') ' + former.ftime.format(s.accessed_first[i])
+  }
+  if(s.messages && s.messages.length > i){
+    var mtype = s.statuses[i] === 2 || !s.messages[i].hasOwnProperty('reminder') ? 'initial' : 'reminder'
+    if(s.messages[i][mtype]){
+      c.appendChild(document.createElement('span'))
+      c.lastElementChild.className = 'delivery_id'
+      c.lastElementChild.innerText = s.messages[i][mtype].messageId
+      if(s.messages[i][mtype].providerResponse){
+        c.appendChild(document.createElement('span'))
+        c.lastElementChild.className = 'delivery_info'
+        c.lastElementChild.innerText = s.messages[i][mtype].providerResponse
+        if(s.messages[i][mtype].timestamp !== 'undefined'){
+          c.appendChild(document.createElement('span'))
+          c.lastElementChild.className = 'delivery_info'
+          c.lastElementChild.innerText = 'logged at ' + (patterns.time.test(s.messages[i][mtype].timestamp) ?
+            former.ftime.format(parseInt(s.messages[i][mtype].timestamp)) : fromstamp(s.messages[i][mtype].timestamp))
+        }
+      }
+    }
+  }
+}
 function tick_info(e){
   if(e.target && (e.target.className === 'blackout' || e.target.classList[0] === 'ping')){
-    e.target.parentElement.appendChild(page.tick_info)
-    var d = e.target.parentElement.cellIndex, i, s, b = e.target.parentElement.getBoundingClientRect(), ie
+    // e.target.parentElement.appendChild(page.tick_info)
+    var d = e.target.parentElement.cellIndex, i, s, c, ie
     page.tick_info.style.display = ''
     if(e.target.className === 'blackout'){
       i = parseInt(e.target.children[1].innerText)
@@ -718,13 +757,13 @@ function tick_info(e){
       i = parseInt(e.target.children[1].innerText)
       s = study.participants[e.target.firstElementChild.innerText]
       page.tick_info.firstElementChild.innerText = former.ftime.format(s.schedule[d].times[i])
-      page.tick_info.className = page.tick_info.lastElementChild.innerText = names.status[s.schedule[d].statuses[i]]
-      if(s.schedule[d].accessed_n[i]) page.tick_info.lastElementChild.innerHTML = names.status[s.schedule[d].statuses[i]] +
-        '<br>(' + s.schedule[d].accessed_n[i] + ') ' + former.ftime.format(s.schedule[d].accessed_first[i])
+      c = page.tick_info.lastElementChild
+      page.tick_info.className = c.innerText = names.status[s.schedule[d].statuses[i]]
+      show_info(c, s.schedule[d], i)
     }
     ie = page.tick_info.getBoundingClientRect()
-    page.tick_info.style.top = (e.clientY - b.top - 1) - ie.height + 'px'
-    page.tick_info.style.left = (e.clientX - b.left - 1) - ie.width + 'px'
+    page.tick_info.style.top = (e.clientY - 1) - ie.height + 'px'
+    page.tick_info.style.left = (e.clientX - 1) - ie.width + 'px'
   }else{
     page.tick_info.style.display = 'none'
   }
@@ -848,11 +887,12 @@ function make_schedule(preserve, background){
         }
         if(day + 864e5 * (d + ds - 1) >= io.end_day) break
         if(io.schedule.length > d && io.schedule[d].date === day + 864e5 * (d + ds)){
+          io.schedule[d].messages = []
           io.schedule[d].times = []
           io.schedule[d].statuses = []
           io.schedule[d].accessed_n = []
           io.schedule[d].accessed_first = []
-        }else io.schedule[d] = {day: d, date: day + 864e5 * (d + ds), times: [], statuses: [], accessed_n: [], accessed_first: []}
+        }else io.schedule[d] = {day: d, date: day + 864e5 * (d + ds), messages: [], times: [], statuses: [], accessed_n: [], accessed_first: []}
       }
       if(d < io.schedule.length) io.schedule.splice(d, io.schedule.length - d)
       n = io.schedule.length
@@ -958,6 +998,7 @@ function expand_schedule(e){
       e = e.parentElement
       if(e && e.parentElement && 'undefined' !== typeof e.parentElement.rowIndex){
         var c = page.ids.children[e.parentElement.rowIndex].firstElementChild.firstElementChild
+        page.tick_info.style.display = 'none'
         if(e.className === 'selected'){
           c.className = e.className = ''
           c.style.height = e.getBoundingClientRect().height + 'px'
@@ -1011,6 +1052,7 @@ function select_study(){
   schedule = {}
   page.schedule_rows = {}
   page.ids.innerHTML = page.entries.innerHTML = ''
+  page.tick_info.style.display = 'none'
   if(!session || !session.signedin){
     pending.select_study = select_study
   }else{
@@ -1033,6 +1075,8 @@ function select_study(){
 function study_selection(e){
   if(e.target.tagName === 'BUTTON'){
     if(e.target.innerText === 'delete'){
+      e.target.innerText = 'confirm deletion'
+    }else if(e.target.innerText === 'confirm deletion'){
       var s = e.target.parentElement.previousElementSibling.firstElementChild.value
       request('/operation', function(d){
         notify(d)
@@ -1466,6 +1510,10 @@ function apply_colors(){
     c = '.' + k + '{background: ' + options.protocol[k].color + '}\n'
     page.colors.styleSheet ? page.colors.styleSheet.cssText += c : page.colors.appendChild(document.createTextNode(c))
   }
+  for(k in study.protocols) if(study.protocols.hasOwnProperty(k) && study.protocols[k].hasOwnProperty('color')){
+    c = '.' + k + '{background: ' + study.protocols[k].color + '}\n'
+    page.colors.styleSheet ? page.colors.styleSheet.cssText += c : page.colors.appendChild(document.createTextNode(c))
+  }
   document.head.appendChild(page.colors)
 }
 function chunk_message(message, output, fun){
@@ -1554,7 +1602,8 @@ function toMs(time){
 function roll_protocols(n, io){
   io.protocol_days = {}
   for(var a = [], set = [], t = -1, pn = io.protocols.length, i = pn, p; i--;){
-    p = options.protocol[io.protocols[i]]
+    if(study.protocols.hasOwnProperty(io.protocols[i])) options.protocol[io.protocols[i]] = study.protocols[io.protocols[i]]
+    p = options.protocol.hasOwnProperty(io.protocols[i]) ? options.protocol[io.protocols[i]] : {days: 1}
     io.protocol_days[io.protocols[i]] = !p.days ? Math.ceil(n / pn) : p.days < 1 ? Math.ceil(p.days * n) : p.days
     if(!io.protocol_days[io.protocols[i]]) io.protocol_days[io.protocols[i]] = 1
   }
@@ -1593,6 +1642,7 @@ function roll_times(d, p, io){
       if(se.hasOwnProperty('blackouts')) for(b = se.blackouts.length; b--;){
         if(start >= se.blackouts[b].start && start <= se.blackouts[b].end) start = se.blackouts[b].end + (p.offset || 0) * 6e4
       }
+      se.messages.push({})
       se.times.push(start)
       se.statuses.push(1)
       se.accessed_n.push(0)
@@ -1655,6 +1705,7 @@ function roll_times(d, p, io){
           }
           v = Math.floor(s + Math.random() * (e - s + 1))
       }
+      se.messages.push({})
       se.times.push(v)
       se.statuses.push(1)
       se.accessed_n.push(0)
@@ -1903,15 +1954,16 @@ function toggle_active(e){
   }
 }
 function position_editor(p, e){
-  var b = e.getBoundingClientRect(), ed = page.tick_editor.getBoundingClientRect(), f
-  if(b.width > ed.width * 2){
-    page.tick_editor.style.top = (b.top + ed.height + b.height > p.bottom ? e.parentElement.rowIndex ? b.top - p.top - ed.height - 1 :
+  var b = e.getBoundingClientRect(), f
+  edit.ed = page.tick_editor.getBoundingClientRect()
+  if(b.width > edit.ed.width * 2){
+    page.tick_editor.style.top = (b.top + edit.ed.height + b.height > p.bottom ? e.parentElement.rowIndex ? b.top - p.top - edit.ed.height - 1 :
       0 : b.top - p.top + b.height + 1) + 'px'
     page.tick_editor.style.left = '0px'
   }else{
     f = page.menu_schedule.previousElementSibling.getBoundingClientRect()
-    page.tick_editor.style.top = b.top + ed.height + b.height > p.bottom ? Math.max(0, b.top - p.top - ed.height + b.height) + 'px' : e.style.top
-    page.tick_editor.style.left = (b.left - f.left - 104 < ed.width ? b.width : -ed.width) + 'px'
+    page.tick_editor.style.top = b.top + edit.ed.height + b.height > p.bottom ? Math.max(0, b.top - p.top - edit.ed.height + b.height) + 'px' : e.style.top
+    page.tick_editor.style.left = (b.left - f.left - edit.ed.width < edit.ed.width ? b.width : -edit.ed.width) + 'px'
   }
 }
 function show_time(e){
@@ -1922,10 +1974,10 @@ function show_time(e){
       page.tick_editor.style.display = ''
       e.parentElement.appendChild(page.tick_editor)
       var p = e.parentElement.parentElement.getBoundingClientRect(), s, i
-      position_editor(p, e)
       s = temp_schedule.schedule[e.parentElement.cellIndex]
       if(e.className === 'blackout'){
         page.tick_editor.children[2].style.display = ''
+        page.tick_editor.children[4].innerText = ''
         page.tick_editor.children[0].style.display = page.tick_editor.children[1].style.display = 'none'
         i = s.blackouts_index.indexOf(parseInt(e.children[1].innerText))
         page.tick_editor.children[2].firstElementChild.value = former.mtime.format(s.blackouts[i].start)
@@ -1938,7 +1990,10 @@ function show_time(e){
         page.tick_editor.firstElementChild.firstElementChild.value = former.mtime.format(s.times[i])
         page.tick_editor.firstElementChild.children[1].selectedIndex = names.status.length - 1 - s.statuses[i]
         page.tick_editor.className = names.status[s.statuses[i]]
+        page.tick_editor.lastElementChild.innerHTML = ''
+        show_info(page.tick_editor.lastElementChild, s, i)
       }
+      position_editor(p, e)
     }else if(!edit.holding && !edit.e){
       page.tick_editor.style.display = 'none'
       page.tick_editor.className = ''
@@ -1948,6 +2003,7 @@ function show_time(e){
 function schedule_action_start(e){
   edit.moved = false
   edit.t = -1
+  edit.ed = page.tick_editor.getBoundingClientRect()
   if(e.which === 1 && !edit.e && (edit.active || (e.target.classList.contains('ping') || e.target.className === 'blackout' || e.target.parentElement.className === 'blackout'))){
     if(edit.active && e.target.tagName === 'TD'){
       edit.t = 0
@@ -1959,6 +2015,7 @@ function schedule_action_start(e){
         edit.holding = edit.active = false
         page.scheduler.notification.classList.remove('showing')
         page.menu_schedule.lastElementChild.lastElementChild.lastElementChild.classList.remove('active')
+        s.messages.push({})
         s.times.push(t)
         s.times_index.push(s.times.length - 1)
         s.statuses.push(1)
@@ -2022,7 +2079,7 @@ function schedule_action_update(){
       edit.holding.firstElementChild.innerText = former.day.format(t)
     }else{
       var d = edit.holding.parentElement.cellIndex, i, t, s = names.status.length - 1 - page.tick_editor.firstElementChild.lastElementChild.selectedIndex,
-          se, ed = page.tick_editor.getBoundingClientRect(), p = edit.holding.parentElement.getBoundingClientRect(), w = -ed.width, b
+          se, p = edit.holding.parentElement.getBoundingClientRect(), b
       t = edit.holding.className === 'blackout' ? toMs(page.tick_editor.children[2].children[0].value)
           : toMs(page.tick_editor.firstElementChild.firstElementChild.value)
       if(temp_schedule.start_time > t){
@@ -2085,7 +2142,7 @@ function schedule_action_move(e){
         if(edit.b.nbottom < edit.p.bottom && edit.b.ntop > edit.p.top){
           v = edit.b.ntop - edit.p.top
           edit.e.style.top = v + 'px'
-          page.tick_editor.style.top = (v + 102 > edit.p.bottom - edit.p.top ? v - 98 : v) + 'px'
+          page.tick_editor.style.top = (v + edit.ed.height > edit.p.bottom - edit.p.top ? v - edit.ed.height + 4 : v) + 'px'
           if(edit.e.className === 'blackout'){
             i = s.blackouts_index.indexOf(parseInt(edit.e.children[1].innerText))
             s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time + v / 360 * 864e5)
@@ -2106,7 +2163,7 @@ function schedule_action_move(e){
           edit.e.style.height = edit.b.height - v + 'px'
           v = edit.b.ntop - edit.p.top
           edit.e.style.top = v + 'px'
-          page.tick_editor.style.top = (v + 102 > edit.p.bottom - edit.p.top ? v - 98 : v) + 'px'
+          page.tick_editor.style.top = (v + edit.ed.height > edit.p.bottom - edit.p.top ? v - edit.ed.height + 4 : v) + 'px'
           s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time + v / 360 * 864e5)
           page.tick_editor.children[2].children[0].value = former.mtime.format(s.blackouts[i].start)
           edit.moved = true
@@ -2190,6 +2247,7 @@ function schedule_action_end(e){
             }else if(temp_schedule.schedule[d].times_index.length > i){
               i = temp_schedule.schedule[d].times_index.indexOf(i)
               temp_schedule.schedule[d].times.splice(i, 1)
+              temp_schedule.schedule[d].messages.splice(i, 1)
               temp_schedule.schedule[d].times_index.splice(i, 1)
               temp_schedule.schedule[d].statuses.splice(i, 1)
               edit.holding.parentElement.removeChild(edit.holding)
@@ -2233,6 +2291,7 @@ function schedule_action_end(e){
             temp_schedule.schedule[h].times = []
             temp_schedule.schedule[h].times_index = []
             temp_schedule.schedule[h].statuses = []
+            temp_schedule.schedule[h].messages = []
             roll_times(h, study.protocols[temp_schedule.schedule[h].protocol], temp_schedule)
             clear_time_edit(c)
             c.style.height = page.menu_timeline.style.height = 15 + (temp_schedule.end_time - temp_schedule.start_time) * 360 / 864e5 + 'px'
@@ -2315,7 +2374,8 @@ function schedule_action_end(e){
         edit.active.classList.remove('active')
         edit.active = false
         page.scheduler.notification.classList.remove('showing')
-        page.menu_schedule.lastElementChild.lastElementChild.lastElementChild.classList.remove('active')
+        if(page.menu_schedule.lastElementChild)
+          page.menu_schedule.lastElementChild.lastElementChild.lastElementChild.classList.remove('active')
       }
       if(edit.e){
         if(edit.e.tagName === 'TD' || edit.e.className === 'blackout' || edit.e.classList[0] === 'ping'){
@@ -2337,8 +2397,10 @@ function schedule_action_end(e){
 }
 function download_participants(){
   var p = study.participants, e = document.createElement('a'), content, b = '\n', sep = ',', k, n, i, s, bn, bi, ts = '',
+      mim = [], mis = [], mit = [], mrm = [], mrs = [], mrt = [],
       h = 'pid,phone,timezone,start_day,end_day,start_time,end_time,protocol_order_type,protocols' +
-          ',daysofweek,blackout_days,day,date,protocol,blackouts,times,statuses,first_access,accesses'
+          ',daysofweek,blackout_days,day,date,protocol,blackouts,times,statuses,first_access,accesses' +
+          ',initial_id,initial_receive_status,initial_receive_time,reminder_id,reminder_receive_status,reminder_receive_time'
   for(k in p){
     ts = p[k].id + sep + (p[k].phone ? p[k].phone : 'NA') + sep + p[k].timezone + sep + p[k].start_day + sep +
          p[k].end_day + sep + p[k].start_time + sep + p[k].end_time + sep + p[k].order_type + sep + p[k].protocols.join(' ') + sep
@@ -2356,7 +2418,40 @@ function download_participants(){
         for(bn = s.blackouts.length, bi = 0; bi < bn; bi++)
           b += former.mtime.format(s.blackouts[bi].start) + '-' + former.mtime.format(s.blackouts[bi].end) + (bi === bn - 1 ? '' : ' ')
       }else b += 'NA'
-      b += sep + s.times.join(' ') + sep + s.statuses.join(' ') + sep + s.accessed_first.join(' ') + sep + s.accessed_n.join(' ') + sep + '\n'
+      if(!s.hasOwnProperty('messages')) s.messages = []
+      for(bn = s.times.length, bi = 0, mim = [], mis = [], mit = [], mrm = [], mrs = [], mrt = []; bi < bn; bi++){
+        if(s.messages.length > bi){
+          if(s.messages[bi].hasOwnProperty('initial')){
+            mim.push(s.messages[bi].initial.messageId)
+            mis.push(s.messages[bi].initial.providerResponse ?
+              s.messages[bi].initial.status + ': ' + s.messages[bi].initial.providerResponse : 'NA')
+            mit.push(s.messages[bi].initial.timestamp || 'NA')
+          }else{
+            mim.push('NA')
+            mis.push('NA')
+            mit.push('NA')
+          }
+          if(s.messages[bi].hasOwnProperty('reminder')){
+            mrm.push(s.messages[bi].reminder.messageId)
+            mrs.push(s.messages[bi].reminder.providerResponse ?
+              s.messages[bi].reminder.status + ': ' + s.messages[bi].reminder.providerResponse : 'NA')
+            mrt.push(s.messages[bi].reminder.timestamp || 'NA')
+          }else{
+            mrm.push('NA')
+            mrs.push('NA')
+            mrt.push('NA')
+          }
+        }else{
+          mim.push('NA')
+          mis.push('NA')
+          mit.push('NA')
+          mrm.push('NA')
+          mrs.push('NA')
+          mrt.push('NA')
+        }
+      }
+      b += sep + s.times.join(' ') + sep + s.statuses.join(' ') + sep + s.accessed_first.join(' ') + sep + s.accessed_n.join(' ') + sep +
+        mim.join('|') + sep + mis.join('|') + sep + mit.join('|') + sep + mrm.join('|') + sep + mrs.join('|') + sep + mrt.join('|') + sep + '\n'
     }
   }
   content = new Blob([h + b], {type: 'text/csv'})

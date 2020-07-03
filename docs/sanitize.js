@@ -78,6 +78,25 @@ module.exports = {
     }
     return r
   },
+  message: function(o){
+    o = Object(o)
+    var r = {}
+    if(o.hasOwnProperty('messageId')) r.messageId = String(o.messageId)
+    if(o.hasOwnProperty('timestamp')) r.timestamp = String(o.timestamp)
+    if(o.hasOwnProperty('providerResponse')) r.providerResponse = String(o.providerResponse)
+    if(o.hasOwnProperty('status')) r.status = String(o.status)
+    return r
+  },
+  messages: function(a){
+    a = Object(a)
+    for(var n = a.length, i = 0, r = []; i < n; i++){
+      r.push({})
+      a[i] = Object(a[i])
+      if(a[i].hasOwnProperty('initial')) r[i].initial = this.message(a[i].initial)
+      if(a[i].hasOwnProperty('reminder')) r[i].reminder = this.message(a[i].reminder)
+    }
+    return r
+  },
   blackouts: function(a){
     a = Object(a)
     for(var n = a.length, i = 0, r = [], s, e; i < n; i++){
@@ -93,6 +112,7 @@ module.exports = {
       date: parseInt(o.date),
       day: parseInt(o.day),
       protocol: this.gen('type', o.protocol),
+      messages: this.messages(o.messages),
       statuses: this.intObject(o.statuses),
       times: this.intObject(o.times),
       accessed_first: o.hasOwnProperty('accessed_first') ? this.intObject(o.accessed_first) : [],

@@ -3,7 +3,8 @@ body{margin: 0; padding: 0}
 p{margin: 0; text-align: center}
 h1{text-align: center; font-size: 2em}
 th{padding: 0}
-label, button, th, h1, h2, h3, p, .menu_wrap td, .schedule td, #scheduler_notification, #latest_notification{
+label, button, th, h1, h2, h3, select, .participant_spec, .row_table, .named_table, .protocol_options, .use_options,
+  .delivery_info, .response_info, #filter td, p, #scheduler_notification, #latest_notification{
   -webkit-user-select: none; -khtml-user-select: none; -moz-user-select: none;
   -ms-user-select: none; user-select: none
 }
@@ -41,7 +42,7 @@ button:hover{background: #000}
 #studies_wrap tHead tr{height: 70px}
 #studies_wrap tr{height: 50px}
 #studies_wrap button{width: 100%; padding: 10px}
-#studies_wrap td:last-child{width: 72px}
+#studies_wrap td:last-child{width: 115px}
 #timeline_wrap{
   top: 0; width: 100%; height: 100px; overflow-x: auto;
   background: #333; overflow-y: hidden
@@ -95,6 +96,8 @@ div.nearest, .upnext_wrap table{background: #0060ea; color: #fff}
 .skipped{background: #8eab79}
 .sent{background: #fdff81}
 .reminded{background: #f9c361}
+.not_delivered{text-align: center}
+.not_delivered:after{content: '*'; font-size: 1.5em; font-weight: bold; line-height: .6em; color: #fff}
 .missed{background: #f38d0e}
 .menu_wrap{
   position: relative; z-index: 1; top: 20px; width: 97%; margin: 0 auto 50px auto;
@@ -140,6 +143,7 @@ tr.active{cursor: copy}
 #tick_editor tr:first-child td, #tick_editor tr:first-child td:hover{cursor: default; color: initial}
 #tick_info{position: absolute; padding: 5px; z-index: 1}
 #tick_info p{padding: 0 2px; white-space: nowrap}
+#tick_info span{display: block}
 .schedule td > div.temp_update, .schedule td.temp_update{border: 1px solid #fff}
 .named_table{min-height: 45px; margin: 5px 0}
 .named_table > div:first-child{position: absolute}
@@ -159,7 +163,6 @@ tr.active{cursor: copy}
 #menu_timeline{overflow: hidden; position: relative; width: 9999px}
 #menu_timeline p{font-family: monospace; text-align: left; position: absolute; width: 890px}
 .schedule td{vertical-align: top; min-width: 70px; position: relative}
-/* .schedule td > div{padding: 3px; margin: 0 0 2px 0; position: relative; border: 1px solid #d2d2d2} */
 .schedule div > div p:last-child{display: initial}
 .schedule td > p{font-size: .8em}
 .schedule tr td > p:first-child{font-size: 1em}
@@ -172,6 +175,10 @@ tr.active{cursor: copy}
 .blackout span{display: none}
 .ping{height: 4px; left: 0; right: 0; position: absolute}
 .ping p{display: none}
+.delivery_id, .delivery_info, .response_info{display: block; text-align: center}
+.delivery_id{font-size: .6em}
+.delivery_info{font-size: .7em}
+.response_info{font-size: .8em}
 .preadd, .canceled, #menu_schedule td.canceled{background: #afafaf}
 .participant_spec{margin: 5px 0}
 .participant_spec td{vertical-align: top}

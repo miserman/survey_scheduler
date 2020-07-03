@@ -32,12 +32,12 @@
   <td><button id='selected_study' class='areabutton' type='button' onclick='select_study()'>select study</button></td>
   <td><button type='button' onclick='toggle_scheduler()'>add or edit</button></td>
 </tr></table>
+<div id='tick_info' style='display: none'><p></p><p></p></div>
 <div id='display_wrap'>
   <div id='schedule_wrap' style='display:none'>
     <div class='entries_wrap schedule'>
       <table id='schedule_entries'></table>
     </div>
-    <div id='tick_info' style='display: none'><p></p><p></p></div>
     <table id='schedule_ids'></table>
   </div>
   <div id='timeline_wrap' style='display:none'>
@@ -47,7 +47,6 @@
       <tr id='upnext'><td></td><td class='label'>ID:</td><td></td><td class='label'>Day:</td><td></td><td class='label'>Beep:</td><td></td></tr>
       <tr style='display:none'><td></td><td class='label'>ID:</td><td></td><td class='label'>Day:</td><td></td><td class='label'>Beep:</td><td></td></tr>
     </table></div>
-    <div id='tick_info'></div>
   </div>
   <div id='study_selector'><div>
     <button id='signin_prompt' type='button' onclick='signio()'>Sign In</button>
@@ -162,6 +161,7 @@
                 <input type='time' step=1>
               </div>
               <p><button>revert</button><button>remove</button></p>
+              <div></div>
             </div>
           </div>
         </div>

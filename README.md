@@ -15,16 +15,18 @@ Clear local storage (menu > clear storage), or change the specified **n** and re
 ## status codes
 Beeps have associated status codes to keep track of scheduling:
 
-0. missed ![](https://placehold.it/20x10/f38d0e?text=+): Set when a pending beep is outside of its open window.
-1. pending ![](https://placehold.it/20x10/7fb2ff?text=+): Set when a beep is scheduled; only pending beeps are ever sent.
-2. sent ![](https://placehold.it/20x10/fdff81?text=+): Set when a beep has been sent.
-3. reminded ![](https://placehold.it/20x10/f9c361?text=+): Set when a reminder for a sent beep has been sent.
-4. send_received ![](https://placehold.it/20x10/dedede?text=+): Set after a beep has been sent, and a checkin with access has been received within the beep's window.
-5. remind_received ![](https://placehold.it/20x10/dedede?text=+): Set after a reminder has been sent, and a checkin with access has been received within the beep's window.
-6. pause ![](https://placehold.it/20x10/caf9f9?text=+): Set from the client, to prevent a passing beep from being sent.
-7. skipped ![](https://placehold.it/20x10/8eab79?text=+): Set when a paused beep has passed.
+0. _missed_ ![](https://placehold.it/20x10/f38d0e?text=+): Set when a pending beep is outside of its open window.
+1. _pending_ ![](https://placehold.it/20x10/7fb2ff?text=+): Set when a beep is scheduled; only pending beeps are ever sent.
+2. _sent_ ![](https://placehold.it/20x10/fdff81?text=+): Set when a beep has been sent.
+3. _reminded_ ![](https://placehold.it/20x10/f9c361?text=+): Set when a reminder for a sent beep has been sent.
+4. _send_received_ ![](https://placehold.it/20x10/dedede?text=+): Set after a beep has been sent, and a checkin with access has been received within the beep's window.
+5. _remind_received_ ![](https://placehold.it/20x10/dedede?text=+): Set after a reminder has been sent, and a checkin with access has been received within the beep's window.
+6. _pause_ ![](https://placehold.it/20x10/caf9f9?text=+): Set from the client, to prevent a passing beep from being sent.
+7. _skipped_ ![](https://placehold.it/20x10/8eab79?text=+): Set when a paused beep has passed.
 
 Outside of status codes, a beep might be a colored a darker blue ![](https://placehold.it/20x10/0060ea?text=+) when it is the next pending beep to be sent, or black when a beep in the timeline is hovered over.
+
+If delivery status logging is set up, beeps that were successfully sent to SNS (of status _sent_ or _reminded_) but not successfully delivered to the phone (as notified by Lambda) are marked by an asterisk (**\***), and provider responses are displayed when the beep is hovered over.
 
 # running the app
 The app has these requirements:
@@ -69,6 +71,67 @@ aws_access_key_id = Access key ID
 aws_secret_access_key = Secret access key
 ```
 Alternatively, if the app is running on a service with an IAM role, these policies can be attached to the role rather than a user.
+
+### Delivery Status Logging
+By default, the app receives a message's ID when successfully sending it to SNS, but does not know if the message was successfully sent to the phone (the message's delivery status). To get delivery information, you can set up delivery status logging in SNS, and a Lambda function to send logged information to the app:
+
+1. Enable delivery status logging in [SNS](https://console.aws.amazon.com/sns):
+    * Mobile > Text messaging (SMS) > edit Text messaging preferences > Delivery status logging
+1. Create a [Lambda](https://console.aws.amazon.com/lambda) function:
+    * Function > Create Function
+    * Author from scratch
+    * Name whatever
+    * Node.js Runtime
+    * Create Function
+1. In the Designer section, Add trigger:
+    * CloudWatch Logs trigger
+    * In the Log group dropdown, you should see a DirectPublishToPhoneNumber/Failure group
+    * You can also add the DirectPublishToPhoneNumber group to receive all delivery responses
+    * Name whatever, other options default
+1. Put this as the function's code, replacing the hostname with your URL, then Save:
+```JavaScript
+const http = require('https'), zlib = require('zlib');
+exports.handler = async function(event, context){
+  return new Promise(function(resolve, reject){
+    if(event.awslogs && event.awslogs.data){
+      var data = Buffer.from(event.awslogs.data, 'base64'), p = /^{/, i, s = {}, body, req;
+      zlib.gunzip(data, function(e, d){
+        if(e){
+          reject(Error(e));
+        }else{
+          for(d = JSON.parse(d.toString('ascii')).logEvents, i = d.length; i--;) if(p.test(d[i].message)){
+            s = JSON.parse(d[i].message);
+            if(s.notification && s.notification.messageId){
+              body = JSON.stringify({
+                messageId: s.notification.messageId,
+                timestamp: d[i].timestamp || s.notification.timestamp,
+                providerResponse: s.delivery && s.delivery.providerResponse ? s.delivery.providerResponse : '',
+                status: s.status
+              });
+              req = http.request({
+                method: 'POST',
+                hostname: 'example.com',
+                path: '/status',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Content-Length': Buffer.byteLength(body)
+                }
+              }, function(res){
+                console.log('sent status for message', s.notification.messageId);
+              });
+              req.on('error', function(e){
+                reject(Error(e));
+              });
+              req.write(body);
+              req.end();
+            }
+          }
+        }
+      });
+    }else reject(Error('event is not in the expected format'));
+  });
+};
+```
 
 ### Qualtrics
 The app is set up with [Qualtrics](https://www.qualtrics.com) in mind, though other platforms could be used. The app sends survey links with an added participant ID parameter, which the survey would need to extract in order to associate participants with responses through the link. In Qualtrics, you can get this by setting an Embedded Data variable matching the protocol's specified ID parameter:
@@ -133,3 +196,6 @@ Here, message refers to an HTML element in the question's body, with "message" a
 * **DOMAIN**: Cognito domain, from [User Pool](https://console.aws.amazon.com/cognito/users) > App integration > Domain name
 * **REDIRECT**: URL set as the callback in [User Pool](https://console.aws.amazon.com/cognito/users) > App integration > App client settings; [server.js](https://github.com/miserman/survey_scheduler/blob/master/server.js) assumes this is /auth
 * **ADMIN**: Username of an initial user set up through [User Pool](https://console.aws.amazon.com/cognito/users) > General settings > Users and groups > Create user; this user has full access to all studies; additional, study specific users should be created through the interface
+* **NOTIFICATIONS**: Optional topic for notifications about status updates and/or missed beeps; ARN from [SNS](https://console.aws.amazon.com/sns) > Topics > created topic
+* **DOUBLECHECK_FREQ**: Optional frequency in minutes to scan the local schedule for passed beeps that are still marked as pending (uncaught, missed beeps). If these beeps are caught in time, they will be sent. If any beeps are caught, they will be reported to the NOTIFICATIONS topic.
+* **REPORT_HOUR**: Optional hour (in the server's time) at which to send a daily status report to the NOTIFICATIONS topic, including number of send and responded to, or skipped beeps. A report will only be sent if there were scheduled beeps since the last scheduled report, or since the app was started.
