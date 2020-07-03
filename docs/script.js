@@ -81,7 +81,7 @@ var session, module = {exports: {}}, Sanitize, pending = {}, page = {
 }, loading = false, queued = false, edit = {t: 0, b: 0, e: false, ed: false}, update_queue = {}, schedule = {}, temp_schedule = {}, nearest,
 timezone = new Date().getTimezoneOffset(), study = {participants: {}, protocols: {}, version: 0, recalls: 0},
 store = window.localStorage || {}, logs = {}, patterns = {
-  addRemove: /^(?:add_|remove_)/, add: /^add_/, remove: /^remove_/, noRecord: /not on record/, period: /\./, idPhone: /^(?:id|phone)$/,
+  addRemove: /^(?:add_|remove_)/, add: /^add_/, remove: /^remove_/, noRecord: /not on record/, period: /\./g, idPhone: /^(?:id|phone)$/,
   d7: /\d{7}/, dashdate: /^\d{4}-\d{2}-\d{2}$/, stripdate: /\d{2}(?=\d{2}$)|[^0-9]/g, gcm: /[^\u0000-\u007f]/g, http: /(https?:\/\/(.+$))/,
   pButton: /^(?:P|BUTTON)$/, crs: /^(?:cancel|remove|set)$/, qmark: /\?/, space: /\s/g, colonspace: /[:\s]/g, apm: /[ap:]/i, anycolon: /:/,
   colon: /:/g, a: /a/i, p: /p/i, time: /^[0-9]{13}$/, timestamp: /[^0-9:apm\s-]/gi, numpunct: /[^0-9:\s-]/g, mli: /(?:message$|link$|^id)/,
@@ -243,9 +243,15 @@ function request(path, fun, error, body){
                   delete update_queue[k]
                 }else{
                   s.statuses[update_queue[k].time] = update_queue[k].code
+                  t = update_queue[k].code === 2 ? 'initial' : 'reminder'
+                  s.messages[update_queue[k].time][t] = {
+                    messageId: ((Math.random() * 1e16).toString(36) + '-' + (Math.random() * 1e16).toString(36)).replace(patterns.period, ''),
+                    providerResponse: 'Message has been accepted by phone',
+                    status: 'SUCCESS',
+                    timestamp: Date.now()
+                  }
                   p = study.protocols[s.protocol]
                   if(update_queue[k].code === 2 || (p.remind_after && p.reminder_message)){
-                    t = update_queue[k].code === 2 ? 'initial' : 'reminder'
                     message = build_message(p[t + '_message'], false, t === 'initial' || p.reminder_link ? p.link : false, p.id_parameter, k)
                     page.latest_notification.classList.remove('showing')
                     setTimeout(addshowing, 10)
@@ -508,7 +514,10 @@ function display_single_schedule(fs, o, makenew){
   if(makenew){
     page.menu_timeline.style.height = ee.style.height
     page.menu_timeline.style.backgroundPositionY = ee.style.backgroundPositionY
-  }else ee.addEventListener('mousemove', tick_info)
+  }else{
+    ee.addEventListener('mousemove', tick_info)
+    ee.addEventListener('mouseout', hide_tick_info)
+  }
   for(n = Math.max(s.length, ed.childElementCount), d = 0, i = 0; d < n; d++){
     if(d >= s.length){
       for(n = s.length, d = ed.childElementCount - 1; d > n; d--){
@@ -742,9 +751,11 @@ function show_info(c, s, i){
     }
   }
 }
+function hide_tick_info(){
+  page.tick_info.style.display = 'none'
+}
 function tick_info(e){
   if(e.target && (e.target.className === 'blackout' || e.target.classList[0] === 'ping')){
-    // e.target.parentElement.appendChild(page.tick_info)
     var d = e.target.parentElement.cellIndex, i, s, c, ie
     page.tick_info.style.display = ''
     if(e.target.className === 'blackout'){
@@ -765,7 +776,7 @@ function tick_info(e){
     page.tick_info.style.top = (e.clientY - 1) - ie.height + 'px'
     page.tick_info.style.left = (e.clientX - 1) - ie.width + 'px'
   }else{
-    page.tick_info.style.display = 'none'
+    hide_tick_info()
   }
 }
 function show_nearest(e){
@@ -998,7 +1009,7 @@ function expand_schedule(e){
       e = e.parentElement
       if(e && e.parentElement && 'undefined' !== typeof e.parentElement.rowIndex){
         var c = page.ids.children[e.parentElement.rowIndex].firstElementChild.firstElementChild
-        page.tick_info.style.display = 'none'
+        hide_tick_info()
         if(e.className === 'selected'){
           c.className = e.className = ''
           c.style.height = e.getBoundingClientRect().height + 'px'
@@ -1052,7 +1063,7 @@ function select_study(){
   schedule = {}
   page.schedule_rows = {}
   page.ids.innerHTML = page.entries.innerHTML = ''
-  page.tick_info.style.display = 'none'
+  hide_tick_info()
   if(!session || !session.signedin){
     pending.select_study = select_study
   }else{
@@ -2250,6 +2261,7 @@ function schedule_action_end(e){
               temp_schedule.schedule[d].messages.splice(i, 1)
               temp_schedule.schedule[d].times_index.splice(i, 1)
               temp_schedule.schedule[d].statuses.splice(i, 1)
+              for(d = temp_schedule.schedule.length; d--;) temp_schedule.schedule[d].day = d
               edit.holding.parentElement.removeChild(edit.holding)
             }
           }

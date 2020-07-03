@@ -86,13 +86,13 @@ function time_exists(s, id, day, index){
   if(!exists) log(s, 'time was checked and did not exist: ' + id + '[' + day + '][' + index + ']')
   return exists
 }
-function update_status(s, id, day, index, status, first, message_meta){
+function update_status(s, id, day, index, status, checkin, first, message_meta){
   var l = 'schedule[' + day + '].', m = '', mtype = status === 2 ? 'initial' : 'reminder', n = 0, exists = false, mo, i, req = {}
   if(time_exists(s, id, day, index)){
     status = status ? parseInt(status) : studies[s].participants[id].schedule[day].statuses[index]
     first = first || studies[s].participants[id].schedule[day].accessed_first[index]
     n = studies[s].participants[id].schedule[day].accessed_n[index]
-    if(first) n++
+    if(checkin) n++
     req = {
       TableName: s,
       Key: {id: id},
@@ -208,13 +208,13 @@ function send_message(s, id, day, index, status){
           }else{
             delete beeps[s + id + day + index]
           }
-          update_status(s, id, day, index, status, 0, {messageId: d.MessageId})
+          update_status(s, id, day, index, status, false, 0, {messageId: d.MessageId})
         }
         delete held[fid]
         log(s, m)
       })
-    }else log(s, 'skipped sending scheduled beep (' + id + '[' + day + '][' + index + ']) ' + held.hasOwnProperty(fid) ?
-      'because it was in held' : 'due to status: ' + ds.statuses[index] + ', ' + status)
+    }else log(s, 'skipped sending scheduled beep (' + id + '[' + day + '][' + index + ']) ' + (held.hasOwnProperty(fid) ?
+      'because it was in held' : 'due to status: ' + ds.statuses[index] + ', ' + status))
   }
 }
 function timeadj(d, e){
@@ -519,7 +519,7 @@ app.post('/status', function(req, res){
         body.providerResponse = String(req.body.providerResponse)
         body.timestamp = String(req.body.timestamp)
         body.status = String(req.body.status)
-        update_status(cords[0], cords[1], cords[2], cords[3], cords[4], 0, body)
+        update_status(cords[0], cords[1], cords[2], cords[3], cords[4], false, 0, body)
       }else log(cords[0], 'received failed status for message ' + body.messageId + ', but could not find it in ' +
         cords[1] + '[' + cords[2] + ']')
     }
@@ -566,7 +566,7 @@ app.post('/checkin', function(req, res){
                     log(s, 'reminder canceled for ' + id + '[' + d + '][' + i + ']')
                   }
                 }
-                update_status(s, id, d, i, status, r.accessed === 0 ? n : 0)
+                update_status(s, id, d, i, status, true, r.accessed === 0 ? n : 1)
               }
               break
             }
