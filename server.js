@@ -178,6 +178,11 @@ function send_message(s, id, day, index, status){
   if(time_exists(s, id, day, index)){
     var now = Date.now(), to = s + id, p = studies[s].participants[id], ds = p.schedule[day], pr = studies[s].protocols[ds.protocol],
       fid = s + '_' + id + '_' + day + '_' + index + '_' + status
+    if(!pr){
+      console.log('message for ' + id + '[' + day + '][' + index + '] not sent because protocol ' +
+        ds.protocol + ' was not found in study ' + s)
+      return
+    }
     if(ds.statuses[index] === 6){
       update_status(s, id, day, index, 7)
     }else if(!held.hasOwnProperty(fid) && ds.statuses[index] === status - 1 && (status === 2 || (status === 3 && pr.reminder_message))){
@@ -185,9 +190,9 @@ function send_message(s, id, day, index, status){
       last_sent = now
       held[fid] = true
       message.publish({
-        Message: pr[status === 3 ? 'reminder_message' : 'initial_message'] + ' ' +
+        Message: pr[status === 3 ? 'reminder_message' : 'initial_message'] + (pr.link ? ' ' +
           (status !== 3 || pr.reminder_link ? pr.link.replace(/^https?:\/\//, '') +
-          (/\?/.test(pr.link) ? '&' : '?') + pr.id_parameter + '=' + id : ''),
+          (/\?/.test(pr.link) ? '&' : '?') + pr.id_parameter + '=' + id : '') : ''),
         PhoneNumber: '+1' + p.phone
       }, function(e, d){
         var m = ('send ' + (status === 3 ? 'reminder' : 'initial') + ' text to ') + id + '[' + day + '][' + index + ']: ', t,
