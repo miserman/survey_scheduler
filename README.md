@@ -30,7 +30,7 @@ If delivery status logging is set up, beeps that were successfully sent to SNS (
 
 # running the app
 The app has these requirements:
-1. Node.js (tested on version 12.16.1).
+1. Node.js (tested on version 12.18.1).
 1. A single, stable environment for scheduling. The app schedules beeps locally, so it has to be running when a beep is meant to be sent. Each time the app is started, it will initially schedule beeps upcoming within a week. If multiple instances of the app are running, beeps may be sent multiple times.
 1. Ability to receive HTTP requests for checkins from the survey.
 
