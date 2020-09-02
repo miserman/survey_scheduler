@@ -230,6 +230,7 @@ function schedule(s, id, day){
   var to = s + id, d = studies[s].participants[id].schedule[day], pr = studies[s].protocols[d.protocol],
       t, minsep, remind, end, n, now = Date.now(), m, i, nt, updated = false, any = false, nmisses = 0, misses = {}
   if(!d){
+    console.log(s + ' ' + id + ': no day found; splicing day ' + day, studies[s].participants[id].schedule)
     studies[s].participants[id].schedule.splice(day, 1)
   }else if(d.hasOwnProperty('times')){
     minsep = pr.minsep * 6e4
@@ -241,7 +242,7 @@ function schedule(s, id, day){
         if(d.messages[i].hasOwnProperty('initial')) messageIds[d.messages[i].initial.messageId] = [s, id, day, i, 2]
         if(d.messages[i].hasOwnProperty('reminder')) messageIds[d.messages[i].reminder.messageId] = [s, id, day, i, 3]
       }
-      if(t - now < 6e8 && (d.statuses[i] === 6 || d.statuses[i] === 1 || (d.statuses[i] === 2 && pr.remind_after && t + remind < now))){
+      if(t - now < 3e8 && (d.statuses[i] === 6 || d.statuses[i] === 1 || (d.statuses[i] === 2 && pr.remind_after && t + remind < now))){
         nt = 0
         if(d.statuses[i] === 6){
           if(t < now){
@@ -280,7 +281,7 @@ function schedule(s, id, day){
       studies[s].version = Date.now()
       update_day(s, id, day)
     }
-  }
+  }else console.log(s + ' ' + id + ': day ' + day + ' has no times: ', d)
   return {any: any, nmisses: nmisses, misses: misses}
 }
 function clear_schedule(s, id){
@@ -292,21 +293,33 @@ function clear_schedule(s, id){
 }
 function scan_database(s){
   database.scan({TableName: s, Select: 'ALL_ATTRIBUTES'}, function(e, d){
-    var i, m = 'download ' + s + ' participants database: ', day, any, anyany, res, id, td, nmissing = [0, 0], misses = '', missed_days
+    var i, m = 'download ' + s + ' participants database: ', day, any, anyany, res, id, td
     if(e){
       console.log('scan database error: ', e)
       log(s, m + 'false')
     }else{
       log(s, m + 'true')
       studies[s].version = Date.now()
-      studies[s].participants = {}
+      if(!studies[s].hasOwnProperty('participants')) studies[s].participants = {}
       for(i = d.Items.length, day; i--;){
         id = d.Items[i].id
-        missed_days = []
+        if(studies[s].participants.hasOwnProperty(id)) clear_schedule(s, id)
         studies[s].participants[id] = d.Items[i]
-        for(day = d.Items[i].schedule.length, any = false; day--;){
+      }
+      studies[s].dbcopy = d
+      refresh_schedules(s, true)
+    }
+  })
+}
+function refresh_schedules(s, cleared){
+  var id, day, i, any = false, res, td, nmissing = [0, 0], misses = '', missed_days
+  if(studies.hasOwnProperty(s)){
+    if(studies[s].hasOwnProperty('participants')){
+      for(id in studies[s].participants){
+        if(!cleared) clear_schedule(s, id)
+        for(day = studies[s].participants[id].schedule.length, missed_days = []; day--;){
           res = schedule(s, id, day)
-          any = res.any || any
+          if(res.any) any = true
           if(res.nmisses){
             nmissing[0]++
             for(td in res.misses[id]) if(res.misses[id].hasOwnProperty(td)){
@@ -316,21 +329,18 @@ function scan_database(s){
           }
         }
         if(missed_days.length) misses += '\n  ' + id + ': ' + missed_days.join(', ')
-        if(any){
-          anyany = true
-          log(s, 'scheduled texts for ' + id)
-        }
+        if(any) log(s, 'scheduled texts for ' + id)
       }
-      if(anyany) setTimeout(scan_database.bind(null, s), 59e7)
-      studies[s].dbcopy = d
       if(nmissing[0]) email_notification(
         'Missed Beeps in ' + s,
         (nmissing[1] === 1 ? 'A beep was' : 'Beeps were') + ' missed for ' +
         (nmissing[0] === 1 ? 'a participant' : 'participants') + ' in ' + s + ' (participant: day[times]):\n' + misses
       )
     }
-  })
+  }
+  return any
 }
+setInterval(function(){for(var s in studies) refresh_schedules(s)}, 3e8)
 function scan_studies(){
   database.scan({TableName: 'studies', Select: 'ALL_ATTRIBUTES'}, function(e, d){
     var i, m = 'download studies database: '
@@ -377,7 +387,7 @@ function scan_studies(){
           }
           scan_database(d.Items[i].study)
         }
-      }
+      }else log('sessions' , 'no items in studies data: ', d)
     }
   })
 }
@@ -412,10 +422,12 @@ function scan_local(report){
                 send_message(study, participant, n, i, 2)
                 if(!caught.hasOwnProperty(study)) caught[study] = []
                 caught[study].push(participant + '[' + n + '][' + i + ']')
+                schedule(study, participant, n)
               }else if(report && day.times[i] > report_record.from && day.statuses[i] > 1 && day.statuses[i] < 8){
                 if(!events.hasOwnProperty(study)) events[study] = {}
-                if(!events[study].hasOwnProperty(participant)) events[study][participant] = [0, 0, 0, 0, 0, 0, 0]
+                if(!events[study].hasOwnProperty(participant)) events[study][participant] = [0, 0, 0, 0, 0, 0, 0, 0]
                 events[study][participant][day.statuses[i] - 2]++
+                events[study][participant][7] += day.accessed_n[i] !== 0
                 if(day.hasOwnProperty('messages') && day.messages.length > i){
                   if((day.messages[i].hasOwnProperty('initial') && day.messages[i].initial.status === 'FAILURE')
                     || (day.messages[i].hasOwnProperty('reminder') && day.messages[i].reminder.status === 'FAILURE')) events[study][participant][6]++
@@ -456,7 +468,7 @@ function scan_local(report){
         scanned[0] += ps[0] + ps[1]
         scanned[1] += ps[2] + ps[3]
         scanned[3] += ps[4]
-        body += '\n  ' + participant + ':' + (ps[0] ? ' Responded to ' + (ps[2] + ps[3]) + ' of ' + ps[0] +
+        body += '\n  ' + participant + ':' + (ps[0] ? ' Responded to ' + ps[7] + ' of ' + ps[0] +
           ' sent ' + (ps[0] === 1 ? 'beep.' : 'beeps.') : '') + (ps[4] ? ' ' + ps[4] + (ps[4] === 1 ?
           ' beep was' : ' beeps were') + ' skipped.' : '') + (ps[6] ? ' The delivery of ' + ps[6] + ' sent beep' +
           (ps[6] === 1 ? '' : 's') + ' failed.' : '')
