@@ -614,7 +614,7 @@ function display_blackout(id, s, i, v, e){
   c.className = 'blackout'
   c.appendChild(document.createElement('p'))
   c.appendChild(document.createElement('span'))
-  c.lastElementChild.innerText = s.blackouts.length - 1
+  c.lastElementChild.innerText = i
   c.appendChild(document.createElement('span'))
   c.lastElementChild.innerText = id
   c.appendChild(document.createElement('p'))
@@ -1067,7 +1067,7 @@ function select_study(){
   if(!session || !session.signedin){
     pending.select_study = select_study
   }else{
-    page.study_selector.style.display = page.studies_wrap.style.display = ''
+    page.study_selector.style.display = page.studies_wrap.style.display = page.filter.protocols.innerHTML = ''
     page.signin_prompt.style.display = 'none'
     options.study = ''
     backup()
@@ -1652,6 +1652,7 @@ function roll_times(d, p, io){
       i++
       if(se.hasOwnProperty('blackouts')) for(b = se.blackouts.length; b--;){
         if(start >= se.blackouts[b].start && start <= se.blackouts[b].end) start = se.blackouts[b].end + (p.offset || 0) * 6e4
+        if(end >= se.blackouts[b].start && end <= se.blackouts[b].end) end = se.blackouts[b].start
       }
       se.messages.push({})
       se.times.push(start)
@@ -1690,7 +1691,7 @@ function roll_times(d, p, io){
           break
         default:
           s = s && i ? s + binsize : start
-          e = !i && se.hasOwnProperty('blackouts') ? n : Math.min(end, s + binsize)
+          e = Math.min(end, s + binsize)
           if(i && s - se.times[l + i - 1] < p.minsep * 6e4) s = se.times[l + i - 1] + p.minsep * 6e4
           if(se.hasOwnProperty('blackouts')){
             for(b = se.blackouts.length; b--;){
@@ -1698,24 +1699,24 @@ function roll_times(d, p, io){
                 if(s >= se.blackouts[b].start && s <= se.blackouts[b].end){
                   s = se.blackouts[b].end
                   if(e < s) e = s + p.minsep * 6e4
-                }else if(e >= se.blackouts[b].start && (e <= se.blackouts[b].end || s <= se.blackouts[b].start)){
-                  e = se.blackouts[b].start
+                }else if(s <= se.blackouts[b].start && e + 3e5 > se.blackouts[b].start){
+                  e = se.blackouts[b].start - 3e5
                 }
               }else{
-                if(se.blackouts[b].start - start < p.minsep * 6e4){
+                if(se.blackouts[b].start - start < p.minsep * 6e4)
                   start = s = se.blackouts[b].end
-                }else if(end - se.blackouts[b].end < p.minsep * 6e4){
-                  end = se.blackouts[b].start
-                }else e = e + (se.blackouts[b].end - se.blackouts[b].start) / binsize
+                if(end - se.blackouts[b].end < p.minsep * 6e4)
+                  end = se.blackouts[b].start - 3e5
               }
             }
             if(!i){
-              binsize = Math.floor((end - start) / e)
+              binsize = Math.floor((end - start) / n)
               e = Math.min(end, s + binsize)
             }
           }
           v = Math.floor(s + Math.random() * (e - s + 1))
       }
+      if(v > end) break
       se.messages.push({})
       se.times.push(v)
       se.statuses.push(1)
@@ -2067,14 +2068,14 @@ function schedule_action_start(e){
       }
       edit.active = e.target
     }
-    if(edit.active){
+    if(edit.active && edit.e && edit.e.parentElement){
       edit.p = edit.e.parentElement.getBoundingClientRect()
       edit.b = edit.e.getBoundingClientRect()
       edit.b.init = e.clientY
       edit.b.offset = e.clientY - edit.b.top
       edit.b.ntop = edit.b.top
       edit.b.nbottom = edit.b.bottom
-    }
+    }else edit.active = false
   }
 }
 function schedule_action_update(){
@@ -2413,7 +2414,7 @@ function download_participants(){
       h = 'pid,phone,timezone,start_day,end_day,start_time,end_time,protocol_order_type,protocols' +
           ',daysofweek,blackout_days,day,date,protocol,blackouts,times,statuses,first_access,accesses' +
           ',initial_id,initial_receive_status,initial_receive_time,reminder_id,reminder_receive_status,reminder_receive_time'
-  for(k in p){
+  for(k in p) if(Object.prototype.hasOwnProperty.call(p, k)){
     ts = p[k].id + sep + (p[k].phone ? p[k].phone : 'NA') + sep + p[k].timezone + sep + p[k].start_day + sep +
          p[k].end_day + sep + p[k].start_time + sep + p[k].end_time + sep + p[k].order_type + sep + p[k].protocols.join(' ') + sep
     for(n = 7, i = 0; i < n; i++) if(p[k].daysofweek[i]) ts += names.days[i] + (i === 7 ? '' : ' ')

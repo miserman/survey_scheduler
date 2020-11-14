@@ -111,7 +111,7 @@ function update_status(s, id, day, index, status, checkin, first, message_meta){
         m = ', ' + l + 'messages[' + index + '].' + mtype + ' = :m'
         req.ExpressionAttributeValues[':m'] = message_meta
       }else{
-        console.log('message does not exists: ', mo.messages, message_meta)
+        console.log('message does not exists: ', message_meta)
         if(mo.hasOwnProperty('messages')){
           m = ', ' + l + 'messages[' + index + '] = :m'
           req.ExpressionAttributeValues[':m'] = {}
@@ -232,7 +232,7 @@ function schedule(s, id, day){
   if(!d){
     console.log(s + ' ' + id + ': no day found; splicing day ' + day, studies[s].participants[id].schedule)
     studies[s].participants[id].schedule.splice(day, 1)
-  }else if(d.hasOwnProperty('times')){
+  }else if(d.hasOwnProperty('times') && pr){
     minsep = pr.minsep * 6e4
     remind = pr.remind_after * 6e4 || 0
     end = timeadj(d, studies[s].participants[id].end_time)
@@ -281,7 +281,7 @@ function schedule(s, id, day){
       studies[s].version = Date.now()
       update_day(s, id, day)
     }
-  }else console.log(s + ' ' + id + ': day ' + day + ' has no times: ', d)
+  }else console.log(s + ' ' + id + ': day ' + day + (pr ? ' has no times: ' : ' has protocol ' + d.protocol + 'which is not found: '), d)
   return {any: any, nmisses: nmisses, misses: misses}
 }
 function clear_schedule(s, id){
@@ -459,7 +459,7 @@ function scan_local(report){
     n = 0
     scanned = [0, 0, 0]
     for(study in events) if(events.hasOwnProperty(study)){
-      body += '\nBeeps in ' + study + ':\n'
+      body += '\n\nBeeps in ' + study + ':\n'
       for(participant in events[study]) if(events[study].hasOwnProperty(participant)){
         n++
         ps = events[study][participant]
@@ -477,7 +477,7 @@ function scan_local(report){
     if(n) email_notification(
       'Status Report for ' + date.toLocaleDateString(),
       'Beeps were scheduled for ' + n + ' participants between ' +
-      new Date(report_record.from).toString() + ' and ' + new Date(date).toString() + ':\n' + body
+      new Date(report_record.from).toString() + ' and ' + new Date(date).toString() + ':' + body
     )
   }
 }
@@ -508,7 +508,6 @@ function add_user(o, m, s, base_perms, email, username, req, res){
   }, function(e, d){
     if(e){
       m += 'false'
-      console.log('update after report scan error: ', e)
       res.status(400).json(o)
     }else{
       if(studies[s].users.hasOwnProperty(username)){
