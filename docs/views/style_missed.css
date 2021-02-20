@@ -1,0 +1,56 @@
+input[type=text], select {
+    font: verdana;
+width: 10%;
+padding: 12px 20px;
+margin: 8px 0;
+display: inline-block;
+border: 1px solid #ccc;
+border-radius: 4px;
+box-sizing: border-box;
+}
+
+
+#reset{
+width: 10%;
+background-color: #272626de;
+color: white;
+padding: 14px 20px;
+margin: 8px 0;
+border: none;
+border-radius: 4px;
+cursor: pointer;
+}
+
+
+#reset:hover {
+background-color: #c33838;
+color: white;
+}
+
+#form {
+border-radius: 5px;
+background-color: #f2f2f2;
+padding: 20px;
+}
+#display_results{
+    display: none;
+    
+}
+
+body{
+    font-family: verdana;
+}
+#submit{
+    width: 10%;
+    background-color: #272626de;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer; 
+}
+#submit:hover{
+    background-color: #3bb930;
+    color: white;
+    }

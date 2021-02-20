@@ -15,6 +15,11 @@
   <button title='have the server rescan the database, then reload the schedule' type='button' onclick='reload()'>rescan data</button>
   <button title="download the current study's participant information in CSV format" type='button' onclick='download_participants()'>export data</button>
   <button title='view logs from the server' type='button' onclick='toggle_logs()'>logs</button>
+  <!-- Start Added by Sampath to get missed notifications -->
+  <form action='/get_missed', method='POST' id="index_get_missed">
+    <button title='Get missed notifications of the selected user'type='submit'> Get undelivered SMS</button>
+  </form>
+  <!-- end -->
   <h1>options</h1>
   <button title='clear local storage and reload' type='button' onclick='refresh()'>clear storage</button>
   <div id='display_options'>

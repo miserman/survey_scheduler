@@ -100,6 +100,7 @@ function update_status(s, id, day, index, status, checkin, first, message_meta){
         + l + 'accessed_n[' + index + '] = :n',
       ExpressionAttributeValues: {':s': status, ':f': first, ':n': n}
     }
+    // mo -> day of the schedule is being accessed
     mo = studies[s].participants[id].schedule[day]
     if(message_meta){
       messageIds[message_meta.messageId] = [s, id, day, index, status]
@@ -1045,4 +1046,5 @@ app.post('/operation', function(req, res){
 app.listen(process.env.PORT, function(req){
   console.log('listening on port ' + process.env.PORT)
 })
+
 module.exports = app

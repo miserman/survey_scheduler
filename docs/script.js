@@ -435,6 +435,7 @@ function clear_time_edit(e){
   document.body.appendChild(page.tick_editor)
   if(e) e.innerHTML = ''
 }
+// displays schedule of indiviudal user and the messages sent
 function display_schedule(refresh, reset_filter){
   if(options.study){
     var k, i, p, e, d, t, ra, filtered = filter(reset_filter)
@@ -770,7 +771,7 @@ function tick_info(e){
       page.tick_info.firstElementChild.innerText = former.ftime.format(s.schedule[d].times[i])
       c = page.tick_info.lastElementChild
       page.tick_info.className = c.innerText = names.status[s.schedule[d].statuses[i]]
-      show_info(c, s.schedule[d], i)
+      show_info(c, s.schedule[d], i) //c -> lastElementChild of tick_info class,  s-> study participant, i -> inner text of the 
     }
     ie = page.tick_info.getBoundingClientRect()
     page.tick_info.style.top = (e.clientY - 1) - ie.height + 'px'
