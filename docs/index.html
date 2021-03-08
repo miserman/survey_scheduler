@@ -16,7 +16,7 @@
   <button title="download the current study's participant information in CSV format" type='button' onclick='download_participants()'>export data</button>
   <button title='view logs from the server' type='button' onclick='toggle_logs()'>logs</button>
   <!-- Start Added by Sampath to get missed notifications -->
-  <form action='/get_missed', method='POST' id="index_get_missed">
+  <form action='/get_missed' method='GET' id="index_get_missed">
     <button title='Get missed notifications of the selected user'type='submit'> Get undelivered SMS</button>
   </form>
   <!-- end -->

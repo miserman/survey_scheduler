@@ -2427,6 +2427,8 @@ function download_participants(){
     ts += sep
     for(n = p[k].schedule.length, i = 0; i < n; i++){
       s = p[k].schedule[i]
+      date = new Date(s.date)
+      date = date.toDateString()
       b += ts + (s.day + 1) + sep + s.date + sep + s.protocol + sep
       if(s.hasOwnProperty('blackouts')){
         for(bn = s.blackouts.length, bi = 0; bi < bn; bi++)
