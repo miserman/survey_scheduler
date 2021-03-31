@@ -9,9 +9,9 @@ var urlencodedParser = parser.urlencoded({ extended: false })
 var queried_userid, queried_phonenumber, queried_date, queried_time, queried_reason;
 var queried_user;
 app.set('view engine','ejs');
-app.use(express.static(__dirname + '/docs/views'));
+app.use(express.static(__dirname + '/'));
 console.log(__dirname);
-app.set('views',path.join(__dirname,'/docs/views'))
+app.set('views',path.join(__dirname,'/'))
 app.get('/get_missed', function (req, res) {
     res.render('missed_notifications', {
         title: "get missed notifications", //page title
@@ -30,10 +30,11 @@ app.post('/get_missed',urlencodedParser, function(req,res){
         var phonenumber =  req.body.phonenumber;
         params = {
             TableName: "missed_notifications",
-            PartitionKey: "phonenumber",
-            KeyConditionExpression:' userid = :id and phonenumber = :phone',
+           
+            // PartitionKey: "phonenumber",
+            KeyConditionExpression:' userid = :id',
             ExpressionAttributeValues:{
-                ':phone': phonenumber,
+            //     // ':phone': phonenumber,
                 ':id': userid
             }
         };
@@ -83,6 +84,6 @@ app.post('/get_missed',urlencodedParser, function(req,res){
 
 
 
-//  app.listen(5000,function(){
-//         console.log('server running on port 5000');
-//     })
+ app.listen(5000,function(){
+        console.log('server running on port 5000');
+    })

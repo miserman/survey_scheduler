@@ -39,8 +39,8 @@ app.use(require('body-parser').json())
 app.use(require('cookie-parser')(cookie_options.secret))
 app.use(express.static('./docs'))
 message = new aws.SNS({ region: process.env.REGION })
-ddb = new aws.DynamoDB({ region: process.env.REGION_DEV })
-database = new aws.DynamoDB.DocumentClient({ region: process.env.REGION_DEV })
+ddb = new aws.DynamoDB({ region: process.env.REGION_DB })
+database = new aws.DynamoDB.DocumentClient({ region: process.env.REGION_DB })
 users = new aws.CognitoIdentityServiceProvider({ region: process.env.REGION })
 process.env.ISSUER = 'https://cognito-idp.' + process.env.REGION + '.amazonaws.com/' + process.env.USERPOOL
 http.get(process.env.ISSUER + '/.well-known/jwks.json', function (res) {
@@ -1081,7 +1081,7 @@ app.get('/get_missed', function (req, res) {
 
 app.post('/get_missed', urlencodedParser, function (req, res) {
   var id = req.signedCookies.id,
-  check = { valid: false, expired: false, pass: false }
+  check = { valid: false, expired: false, pass: false };
   if (id) {
     check.session = sessions.hasOwnProperty(id)
     if (check.session) {
@@ -1099,7 +1099,17 @@ app.post('/get_missed', urlencodedParser, function (req, res) {
             }
           };
           ddb.query(params, function (err, data) {
-            if (err) console.log(err);
+            if (err) {
+              console.log(err);
+              res.render("missed_notifications", {
+                title: "get missed notifications", //page title
+                action: "/get_missed", //post action for the form
+                fields: [
+                  { name: 'userid', type: 'text', property: 'required' },   //first field for the form
+                ],
+                query: "No user found"
+              })
+            }
             else {
               console.log('success');
               data.Items.forEach(function (item) {
@@ -1134,6 +1144,7 @@ app.post('/get_missed', urlencodedParser, function (req, res) {
       }
     }
   }
+  res.redirect("/signin");
 });
 app.listen(process.env.PORT, function (req) {
   console.log('listening on port ' + process.env.PORT)
