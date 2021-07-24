@@ -22,7 +22,8 @@ module.exports = {
     id: 'should only contain letters, numerals, underscores, or dashes',
     time: 'should be a 24 hour time stamp; hh:mm',
     date: 'should be a full year stamp; yyyy-mm-dd',
-    study: 'should only contain letters, numerals, dots, underscores, or, dashes, and not matches an existing study or "sessions"',
+    study:
+      'should only contain letters, numerals, dots, underscores, or, dashes, and not matches an existing study or "sessions"',
     type: 'should only contains letters or underscores',
     color: 'should be a HEX code; #rrggbb',
     word: 'should only contain lowercase letters',
@@ -30,113 +31,114 @@ module.exports = {
     numpunct: 'should only contain numerals, colons, dashes, or spaces',
     bool: 'should only be "true" or "false"',
     phone: 'should be a 10 digit number',
-    file: 'should be a 6 digit date; mmddyy'
+    file: 'should be a 6 digit date; mmddyy',
   },
   M: [],
-  gen: function(t, v){
+  gen: function (t, v) {
     this.M = this.P[t].exec(v)
     return this.M ? this.M[0] : ''
   },
-  string: function(s){
+  string: function (s) {
     s = String(s)
     return 'undefined' === s || 'null' === s ? '' : s
   },
-  phone: function(n){
+  phone: function (n) {
     n = String(n).replace(this.P.non_number, '')
     return parseInt(n.slice(-10))
   },
-  dashdate: function(d){
+  dashdate: function (d) {
     d = String(d).replace(this.P.numpunct, '')
     return this.gen('date', d)
   },
-  timestamp: function(t){
+  timestamp: function (t) {
     t = String(t).replace(this.P.numpunct, '')
     return this.gen('time', t)
   },
-  file: function(f){
+  file: function (f) {
     f = String(f).replace(this.P.non_number, '')
     return this.gen('file', f)
   },
-  protocol_names: function(a){
+  protocol_names: function (a) {
     a = Object(a)
-    for(var n = a.length, i = 0, r = []; i < n; i++){
+    for (var n = a.length, i = 0, r = []; i < n; i++) {
       r.push(this.gen('type', a[i]))
     }
     return r
   },
-  intObject: function(a){
+  intObject: function (a) {
     a = Object(a)
-    for(var n = a.length, i = 0, r = []; i < n; i++){
+    for (var n = a.length, i = 0, r = []; i < n; i++) {
       r.push(parseInt(a[i]))
     }
     return r
   },
-  boolObject: function(a){
+  boolObject: function (a) {
     a = Object(a)
-    for(var n = a.length, i = 0, r = []; i < n; i++){
+    for (var n = a.length, i = 0, r = []; i < n; i++) {
       r.push(Boolean(a[i]))
     }
     return r
   },
-  message: function(o){
+  message: function (o) {
     o = Object(o)
     var r = {}
-    if(o.hasOwnProperty('messageId')) r.messageId = String(o.messageId)
-    if(o.hasOwnProperty('timestamp')) r.timestamp = String(o.timestamp)
-    if(o.hasOwnProperty('providerResponse')) r.providerResponse = String(o.providerResponse)
-    if(o.hasOwnProperty('status')) r.status = String(o.status)
+    if (o.hasOwnProperty('messageId')) r.messageId = String(o.messageId)
+    if (o.hasOwnProperty('timestamp')) r.timestamp = String(o.timestamp)
+    if (o.hasOwnProperty('providerResponse')) r.providerResponse = String(o.providerResponse)
+    if (o.hasOwnProperty('status')) r.status = String(o.status)
     return r
   },
-  messages: function(a){
+  messages: function (a) {
     a = Object(a)
-    for(var n = a.length, i = 0, r = []; i < n; i++){
+    for (var n = a.length, i = 0, r = []; i < n; i++) {
       r.push({})
       a[i] = Object(a[i])
-      if(a[i].hasOwnProperty('initial')) r[i].initial = this.message(a[i].initial)
-      if(a[i].hasOwnProperty('reminder')) r[i].reminder = this.message(a[i].reminder)
+      if (a[i].hasOwnProperty('initial')) r[i].initial = this.message(a[i].initial)
+      if (a[i].hasOwnProperty('reminder')) r[i].reminder = this.message(a[i].reminder)
     }
     return r
   },
-  blackouts: function(a){
+  blackouts: function (a) {
     a = Object(a)
-    for(var n = a.length, i = 0, r = [], s, e; i < n; i++){
+    for (var n = a.length, i = 0, r = [], s, e; i < n; i++) {
       s = parseInt(a[i].start)
       e = parseInt(a[i].end) || s
-      if(!isNaN(s) && !isNaN(e)) r.push({start: s, end: e})
+      if (!isNaN(s) && !isNaN(e)) r.push({start: s, end: e})
     }
     return r
   },
-  schedule_day: function(o){
+  schedule_day: function (o) {
     o = Object(o)
     var no = {
-      date: parseInt(o.date),
-      day: parseInt(o.day),
-      protocol: this.gen('type', o.protocol),
-      messages: this.messages(o.messages),
-      statuses: this.intObject(o.statuses),
-      times: this.intObject(o.times),
-      accessed_first: o.hasOwnProperty('accessed_first') ? this.intObject(o.accessed_first) : [],
-      accessed_n: o.hasOwnProperty('accessed_n') ? this.intObject(o.accessed_n) : []
-    }, l = no.times.length
-    if(no.accessed_first.length !== l || no.accessed_n.length !== l){
+        date: parseInt(o.date),
+        day: parseInt(o.day),
+        protocol: this.gen('type', o.protocol),
+        messages: this.messages(o.messages),
+        statuses: this.intObject(o.statuses),
+        times: this.intObject(o.times),
+        accessed_first: o.hasOwnProperty('accessed_first') ? this.intObject(o.accessed_first) : [],
+        accessed_n: o.hasOwnProperty('accessed_n') ? this.intObject(o.accessed_n) : [],
+      },
+      l = no.times.length
+    if (no.accessed_first.length !== l || no.accessed_n.length !== l) {
       no.accessed_first = []
       no.accessed_n = []
-      for(; l--;){
+      for (; l--; ) {
         no.accessed_first.push(0)
         no.accessed_n.push(0)
       }
     }
-    if(o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
+    if (o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
     return no
   },
-  schedule: function(a){
+  schedule: function (a) {
     a = Object(a)
-    for(var n = a.length, i = 0, r = []; i < n; i++){
+    for (var n = a.length, i = 0, r = []; i < n; i++) {
       r.push(this.schedule_day(a[i]))
     }
     return r
   },
-  participant: function(o){
+  participant: function (o) {
     o = Object(o)
     var no = {
       id: this.gen('id', o.id),
@@ -151,43 +153,46 @@ module.exports = {
       order_type: this.gen('type', o.order_type),
       protocols: this.protocol_names(o.protocols),
       daysofweek: this.boolObject(o.daysofweek),
-      schedule: this.schedule(o.schedule)
+      schedule: this.schedule(o.schedule),
     }
-    if(o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
+    if (o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
     return no
   },
-  protocol: function(o){
+  protocol: function (o) {
     o = Object(o)
-    var k, r = {
-      name: this.gen('type', o.name),
-      color: this.gen('color', o.color),
-      days: parseFloat(o.days) || 0,
-      beeps: parseInt(o.beeps) || 0,
-      minsep: parseFloat(o.minsep) || 0,
-      offset: parseFloat(o.offset) || 0,
-      randomization: String(o.randomization) || 'binned',
-      random_start: 'true' === String(o.random_start),
-      remind_after: parseFloat(o.remind_after) || 0,
-      close_after: parseFloat(o.close_after) || 0,
-      accesses: parseInt(o.accesses) || 0,
-      initial_message: this.string(o.initial_message),
-      reminder_message: this.string(o.reminder_message),
-      reminder_link: 'true' === String(o.reminder_link),
-      link: this.string(o.link),
-      id_parameter: this.gen('id', o.id_parameter)
-    }
-    for(k in r) if(r.hasOwnProperty(k)) if(!r[k]) delete r[k]
+    var k,
+      r = {
+        name: this.gen('type', o.name),
+        color: this.gen('color', o.color),
+        days: parseFloat(o.days) || 0,
+        beeps: parseInt(o.beeps) || 0,
+        minsep: parseFloat(o.minsep) || 0,
+        offset: parseFloat(o.offset) || 0,
+        randomization: String(o.randomization) || 'binned',
+        random_start: 'true' === String(o.random_start),
+        remind_after: parseFloat(o.remind_after) || 0,
+        close_after: parseFloat(o.close_after) || 0,
+        accesses: parseInt(o.accesses) || 0,
+        initial_message: this.string(o.initial_message),
+        reminder_message: this.string(o.reminder_message),
+        reminder_link: 'true' === String(o.reminder_link),
+        link: this.string(o.link),
+        id_parameter: this.gen('id', o.id_parameter),
+      }
+    for (k in r) if (r.hasOwnProperty(k)) if (!r[k]) delete r[k]
     return r
   },
-  protocols: function(o){
+  protocols: function (o) {
     o = Object(o)
-    var r = {}, k
-    for(k in o) if(o.hasOwnProperty(k)){
-      r[k] = this.protocol(o[k])
-    }
+    var r = {},
+      k
+    for (k in o)
+      if (o.hasOwnProperty(k)) {
+        r[k] = this.protocol(o[k])
+      }
     return r
   },
-  perms_template: function(inital){
+  perms_template: function (inital) {
     return {
       add_study: inital,
       remove_study: inital,
@@ -203,13 +208,15 @@ module.exports = {
       view_log: inital,
     }
   },
-  user: function(o){
-    var r = this.perms_template(false), k
+  user: function (o) {
+    var r = this.perms_template(false),
+      k
     o = Object(o)
     r.email = this.gen('email', o.email)
-    for(k in o) if(r.hasOwnProperty(k) && k !== 'email'){
-      r[k] = 'true' === String(o[k])
-    }
+    for (k in o)
+      if (r.hasOwnProperty(k) && k !== 'email') {
+        r[k] = 'true' === String(o[k])
+      }
     return r
   },
 }

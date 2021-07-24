@@ -4,3 +4,4 @@ app.yaml
 .*
 !.gitignore
 *.zip
+var
