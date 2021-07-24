@@ -809,6 +809,22 @@ app.post('/status', function (req, res) {
         body.timestamp = String(req.body.timestamp)
         body.status = String(req.body.status)
         update_status(cords[0], cords[1], cords[2], cords[3], cords[4], false, 0, body)
+        if (body.status === 'FAILURE')
+          email_notification(
+            'Failed Delivery in Study ' + cords[0],
+            'Beep ' +
+              cords[2] +
+              '[' +
+              cords[3] +
+              '] for participant ' +
+              cords[1] +
+              ' in study ' +
+              cords[0] +
+              ' failed to be delivered:\n\n  Time: ' +
+              body.timestamp +
+              '\n\n  Reason: ' +
+              body.providerResponse
+          )
       } else
         log(
           cords[0],
@@ -833,7 +849,7 @@ app.get('/session', function (req, res) {
   res.json(r)
 })
 app.post('/checkin', function (req, res) {
-  var r = {available: false, accessed: 0, days: 0, day: 0, beeps: 0, beep: 0},
+  var r = {available: false, accessed: 0, days: 0, day: 0, first_of_day: true, beeps: 0, beep: 0},
     td = new Date().setHours(0, 0, 0, 0),
     pd = td - 864e5,
     pdm,
@@ -851,7 +867,8 @@ app.post('/checkin', function (req, res) {
     sid,
     m,
     day,
-    status
+    status,
+    nt
   if (id) {
     for (k in studies) if (studies.hasOwnProperty(k) && studies[k].participants.hasOwnProperty(id)) s = k
     if (s) {
@@ -862,7 +879,8 @@ app.post('/checkin', function (req, res) {
           r.days = p.schedule.length
           r.day = d + 1
           m += r.day + ', beep: '
-          for (pp = p.schedule[d], pr = studies[s].protocols[pp.protocol], i = pp.times.length; i--; ) {
+          for (pp = p.schedule[d], pr = studies[s].protocols[pp.protocol], nt = pp.times.length, i = 0; i < nt; i++) {
+            if (pp.accessed_n[i]) r.first_of_day = false
             t = pp.times[i]
             if (t < n && (!pr.close_after || t + pr.close_after * 6e4 > n)) {
               status = pp.statuses[i]

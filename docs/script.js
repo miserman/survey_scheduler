@@ -481,7 +481,7 @@ function reload() {
   if (options.study) {
     request(
       '/operation',
-      function (d) {
+      function () {
         backup()
         window.location.reload()
       },
@@ -1461,10 +1461,6 @@ function filter(clear) {
     first_after = f,
     last_before = f,
     last_after = f,
-    fb = 0,
-    fa = 0,
-    lb = 0,
-    la = 0,
     k,
     a,
     order_sel = [],
