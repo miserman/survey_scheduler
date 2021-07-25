@@ -179,11 +179,9 @@ function update_status(s, id, day, index, status, checkin, first, message_meta) 
         mo.messages.length > index &&
         (mo.messages[index].hasOwnProperty('initial') || mo.messages[index].hasOwnProperty('reminder'))
       if (exists) {
-        console.log('message exists: ', message_meta)
         m = ', ' + l + 'messages[' + index + '].' + mtype + ' = :m'
         req.ExpressionAttributeValues[':m'] = message_meta
       } else {
-        console.log('message does not exists: ', message_meta)
         if (mo.hasOwnProperty('messages')) {
           m = ', ' + l + 'messages[' + index + '] = :m'
           req.ExpressionAttributeValues[':m'] = {}
@@ -198,7 +196,7 @@ function update_status(s, id, day, index, status, checkin, first, message_meta) 
       }
       req.UpdateExpression += m
     }
-    database.update(req, function (e, d) {
+    database.update(req, function (e) {
       var m = 'update status of ' + id + '[' + day + '][' + index + ']: '
       if (e) {
         console.log('update status error: ', s, e, req)
@@ -250,7 +248,7 @@ function email_notification(subj, m) {
         Subject: subj,
         TopicArn: process.env.NOTIFICATIONS,
       },
-      function (e, d) {
+      function (e) {
         if (e) console.log('notification was not sent: ' + m)
       }
     )
@@ -878,7 +876,7 @@ app.post('/checkin', function (req, res) {
         if (td === day || (pdm = pd === day)) {
           r.days = p.schedule.length
           r.day = d + 1
-          m += r.day + ', beep: '
+          m += r.day
           for (pp = p.schedule[d], pr = studies[s].protocols[pp.protocol], nt = pp.times.length, i = 0; i < nt; i++) {
             if (pp.accessed_n[i]) r.first_of_day = false
             t = pp.times[i]
@@ -888,7 +886,7 @@ app.post('/checkin', function (req, res) {
               r.available = pr.accesses ? r.accessed < pr.accesses : true
               r.beeps = pp.times.length
               r.beep = i + 1
-              m += i + ', ' + (r.available ? '' : 'not ') + 'available'
+              m += ', beep: ' + i + ', ' + (r.available ? '' : 'not ') + 'available'
               if (access) {
                 if (pr.reminder_message && status < 4) {
                   status = status === 3 ? 5 : 4

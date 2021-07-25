@@ -1,358 +1,554 @@
 <!DOCTYPE html>
-<html lang='en'>
-<head>
-<meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1.2'>
-<title>Survey Scheduler</title>
-<link rel='icon' type='image/png' href='icon.png'>
-<link rel='stylesheet' href='style.css' />
-</head>
-<body>
-<div id='side_menu'>
-  <button type='button' onclick='signio()'>sign in</button>
-  <button type='button' onclick='select_study()'>change study</button>
-  <h1>data</h1>
-  <button title='have the server rescan the database, then reload the schedule' type='button' onclick='reload()'>rescan data</button>
-  <button title="download the current study's participant information in CSV format" type='button' onclick='download_participants()'>export data</button>
-  <button title='view logs from the server' type='button' onclick='toggle_logs()'>logs</button>
-  <h1>options</h1>
-  <button title='clear local storage and reload' type='button' onclick='refresh()'>clear storage</button>
-  <div id='display_options'>
-    <p title='Resolution of the timeline; increase to see more distant beeps.'>timeline scale</p>
-    <table><tr><td><input name='timeline_scale' type='number' step='.01'/></td></tr></table>
-    <p title='Number of days before and after the current time to show schedules, based on their first last beep.'>day range</p>
-    <table><tr>
-      <td><input name='days_passed' min='0' type='number'/></td>
-      <td><input name='days_future' min='0' type='number'/></td>
-    </tr></table>
-  </div>
-</div>
-<table class='menu' id='top_menu'><tr>
-  <td><button type='button' onclick='toggle_menu()'>menu</button></td>
-  <td><button id='selected_study' class='areabutton' type='button' onclick='select_study()'>select study</button></td>
-  <td><button type='button' onclick='toggle_scheduler()'>add or edit</button></td>
-</tr></table>
-<div id='tick_info' style='display: none'><p></p><p></p></div>
-<div id='display_wrap'>
-  <div id='schedule_wrap' style='display:none'>
-    <div class='entries_wrap schedule'>
-      <table id='schedule_entries'></table>
-    </div>
-    <table id='schedule_ids'></table>
-  </div>
-  <div id='timeline_wrap' style='display:none'>
-    <div id='timeline'></div>
-    <div id='clock'><p></p><span></span></div>
-    <div class='upnext_wrap'><table>
-      <tr id='upnext'><td></td><td class='label'>ID:</td><td></td><td class='label'>Day:</td><td></td><td class='label'>Beep:</td><td></td></tr>
-      <tr style='display:none'><td></td><td class='label'>ID:</td><td></td><td class='label'>Day:</td><td></td><td class='label'>Beep:</td><td></td></tr>
-    </table></div>
-  </div>
-  <div id='study_selector'><div>
-    <button id='signin_prompt' type='button' onclick='signio()'>Sign In</button>
-    <div id='studies_wrap' style='display:none'>
-      <h1>Studies</h1>
-      <table>
-        <thead><tr><td><input type='text' placeholder='new study'></td><td><button type='button' onclick='add_study(this)'>add</button></td></tr></thead>
-        <tbody id='studies'></tbody>
-      </table>
-    </div>
-    <p><button type='button' onclick='window.location.search="?study=demo"'>Demo Study</button></p>
-  </div></div>
-</div>
-<div style='display:none' id='scheduler'>
-  <div class='menu_wrap'>
-    <h1>Add or Edit</h1>
-    <table class='menu_tabs' id='scheduler_tabs'><tr>
-      <th><button class='selected' type='button'>Participants</button></th>
-      <th><button type='button'>Protocols</button></th>
-      <th><button type='button'>Users</button></th>
-    </tr></table>
-    <div class='menu_panes' id='scheduler_panes'>
-      <div id='participant'><div class='menu_inner'>
-        <select id='participant_list' onchange='fill_existing(this, "participant")'><option value=''>New Participant</option></select>
-        <table class='participant_spec'>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.2" />
+    <title>Survey Scheduler</title>
+    <link rel="icon" type="image/png" href="icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="side_menu">
+      <button type="button" onclick="signio()">sign in</button>
+      <button type="button" onclick="select_study()">change study</button>
+      <h1>data</h1>
+      <button title="have the server rescan the database, then reload the schedule" type="button" onclick="reload()">
+        rescan data
+      </button>
+      <button
+        title="download the current study's participant information in CSV format"
+        type="button"
+        onclick="download_participants()"
+      >
+        export data
+      </button>
+      <button title="view logs from the server" type="button" onclick="toggle_logs()">logs</button>
+      <h1>options</h1>
+      <button title="clear local storage and reload" type="button" onclick="refresh()">clear storage</button>
+      <div id="display_options">
+        <p title="Resolution of the timeline; increase to see more distant beeps.">timeline scale</p>
+        <table>
           <tr>
-            <td class='name_col' title='Unique string identifying this participant, to be added to their survey link.'>ID</td>
-            <td>
-              <input id='participant_id' name='id' type='text'  tabindex='1'>
-              <button title='Generate a random, unused ID.' type='button' onclick='genid(this)'>↻</button>
-            </td>
-          </tr><tr>
-            <td class='name_col' title='10 dignit number (e.g., 5550005555).'>Phone</td>
-            <td><input name='phone' type='tel'  tabindex='2'></td>
+            <td><input name="timeline_scale" type="number" step=".01" /></td>
           </tr>
         </table>
-        <table class='participant_spec'>
+        <p title="Number of days before and after the current time to show schedules, based on their first last beep.">
+          day range
+        </p>
+        <table>
           <tr>
-            <td class='name_col' title='Select from the available protocols to identify the protocols to apply across study days.'>Protocols</td>
-            <td width='100px' title='Sampling strategy for the selected protocols. Hover over each option for details.'>Order Type</td>
-            <td width='150px'>Available</td><td></td><td>Selected</td>
-          </tr>
-          <tr>
-            <td></td>
-            <td><select id='protocol_type' name='order_type' type='select' tabindex='3'>
-              <option value='shuffle' title='randomize the order of protocols, applying each before repeating'>Shuffle</option>
-              <option value='sample' title='independently sample from protocols to fill the study period'>Sample</option>
-              <option value='ordered' title='repeat in the entered order'>Ordered</option>
-            </select></td>
-            <td><div id='protocol_select'></div></td>
-            <td id='protocol_fills'>
-              <button type='button'>all</button>
-              <button type='button'>none</button>
-            </td>
-            <td id='protocol_order'></td>
+            <td><input name="days_passed" min="0" type="number" /></td>
+            <td><input name="days_future" min="0" type="number" /></td>
           </tr>
         </table>
-        <div class='schedule_wrap'>
-          <div class='named_table'>
-            <div><p title='Days in which beeps can be scheduled; unchecked days are skipped.'>Days of the week</p></div>
-            <div><table>
+      </div>
+    </div>
+    <table class="menu" id="top_menu">
+      <tr>
+        <td><button type="button" onclick="toggle_menu()">menu</button></td>
+        <td>
+          <button id="selected_study" class="areabutton" type="button" onclick="select_study()">select study</button>
+        </td>
+        <td><button type="button" onclick="toggle_scheduler()">add or edit</button></td>
+      </tr>
+    </table>
+    <div id="tick_info" style="display: none">
+      <p></p>
+      <p></p>
+    </div>
+    <div id="display_wrap">
+      <div id="schedule_wrap" style="display: none">
+        <div class="entries_wrap schedule">
+          <table id="schedule_entries"></table>
+        </div>
+        <table id="schedule_ids"></table>
+      </div>
+      <div id="timeline_wrap" style="display: none">
+        <div id="timeline"></div>
+        <div id="clock">
+          <p></p>
+          <span></span>
+        </div>
+        <div class="upnext_wrap">
+          <table>
+            <tr id="upnext">
+              <td></td>
+              <td class="label">ID:</td>
+              <td></td>
+              <td class="label">Day:</td>
+              <td></td>
+              <td class="label">Beep:</td>
+              <td></td>
+            </tr>
+            <tr style="display: none">
+              <td></td>
+              <td class="label">ID:</td>
+              <td></td>
+              <td class="label">Day:</td>
+              <td></td>
+              <td class="label">Beep:</td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div id="study_selector">
+        <div>
+          <button id="signin_prompt" type="button" onclick="signio()">Sign In</button>
+          <div id="studies_wrap" style="display: none">
+            <h1>Studies</h1>
+            <table>
+              <thead>
+                <tr>
+                  <td><input type="text" placeholder="new study" /></td>
+                  <td><button type="button" onclick="add_study(this)">add</button></td>
+                </tr>
+              </thead>
+              <tbody id="studies"></tbody>
+            </table>
+          </div>
+          <p><button type="button" onclick='window.location.search="?study=demo"'>Demo Study</button></p>
+        </div>
+      </div>
+    </div>
+    <div style="display: none" id="scheduler">
+      <div class="menu_wrap">
+        <h1>Add or Edit</h1>
+        <table class="menu_tabs" id="scheduler_tabs">
+          <tr>
+            <th><button class="selected" type="button">Participants</button></th>
+            <th><button type="button">Protocols</button></th>
+            <th><button type="button">Users</button></th>
+          </tr>
+        </table>
+        <div class="menu_panes" id="scheduler_panes">
+          <div id="participant">
+            <div class="menu_inner">
+              <select id="participant_list" onchange='fill_existing(this, "participant")'>
+                <option value="">New Participant</option>
+              </select>
+              <table class="participant_spec">
+                <tr>
+                  <td
+                    class="name_col"
+                    title="Unique string identifying this participant, to be added to their survey link."
+                  >
+                    ID
+                  </td>
+                  <td>
+                    <input id="participant_id" name="id" type="text" tabindex="1" />
+                    <button title="Generate a random, unused ID." type="button" onclick="genid(this)">↻</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="name_col" title="10 dignit number (e.g., 5550005555).">Phone</td>
+                  <td><input name="phone" type="tel" tabindex="2" /></td>
+                </tr>
+              </table>
+              <table class="participant_spec">
+                <tr>
+                  <td
+                    class="name_col"
+                    title="Select from the available protocols to identify the protocols to apply across study days."
+                  >
+                    Protocols
+                  </td>
+                  <td
+                    width="100px"
+                    title="Sampling strategy for the selected protocols. Hover over each option for details."
+                  >
+                    Order Type
+                  </td>
+                  <td width="150px">Available</td>
+                  <td></td>
+                  <td>Selected</td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <select id="protocol_type" name="order_type" type="select" tabindex="3">
+                      <option value="shuffle" title="randomize the order of protocols, applying each before repeating">
+                        Shuffle
+                      </option>
+                      <option value="sample" title="independently sample from protocols to fill the study period">
+                        Sample
+                      </option>
+                      <option value="ordered" title="repeat in the entered order">Ordered</option>
+                    </select>
+                  </td>
+                  <td><div id="protocol_select"></div></td>
+                  <td id="protocol_fills">
+                    <button type="button">all</button>
+                    <button type="button">none</button>
+                  </td>
+                  <td id="protocol_order"></td>
+                </tr>
+              </table>
+              <div class="schedule_wrap">
+                <div class="named_table">
+                  <div>
+                    <p title="Days in which beeps can be scheduled; unchecked days are skipped.">Days of the week</p>
+                  </div>
+                  <div>
+                    <table>
+                      <tr>
+                        <td>Sunday</td>
+                        <td>Monday</td>
+                        <td>Tuesday</td>
+                        <td>Wednesday</td>
+                        <td>Thursday</td>
+                        <td>Friday</td>
+                        <td>Saturday</td>
+                      </tr>
+                      <tr id="daysofweek">
+                        <td><input type="checkbox" checked="true" /></td>
+                        <td><input type="checkbox" checked="true" /></td>
+                        <td><input type="checkbox" checked="true" /></td>
+                        <td><input type="checkbox" checked="true" /></td>
+                        <td><input type="checkbox" checked="true" /></td>
+                        <td><input type="checkbox" checked="true" /></td>
+                        <td><input type="checkbox" checked="true" /></td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
+                <div class="named_table">
+                  <div>
+                    <p title="Start and end dates on and between which beeps cannot be scheduled.">Blackout Days</p>
+                    <button onclick="add_blackout()" type="button">+</button>
+                  </div>
+                  <div>
+                    <table>
+                      <tr id="blackouts"></tr>
+                    </table>
+                  </div>
+                </div>
+                <table class="row_table">
+                  <tr>
+                    <td title="First and last days of the participant's full study period.">Day range</td>
+                    <td><input type="date" name="start_day" tabindex="4" /></td>
+                    <td><input type="date" name="end_day" tabindex="5" /></td>
+                  </tr>
+                </table>
+                <div>
+                  <div class="timeline_y">
+                    <p title="Earliest and latest time each day between which beeps can be scheduled.">Time range</p>
+                    <input type="time" name="start_time" tabindex="6" />
+                    <div id="menu_timeline"></div>
+                    <input type="time" name="end_time" tabindex="7" />
+                  </div>
+                  <div id="menu_schedule" class="schedule"></div>
+                  <div id="tick_editor" style="display: none">
+                    <div>
+                      <input type="time" step="1" />
+                      <select></select>
+                    </div>
+                    <div style="display: none">
+                      <input type="date" />
+                      <select></select>
+                    </div>
+                    <div style="display: none">
+                      <input type="time" step="1" />
+                      <input type="time" step="1" />
+                    </div>
+                    <p><button>revert</button><button>remove</button></p>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+              <p class="button_row">
+                <button type="button" id="pause_toggle" onclick="toggle_pause(this)">pause all</button>
+                <button type="button" onclick="add_day()">add day</button>
+                <button type="button" onclick="toggle_active(this)">add beep</button>
+                <button type="button" onclick="toggle_active(this)">add blackout</button>
+                <button type="button" onclick="make_schedule()">reroll schedule</button>
+              </p>
+            </div>
+            <table class="foot_buttons">
               <tr>
-                <td>Sunday</td>
-                <td>Monday</td>
-                <td>Tuesday</td>
-                <td>Wednesday</td>
-                <td>Thursday</td>
-                <td>Friday</td>
-                <td>Saturday</td>
+                <td><button type="button" onclick='remove("participant")'>Remove</button></td>
+                <td>
+                  <button type="button" onclick='post_form("participant")' id="participant_submit">Add/Update</button>
+                </td>
               </tr>
-              <tr id='daysofweek'>
-                <td><input type='checkbox' checked='true'></td>
-                <td><input type='checkbox' checked='true'></td>
-                <td><input type='checkbox' checked='true'></td>
-                <td><input type='checkbox' checked='true'></td>
-                <td><input type='checkbox' checked='true'></td>
-                <td><input type='checkbox' checked='true'></td>
-                <td><input type='checkbox' checked='true'></td>
+            </table>
+          </div>
+          <div id="protocol" style="display: none">
+            <div class="menu_inner">
+              <select id="protocol_list" onchange='fill_existing(this, "protocol")'>
+                <option value="">New Protocol</option>
+              </select>
+              <table id="protocol_options">
+                <tr>
+                  <td title="Unique name to identify this protocol.">Name</td>
+                  <td><input id="protocol_id" name="name" type="text" /></td>
+                </tr>
+                <tr>
+                  <td title="Color representing this protocol, which is the background of each displayed day.">
+                    Color
+                  </td>
+                  <td><input name="color" type="color" value="#868686" /></td>
+                </tr>
+                <tr>
+                  <td
+                    title="Number of days this protocol spans; 0 = An even portion of study days, < 1 = A given percentage of study days, >= 1 Number of days."
+                  >
+                    Days
+                  </td>
+                  <td><input name="days" type="number" step=".01" /></td>
+                </tr>
+                <tr>
+                  <td title="Number of beeps to send each day.">Beeps</td>
+                  <td><input name="beeps" type="number" /></td>
+                </tr>
+                <tr>
+                  <td title="Minimum minutes between beeps.">Minimum separation</td>
+                  <td><input name="minsep" type="number" /></td>
+                </tr>
+                <tr>
+                  <td title="Minutes after initial active hour to allow beeps.">Start offset</td>
+                  <td><input name="offset" type="number" /></td>
+                </tr>
+                <tr>
+                  <td
+                    title="If checked, the first beep is randomized like all other beeps. If not checked, the first beep is set for initial active hour + start offset."
+                  >
+                    Random start
+                  </td>
+                  <td><input name="random_start" type="checkbox" /></td>
+                </tr>
+                <tr>
+                  <td title="Options dictate how beeps are placed within days; hover over each option for more.">
+                    Randomization
+                  </td>
+                  <td>
+                    <select name="randomization">
+                      <option title="Places beeps exactly every Minimum separation apart.">none</option>
+                      <option
+                        title="Divides the participant's time range into Beeps bins, and randomly places a beep within each."
+                        selected="true"
+                      >
+                        binned
+                      </option>
+                      <option
+                        title="Draws a time between the participant's time range, and places a beep if the time is not within a blackout range or within Minimum separation from another beep."
+                      >
+                        independent
+                      </option>
+                    </select>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    title="Minutes after each beep to schedule a reminder text, which is canceled if the survey is accessed. 0 = No reminder."
+                  >
+                    Remind after
+                  </td>
+                  <td><input name="remind_after" type="number" /></td>
+                </tr>
+                <tr>
+                  <td title="Minutes after each beep to allow access to the survey.">Close after</td>
+                  <td><input name="close_after" type="number" /></td>
+                </tr>
+                <tr>
+                  <td title="Number of times the survey can be accessed within each beep period; 0 means unrestricted.">
+                    Allowed accesses
+                  </td>
+                  <td><input name="accesses" min="0" type="number" /></td>
+                </tr>
+                <tr>
+                  <td title="Message to send with each beep.">Initial message</td>
+                  <td><input name="initial_message" type="text" /></td>
+                </tr>
+                <tr>
+                  <td
+                    title='Message to send after "remind after" minutes from each beep if the survey has not been accessed.'
+                  >
+                    Reminder message
+                  </td>
+                  <td><input name="reminder_message" type="text" /></td>
+                </tr>
+                <tr>
+                  <td title="If checked, the link is send with the reminder message as well as the initial message.">
+                    Link with reminder
+                  </td>
+                  <td><input name="reminder_link" type="checkbox" /></td>
+                </tr>
+                <tr>
+                  <td title="Link to the survey.">Link</td>
+                  <td><input name="link" type="url" /></td>
+                </tr>
+                <tr>
+                  <td title="Name of the parameter identifying each participant, to be added to the link.">
+                    ID parameter
+                  </td>
+                  <td><input name="id_parameter" type="text" /></td>
+                </tr>
+              </table>
+              <h3>Message Preview</h3>
+              <div id="message_preview"></div>
+            </div>
+            <table class="foot_buttons">
+              <tr>
+                <td><button type="button" onclick='remove("protocol")'>Remove</button></td>
+                <td><button type="button" onclick='post_form("protocol")' id="protocol_submit">Add/Update</button></td>
               </tr>
-            </table></div>
+            </table>
           </div>
-          <div class='named_table'>
-            <div>
-              <p title='Start and end dates on and between which beeps cannot be scheduled.'>Blackout Days</p>
-              <button onclick='add_blackout()' type='button'>+</button>
+          <div id="user" style="display: none">
+            <div class="menu_inner">
+              <select id="user_list" onchange='fill_existing(this, "user")'>
+                <option value="">New User</option>
+              </select>
+              <table id="user_options">
+                <tr>
+                  <td title="Email address to send a temporary password.">email</td>
+                  <td colspan="3"><input id="user_id" name="email" type="email" /></td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>View</td>
+                  <td>Add/edit</td>
+                  <td>Remove</td>
+                </tr>
+                <tr>
+                  <td title="User's ability to add/edit and/or remove studies.">Studies</td>
+                  <td><input type="checkbox" checked="true" disabled="true" /></td>
+                  <td><input name="add_study" type="checkbox" /></td>
+                  <td><input name="remove_study" type="checkbox" /></td>
+                </tr>
+                <tr>
+                  <td title="User's ability to view, and/edit, and/or remove participants in this study.">
+                    Participants
+                  </td>
+                  <td><input name="view_participant" type="checkbox" /></td>
+                  <td><input name="add_participant" type="checkbox" /></td>
+                  <td><input name="remove_participant" type="checkbox" /></td>
+                </tr>
+                <tr>
+                  <td title="User's ability to add/edit and/or remove protocols for this study.">Protocols</td>
+                  <td><input type="checkbox" checked="true" disabled="true" /></td>
+                  <td><input name="add_protocol" type="checkbox" /></td>
+                  <td><input name="remove_protocol" type="checkbox" /></td>
+                </tr>
+                <tr>
+                  <td title="User's ability to view, and/edit, and/or remove users with access to this study.">
+                    Users
+                  </td>
+                  <td><input name="view_user" type="checkbox" /></td>
+                  <td><input name="add_user" type="checkbox" /></td>
+                  <td><input name="remove_user" type="checkbox" /></td>
+                </tr>
+                <tr>
+                  <td title="User's ability to view logs from this study.">Logs</td>
+                  <td><input name="view_log" type="checkbox" /></td>
+                  <td><input type="checkbox" disabled="true" /></td>
+                  <td><input type="checkbox" disabled="true" /></td>
+                </tr>
+              </table>
             </div>
-            <div><table><tr id='blackouts'></tr></table></div>
-          </div>
-          <table class='row_table'><tr>
-            <td title="First and last days of the participant's full study period.">Day range</td>
-            <td><input type='date' name='start_day'  tabindex='4'></td><td><input type='date' name='end_day'  tabindex='5'></td>
-          </tr></table>
-          <div>
-            <div class='timeline_y'>
-              <p title='Earliest and latest time each day between which beeps can be scheduled.'>Time range</p>
-              <input type='time' name='start_time'  tabindex='6'>
-              <div id='menu_timeline'></div>
-              <input type='time' name='end_time'  tabindex='7'>
-            </div>
-            <div id='menu_schedule' class='schedule'></div>
-            <div id='tick_editor' style='display: none'>
-              <div>
-                <input type='time' step=1>
-                <select></select>
-              </div>
-              <div style='display: none'>
-                <input type='date'>
-                <select></select>
-              </div>
-              <div style='display: none'>
-                <input type='time' step=1>
-                <input type='time' step=1>
-              </div>
-              <p><button>revert</button><button>remove</button></p>
-              <div></div>
-            </div>
+            <table class="foot_buttons">
+              <tr>
+                <td><button type="button" onclick='remove("user")'>Remove</button></td>
+                <td><button type="button" onclick='post_form("user")' id="user_submit">Add/Update</button></td>
+              </tr>
+            </table>
           </div>
         </div>
-        <p class='button_row'>
-          <button type='button' id='pause_toggle' onclick='toggle_pause(this)'>pause all</button>
-          <button type='button' onclick='add_day()'>add day</button>
-          <button type='button' onclick='toggle_active(this)'>add beep</button>
-          <button type='button' onclick='toggle_active(this)'>add blackout</button>
-          <button type='button' onclick='make_schedule()'>reroll schedule</button>
-        </p>
+        <div id="scheduler_notification"></div>
       </div>
-      <table class='foot_buttons'><tr>
-        <td><button type='button' onclick='remove("participant")'>Remove</button></td>
-        <td><button type='button' onclick='post_form("participant")' id='participant_submit'>Add/Update</button></td>
-      </tr></table>
+      <div class="screen" onclick="toggle_scheduler()"></div>
     </div>
-      <div id='protocol' style='display:none'><div class='menu_inner'>
-        <select id='protocol_list' onchange='fill_existing(this, "protocol")'><option value=''>New Protocol</option></select>
-        <table id='protocol_options'>
-          <tr>
-            <td title='Unique name to identify this protocol.'>Name</td>
-            <td><input id='protocol_id' name='name' type='text'></td>
-          </tr>
-          <tr>
-            <td title='Color representing this protocol, which is the background of each displayed day.'>Color</td>
-            <td><input name='color' type='color' value='#868686'></td>
-          </tr>
-          <tr>
-            <td title='Number of days this protocol spans; 0 = An even portion of study days, < 1 = A given percentage of study days, >= 1 Number of days.'>Days</td>
-            <td><input name='days' type='number' step='.01'></td>
-          </tr>
-          <tr>
-            <td title='Number of beeps to send each day.'>Beeps</td>
-            <td><input name='beeps' type='number'></td>
-          </tr>
-          <tr>
-            <td title='Minimum minutes between beeps.'>Minimum separation</td>
-            <td><input name='minsep' type='number'></td>
-          </tr>
-          <tr>
-            <td title='Minutes after initial active hour to allow beeps.'>Start offset</td>
-            <td><input name='offset' type='number'></td>
-          </tr>
-          <tr>
-            <td title='If checked, the first beep is randomized like all other beeps. If not checked, the first beep is set for initial active hour + start offset.'>Random start</td>
-            <td><input name='random_start' type='checkbox'></td>
-          </tr>
-          <tr>
-            <td title='Options dictate how beeps are placed within days; hover over each option for more.'>Randomization</td>
-            <td><select name='randomization'>
-              <option title='Places beeps exactly every Minimum separation apart.'>none</option>
-              <option title="Divides the participant's time range into Beeps bins, and randomly places a beep within each." selected=true>binned</option>
-              <option title="Draws a time between the participant's time range, and places a beep if the time is not within a blackout range or within Minimum separation from another beep.">independent</option>
-            </select></td>
-          </tr>
-          <tr>
-            <td title='Minutes after each beep to schedule a reminder text, which is canceled if the survey is accessed. 0 = No reminder.'>Remind after</td>
-            <td><input name='remind_after' type='number'></td>
-          </tr>
-          <tr>
-            <td title='Minutes after each beep to allow access to the survey.'>Close after</td>
-            <td><input name='close_after' type='number'></td>
-          </tr>
-          <tr>
-            <td title='Number of times the survey can be accessed within each beep period; 0 means unrestricted.'>Allowed accesses</td>
-            <td><input name='accesses' min=0 type='number'></td>
-          </tr>
-          <tr>
-            <td title='Message to send with each beep.'>Initial message</td>
-            <td><input name='initial_message' type='text'></td>
-          </tr>
-          <tr>
-            <td title='Message to send after "remind after" minutes from each beep if the survey has not been accessed.'>Reminder message</td>
-            <td><input name='reminder_message' type='text'></td>
-          </tr>
-          <tr>
-            <td title='If checked, the link is send with the reminder message as well as the initial message.'>Link with reminder</td>
-            <td><input name='reminder_link' type='checkbox'></td>
-          </tr>
-          <tr>
-            <td title='Link to the survey.'>Link</td>
-            <td><input name='link' type='url'></td>
-          </tr>
-          <tr>
-            <td title='Name of the parameter identifying each participant, to be added to the link.'>ID parameter</td>
-            <td><input name='id_parameter' type='text'></td>
-          </tr>
-        </table>
-        <h3>Message Preview</h3>
-        <div id='message_preview'></div>
+    <div style="display: none" id="logs">
+      <div class="menu_wrap">
+        <h1>Logs</h1>
+        <div class="menu_tabs_wrap">
+          <table class="menu_tabs" id="logs_tabs">
+            <tr></tr>
+          </table>
+        </div>
+        <div class="menu_panes" id="logs_panes"><p>Select a study to view its logs.</p></div>
       </div>
-      <table class='foot_buttons'><tr>
-        <td><button type='button' onclick='remove("protocol")'>Remove</button></td>
-        <td><button type='button' onclick='post_form("protocol")' id='protocol_submit'>Add/Update</button></td>
-      </tr></table>
+      <div class="screen" onclick="toggle_logs()"></div>
     </div>
-      <div id='user' style='display:none'><div class='menu_inner'>
-        <select id='user_list' onchange='fill_existing(this, "user")'><option value=''>New User</option></select>
-        <table id='user_options'>
+    <div style="display: none" id="filter">
+      <div class="menu_wrap">
+        <h1>Filter Participants</h1>
+        <div class="menu_inner">
+          <table>
+            <tr>
+              <td>ID contains</td>
+              <td><input id="filter_id" type="text" /></td>
+            </tr>
+            <tr>
+              <td>Phone contains</td>
+              <td><input id="filter_phone" type="text" /></td>
+            </tr>
+            <tr>
+              <td>Protocols</td>
+              <td>Order type</td>
+              <td>Used</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td id="filter_order">
+                <div><input type="checkbox" name="Shuffle" checked="true" /><label>Shuffle</label></div>
+                <div><input type="checkbox" name="Sample" checked="true" /><label>Sample</label></div>
+                <div><input type="checkbox" name="Ordered" checked="true" /><label>Ordered</label></div>
+              </td>
+              <td id="filter_protocols"></td>
+            </tr>
+            <tr>
+              <td>First beep</td>
+              <td>After</td>
+              <td>Before</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td><input id="filter_first_after" type="date" /></td>
+              <td><input id="filter_first_before" type="date" /></td>
+            </tr>
+            <tr>
+              <td>Last beep</td>
+              <td>After</td>
+              <td>Before</td>
+            </tr>
+            <tr>
+              <td></td>
+              <td><input id="filter_last_after" type="date" /></td>
+              <td><input id="filter_last_before" type="date" /></td>
+            </tr>
+          </table>
+        </div>
+        <table class="foot_buttons">
           <tr>
-            <td title='Email address to send a temporary password.'>email</td>
-            <td colspan=3><input id='user_id' name='email' type='email'></td>
-          </tr><tr>
-            <td></td><td>View</td><td>Add/edit</td><td>Remove</td>
-          </tr><tr>
-            <td title="User's ability to add/edit and/or remove studies.">Studies</td>
-            <td><input type='checkbox' checked='true' disabled='true'></td>
-            <td><input name='add_study' type='checkbox'></td>
-            <td><input name='remove_study' type='checkbox'></td>
-          </tr><tr>
-            <td title="User's ability to view, and/edit, and/or remove participants in this study.">Participants</td>
-            <td><input name='view_participant' type='checkbox'></td>
-            <td><input name='add_participant' type='checkbox'></td>
-            <td><input name='remove_participant' type='checkbox'></td>
-          </tr><tr>
-            <td title="User's ability to add/edit and/or remove protocols for this study.">Protocols</td>
-            <td><input type='checkbox' checked='true' disabled='true'></td>
-            <td><input name='add_protocol' type='checkbox'></td>
-            <td><input name='remove_protocol' type='checkbox'></td>
-          </tr><tr>
-            <td title="User's ability to view, and/edit, and/or remove users with access to this study.">Users</td>
-            <td><input name='view_user' type='checkbox'></td>
-            <td><input name='add_user' type='checkbox'></td>
-            <td><input name='remove_user' type='checkbox'></td>
-          </tr><tr>
-            <td title="User's ability to view logs from this study.">Logs</td>
-            <td><input name='view_log' type='checkbox'></td>
-            <td><input type='checkbox' disabled='true'></td>
-            <td><input type='checkbox' disabled='true'></td>
+            <td><button type="button" onclick="filter()">Apply</button></td>
           </tr>
         </table>
       </div>
-      <table class='foot_buttons'><tr>
-        <td><button type='button' onclick='remove("user")'>Remove</button></td>
-        <td><button type='button' onclick='post_form("user")' id='user_submit'>Add/Update</button></td>
-      </tr></table>
+      <div class="screen" onclick="toggle_filter()"></div>
     </div>
+    <div class="notifications_wrap">
+      <table>
+        <tr>
+          <td><button type="button" onclick="toggle_notifications()">collapse</button></td>
+          <td><button type="button" onclick="clear_notifications()">clear</button></td>
+        </tr>
+      </table>
+      <div><table id="notifications"></table></div>
     </div>
-    <div id='scheduler_notification'></div>
-  </div>
-  <div class='screen' onclick='toggle_scheduler()'></div>
-</div>
-<div style='display:none' id='logs'>
-  <div class='menu_wrap'>
-    <h1>Logs</h1>
-    <div class='menu_tabs_wrap'><table class='menu_tabs' id='logs_tabs'><tr></tr></table></div>
-    <div class='menu_panes' id='logs_panes'><p>Select a study to view its logs.</p></div>
-  </div>
-  <div class='screen' onclick='toggle_logs()'></div>
-</div>
-<div style='display:none' id='filter'>
-  <div class='menu_wrap'>
-    <h1>Filter Participants</h1>
-    <div class='menu_inner'><table>
-      <tr><td>ID contains</td><td><input id='filter_id' type='text'/></td></tr>
-      <tr><td>Phone contains</td><td><input id='filter_phone' type='text'/></td></tr>
-      <tr><td>Protocols</td><td>Order type</td><td>Used</td></tr>
-      <tr>
-        <td></td><td id='filter_order'>
-          <div><input type='checkbox' name='Shuffle' checked='true'/><label>Shuffle</label></div>
-          <div><input type='checkbox' name='Sample' checked='true'/><label>Sample</label></div>
-          <div><input type='checkbox' name='Ordered' checked='true'/><label>Ordered</label></div>
-        </td>
-        <td id='filter_protocols'></td>
-      </tr>
-      <tr><td>First beep</td><td>After</td><td>Before</td></tr>
-      <tr><td></td><td><input id='filter_first_after' type='date'/></td><td><input  id='filter_first_before' type='date'/></td></tr>
-      <tr><td>Last beep</td><td>After</td><td>Before</td></tr>
-      <tr><td></td><td><input id='filter_last_after' type='date'/></td><td><input id='filter_last_before' type='date'/></td></tr>
-    </table></div>
-    <table class='foot_buttons'><tr>
-      <td><button type='button' onclick='filter()'>Apply</button></td>
-    </tr></table>
-  </div>
-  <div class='screen' onclick='toggle_filter()'></div>
-</div>
-<div class='notifications_wrap'>
-  <table><tr>
-    <td><button type='button' onclick='toggle_notifications()'>collapse</button></td>
-    <td><button type='button' onclick='clear_notifications()'>clear</button></td>
-  </tr></table>
-  <div><table id='notifications'></table></div>
-</div>
-<div class='menu' id='foot_menu'><table><tr>
-  <td id='ndisplay'>0 / 0</td>
-  <td><button type='button' onclick='toggle_filter()'>filter</button></td>
-  <td><button type='button' onclick='filter(true)'>reset filter</button></td>
-  <td><button type='button' id='expand' onclick='toggle_expand(this)'>expand schedules</button></td>
-  <td id='latest_notification' onclick='toggle_notifications()'></td>
-</tr></table></div>
-<script type='text/javascript' src="script.js" defer></script>
-<script type='text/javascript' src="sanitize.js" defer></script>
-</body>
+    <div class="menu" id="foot_menu">
+      <table>
+        <tr>
+          <td id="ndisplay">0 / 0</td>
+          <td><button type="button" onclick="toggle_filter()">filter</button></td>
+          <td><button type="button" onclick="filter(true)">reset filter</button></td>
+          <td><button type="button" id="expand" onclick="toggle_expand(this)">expand schedules</button></td>
+          <td id="latest_notification" onclick="toggle_notifications()"></td>
+        </tr>
+      </table>
+    </div>
+    <script type="text/javascript" src="script.js" defer></script>
+    <script type="text/javascript" src="sanitize.js" defer></script>
+  </body>
 </html>

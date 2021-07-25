@@ -35,7 +35,7 @@ If delivery status logging is set up, beeps that were successfully sent to SNS (
 
 The app has these requirements:
 
-1. Node.js (tested on version 12.19.0).
+1. Node.js (tested on version 14).
 1. A single, stable environment for scheduling. The app schedules beeps locally, so it has to be running when a beep is meant to be sent. Each time the app is started, it will initially schedule beeps upcoming within a week. If multiple instances of the app are running, beeps may be sent multiple times.
 1. Ability to receive HTTP requests for checkins from the survey.
 
@@ -100,51 +100,7 @@ By default, the app receives a message's ID when successfully sending it to SNS,
    - In the Log group dropdown, you should see a DirectPublishToPhoneNumber/Failure group
    - You can also add the DirectPublishToPhoneNumber group to receive all delivery responses
    - Name whatever, other options default
-1. Put this as the function's code, replacing the hostname with your URL, then Save:
-
-```JavaScript
-const http = require('https'), zlib = require('zlib');
-exports.handler = async function(event, context){
-  return new Promise(function(resolve, reject){
-    if(event.awslogs && event.awslogs.data){
-      var data = Buffer.from(event.awslogs.data, 'base64'), p = /^{/, i, s = {}, body, req;
-      zlib.gunzip(data, function(e, d){
-        if(e){
-          reject(Error(e));
-        }else{
-          for(d = JSON.parse(d.toString('ascii')).logEvents, i = d.length; i--;) if(p.test(d[i].message)){
-            s = JSON.parse(d[i].message);
-            if(s.notification && s.notification.messageId){
-              body = JSON.stringify({
-                messageId: s.notification.messageId,
-                timestamp: d[i].timestamp || s.notification.timestamp,
-                providerResponse: s.delivery && s.delivery.providerResponse ? s.delivery.providerResponse : '',
-                status: s.status
-              });
-              req = http.request({
-                method: 'POST',
-                hostname: 'example.com',
-                path: '/status',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Content-Length': Buffer.byteLength(body)
-                }
-              }, function(res){
-                console.log('sent status for message', s.notification.messageId);
-              });
-              req.on('error', function(e){
-                reject(Error(e));
-              });
-              req.write(body);
-              req.end();
-            }
-          }
-        }
-      });
-    }else reject(Error('event is not in the expected format'));
-  });
-};
-```
+1. Copy in [functions/delivery_notifications.js](functions/delivery_notifications.js) as the function's code, replacing the hostname with your URL, then Save.
 
 ### Qualtrics
 
@@ -169,10 +125,11 @@ If the app recognizes the ID, it responds with an object like this:
 
 ```javascript
 {
-  available: true,
+  available: "true",
   accessed: 3,
   day: 0,
   days: 12,
+  first_of_day: "true",
   beep: 1,
   beeps: 6
 }
@@ -187,6 +144,7 @@ Qualtrics.SurveyEngine.addOnload(function () {
   var message = $('message'),
     id = '${e://Field/id}',
     response = {
+      first_of_day: '${e://Field/first_of_day}',
       available: '${e://Field/available}',
       accessed: '${e://Field/accessed}',
       beeps: '${e://Field/beeps}',
@@ -209,7 +167,9 @@ Qualtrics.SurveyEngine.addOnload(function () {
       response.days +
       ', accessed ' +
       response.accessed +
-      ' times.'
+      ' times. This was ' +
+      (response.first_of_day === 'true' ? '' : 'not ') +
+      'their first access of the day.'
     this.enableNextButton()
   }
 })

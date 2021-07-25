@@ -2195,7 +2195,8 @@ function post_form(type, build_only) {
     }
     if (u.id) {
       for (e = page.scheduler[type].options.getElementsByTagName('select'), i = e.length; i--; )
-        if (e[i].name) u.object[e[i].name] = e[i].options[e[i].selectedIndex === -1 ? 0 : e[i].selectedIndex].innerText
+        if (e[i].name)
+          u.object[e[i].name] = e[i].options[e[i].selectedIndex === -1 ? 0 : e[i].selectedIndex].innerText.trim()
       if (!updated)
         for (k in u.object)
           if (
@@ -2825,7 +2826,7 @@ function schedule_action_end(e) {
         if (e === edit.holding) {
           edit.holding = false
         } else {
-          var b, bp, s, eb
+          var b, s
           page.tick_editor.children[0].style.display = page.tick_editor.children[2].style.display = 'none'
           page.tick_editor.children[1].style.display = ''
           if (!temp_schedule.hasOwnProperty('schedule')) make_schedule(true, true)
