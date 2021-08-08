@@ -3004,6 +3004,8 @@ function download_participants() {
     e = document.createElement('a'),
     content,
     b = '\n',
+    bb,
+    r,
     sep = ',',
     k,
     n,
@@ -3011,13 +3013,7 @@ function download_participants() {
     s,
     bn,
     bi,
-    ts = '',
-    mim = [],
-    mis = [],
-    mit = [],
-    mrm = [],
-    mrs = [],
-    mrt = [],
+    ts,
     h =
       'pid,phone,timezone,start_day,end_day,start_time,end_time,protocol_order_type,protocols' +
       ',daysofweek,blackout_days,day,date,protocol,blackouts,times,statuses,first_access,accesses' +
@@ -3056,76 +3052,50 @@ function download_participants() {
       ts += sep
       for (n = p[k].schedule.length, i = 0; i < n; i++) {
         s = p[k].schedule[i]
-        b += ts + (s.day + 1) + sep + s.date + sep + s.protocol + sep
+        bb = ts + (s.day + 1) + sep + s.date + sep + s.protocol + sep
         if (s.hasOwnProperty('blackouts')) {
           for (bn = s.blackouts.length, bi = 0; bi < bn; bi++)
-            b +=
+            bb +=
               former.mtime.format(s.blackouts[bi].start) +
               '-' +
               former.mtime.format(s.blackouts[bi].end) +
               (bi === bn - 1 ? '' : ' ')
-        } else b += 'NA'
+        } else bb += 'NA'
         if (!s.hasOwnProperty('messages')) s.messages = []
-        for (bn = s.times.length, bi = 0, mim = [], mis = [], mit = [], mrm = [], mrs = [], mrt = []; bi < bn; bi++) {
+        for (bn = s.times.length, bi = 0; bi < bn; bi++) {
+          r = bb + sep + s.times[bi] + sep + s.statuses[bi] + sep + s.accessed_first[bi] + sep + s.accessed_n[bi]
           if (s.messages.length > bi) {
             if (s.messages[bi].hasOwnProperty('initial')) {
-              mim.push(s.messages[bi].initial.messageId)
-              mis.push(
-                s.messages[bi].initial.providerResponse
+              r +=
+                sep +
+                s.messages[bi].initial.messageId +
+                sep +
+                (s.messages[bi].initial.providerResponse
                   ? s.messages[bi].initial.status + ': ' + s.messages[bi].initial.providerResponse
-                  : 'NA'
-              )
-              mit.push(s.messages[bi].initial.timestamp || 'NA')
+                  : 'NA') +
+                sep +
+                (s.messages[bi].initial.timestamp || 'NA')
             } else {
-              mim.push('NA')
-              mis.push('NA')
-              mit.push('NA')
+              r += sep + 'NA' + sep + 'NA' + sep + 'NA'
             }
             if (s.messages[bi].hasOwnProperty('reminder')) {
-              mrm.push(s.messages[bi].reminder.messageId)
-              mrs.push(
-                s.messages[bi].reminder.providerResponse
+              r +=
+                sep +
+                s.messages[bi].reminder.messageId +
+                sep +
+                (s.messages[bi].reminder.providerResponse
                   ? s.messages[bi].reminder.status + ': ' + s.messages[bi].reminder.providerResponse
-                  : 'NA'
-              )
-              mrt.push(s.messages[bi].reminder.timestamp || 'NA')
+                  : 'NA') +
+                sep +
+                (s.messages[bi].reminder.timestamp || 'NA')
             } else {
-              mrm.push('NA')
-              mrs.push('NA')
-              mrt.push('NA')
+              r += sep + 'NA' + sep + 'NA' + sep + 'NA'
             }
           } else {
-            mim.push('NA')
-            mis.push('NA')
-            mit.push('NA')
-            mrm.push('NA')
-            mrs.push('NA')
-            mrt.push('NA')
+            r += sep + 'NA' + sep + 'NA' + sep + 'NA' + sep + 'NA' + sep + 'NA' + sep + 'NA'
           }
+          b += r + '\n'
         }
-        b +=
-          sep +
-          s.times.join(' ') +
-          sep +
-          s.statuses.join(' ') +
-          sep +
-          s.accessed_first.join(' ') +
-          sep +
-          s.accessed_n.join(' ') +
-          sep +
-          mim.join('|') +
-          sep +
-          mis.join('|') +
-          sep +
-          mit.join('|') +
-          sep +
-          mrm.join('|') +
-          sep +
-          mrs.join('|') +
-          sep +
-          mrt.join('|') +
-          sep +
-          '\n'
       }
     }
   content = new Blob([h + b], {type: 'text/csv'})
