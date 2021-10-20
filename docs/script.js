@@ -1086,7 +1086,7 @@ function make_schedule(preserve, background) {
   if (!io.start_day) io.start_day = Date.now()
   if ('string' === typeof io.start_day) io.start_day = io.start_day.replace(patterns.numpunct, '')
   io.start_day = patterns.dashdate.test(io.start_day)
-    ? new Date(io.start_day + 'T00:00:00').getTime()
+    ? new Date(io.start_day + 'T12:00:00').getTime()
     : new Date(io.start_day).setHours(24, 0, 0, 0)
   io.start_time = io.start_time ? toMs(io.start_time) : 0
   if (!io.end_day) io.end_day = io.start_day + 14 * 864e5
