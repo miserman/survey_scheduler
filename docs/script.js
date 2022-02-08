@@ -1,4 +1,17 @@
 'use strict'
+if (!Object.hasOwn) {
+  Object.defineProperty(Object, 'hasOwn', {
+    value: function (object, property) {
+      if (object == null) {
+        throw new TypeError('Cannot convert undefined or null to object')
+      }
+      return Object.prototype.hasOwnProperty.call(Object(object), property)
+    },
+    configurable: true,
+    enumerable: false,
+    writable: true,
+  })
+}
 function $(e) {
   return document.getElementById(e)
 }
@@ -192,11 +205,11 @@ var session,
     days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   }
 window.onload = function () {
-  if (store.hasOwnProperty('options')) {
+  if (Object.hasOwn(store, 'options')) {
     var stored_options = JSON.parse(store.options),
       k,
       c
-    for (k in stored_options) if (stored_options.hasOwnProperty(k)) options[k] = stored_options[k]
+    for (k in stored_options) if (Object.hasOwn(stored_options, k)) options[k] = stored_options[k]
   }
   if (window.location.search && /study=[^&?]/i.test(window.location.search)) {
     options.study = window.location.search.match(/study=([^&?]+)(?:&|$)/i)[1]
@@ -211,6 +224,7 @@ window.onload = function () {
   page.menu_schedule.addEventListener('mouseover', show_time)
   page.menu_schedule.addEventListener('mousedown', schedule_action_start)
   page.menu_schedule.addEventListener('mousemove', schedule_action_move)
+  page.menu_schedule.addEventListener('drag', schedule_action_move)
   page.menu_schedule.addEventListener('mouseup', schedule_action_end)
   page.display_options.addEventListener('change', update_display_options)
   page.scheduler.protocol.options.addEventListener('change', update_protocol)
@@ -224,7 +238,7 @@ window.onload = function () {
   page.timeline.addEventListener('mouseover', show_hovered)
   page.timeline.addEventListener('mouseout', show_nearest)
   window.addEventListener('keyup', function (e) {
-    if (e.keyCode === 27) toggle_scheduler()
+    if (e.key === 'Escape') toggle_scheduler()
   })
   maintain_session()
   for (var i = names.status.length, e; i--; ) {
@@ -233,14 +247,14 @@ window.onload = function () {
   }
   page.tick_editor.firstElementChild.children[1].selectedIndex = 3
   page.tick_editor.addEventListener('change', schedule_action_update)
-  if (options.hasOwnProperty('last')) {
+  if (Object.hasOwn(options, 'last')) {
     options.tab = options.last === 'user' ? 2 : options.last === 'protocols' ? 1 : 0
     toggle_scheduler()
     delete options.last
     backup()
   }
   for (e = page.display_options.getElementsByTagName('input'), i = e.length; i--; ) {
-    if (e[i].name && options.hasOwnProperty(e[i].name)) e[i].value = options[e[i].name]
+    if (e[i].name && Object.hasOwn(options, e[i].name)) e[i].value = options[e[i].name]
   }
   Sanitize = module.exports
 }
@@ -282,7 +296,7 @@ function request(path, fun, error, body) {
                 t,
                 e
               page.selected_study.style.background = '#ff6565'
-              study = store.hasOwnProperty('study')
+              study = Object.hasOwn(store, 'study')
                 ? JSON.parse(store.study)
                 : {
                     version: 0,
@@ -302,10 +316,10 @@ function request(path, fun, error, body) {
                 }
               }
               for (k in update_queue)
-                if (update_queue.hasOwnProperty(k) && update_queue[k].after <= now) {
-                  if (!study.participants.hasOwnProperty(k)) {
+                if (Object.hasOwn(update_queue, k) && update_queue[k].after <= now) {
+                  if (!Object.hasOwn(study.participants, k)) {
                     sk = k.split('_')[0]
-                    if (study.participants.hasOwnProperty(sk) && update_queue[k].code === 6) {
+                    if (Object.hasOwn(study.participants, sk) && update_queue[k].code === 6) {
                       s = study.participants[sk].schedule[update_queue[k].day]
                       if (s.statuses[update_queue[k].time] === 6) s.statuses[update_queue[k].time] = 7
                     }
@@ -314,7 +328,7 @@ function request(path, fun, error, body) {
                   }
                   s = study.participants[k].schedule[update_queue[k].day]
                   if (
-                    !study.protocols.hasOwnProperty(s.protocol) ||
+                    !Object.hasOwn(study.protocols, s.protocol) ||
                     update_queue[k].code > 3 ||
                     s.statuses[update_queue[k].time] !== update_queue[k].code - 1
                   ) {
@@ -375,17 +389,17 @@ function request(path, fun, error, body) {
                   }
                 }
               for (k in study.participants)
-                if (study.participants.hasOwnProperty(k)) {
+                if (Object.hasOwn(study.participants, k)) {
                   for (
                     s = study.participants[k].schedule,
-                      p = schedule.hasOwnProperty(k) ? schedule[k].schedule : [],
+                      p = Object.hasOwn(schedule, k) ? schedule[k].schedule : [],
                       nn = p.length,
                       n = s.length;
                     n--;
 
                   ) {
                     ra =
-                      study.protocols.hasOwnProperty(s[n].protocol) &&
+                      Object.hasOwn(study.protocols, s[n].protocol) &&
                       study.protocols[s[n].protocol].hasOwnProperty('remind_after')
                         ? study.protocols[s[n].protocol].remind_after * 6e4
                         : 0
@@ -393,7 +407,7 @@ function request(path, fun, error, body) {
                       if (s[n].statuses[i] === 1 && s[n].times[i] < now) {
                         s[n].statuses[i] = 0
                       } else if (
-                        !update_queue.hasOwnProperty(k) &&
+                        !Object.hasOwn(update_queue, k) &&
                         s[n].statuses[i] === 2 &&
                         ra &&
                         s[n].times[i] < now &&
@@ -425,7 +439,6 @@ function request(path, fun, error, body) {
         }
         break
       default:
-        console.log(path, body)
         session = {signedin: true}
     }
   } else {
@@ -503,10 +516,10 @@ function load_schedule(refresh) {
           temp_study = JSON.parse(r)
         } catch (e) {}
         if (temp_study) {
-          if (temp_study.hasOwnProperty('status') && page.selected_study.innerText === 'select study') {
+          if (Object.hasOwn(temp_study, 'status') && page.selected_study.innerText === 'select study') {
             temp_study = study
           }
-          if (temp_study.hasOwnProperty('status')) {
+          if (Object.hasOwn(temp_study, 'status')) {
             if (study.recalls < 6 && temp_study.status === 'study is up-to-date') {
               study.recalls++
               setTimeout(load_schedule, 2e3)
@@ -538,7 +551,7 @@ function load_schedule(refresh) {
       },
       {type: 'load_schedule', study: options.study, version: study.version}
     )
-  } else queued = true
+  }
 }
 function reset_loading() {
   loading = false
@@ -583,10 +596,10 @@ function display_schedule(refresh, reset_filter) {
     if (refresh) page.ids.innerHTML = page.entries.innerHTML = ''
     nearest = [Infinity, null, null]
     for (k in schedule)
-      if (schedule.hasOwnProperty(k)) {
+      if (Object.hasOwn(schedule, k)) {
         p = schedule[k].schedule
-        if (refresh || !page.schedule_rows.hasOwnProperty(k)) {
-          if (page.schedule_rows.hasOwnProperty(k)) {
+        if (refresh || !Object.hasOwn(page.schedule_rows, k)) {
+          if (Object.hasOwn(page.schedule_rows, k)) {
             page.schedule_rows[k].id.innerHTML = ''
             page.schedule_rows[k].entries.innerHTML = ''
           } else page.schedule_rows[k] = {id: document.createElement('tr'), entries: document.createElement('tr')}
@@ -598,8 +611,8 @@ function display_schedule(refresh, reset_filter) {
           e.appendChild(document.createElement('tr'))
           e.appendChild(document.createElement('tr'))
         }
-        if (page.schedule_rows.hasOwnProperty(k)) {
-          ra = filtered.hasOwnProperty(k) ? 'remove' : 'add'
+        if (Object.hasOwn(page.schedule_rows, k)) {
+          ra = Object.hasOwn(filtered, k) ? 'remove' : 'add'
           page.schedule_rows[k].entries.classList[ra]('hide')
           page.schedule_rows[k].id.classList[ra]('hide')
         }
@@ -622,7 +635,7 @@ function display_schedule(refresh, reset_filter) {
       page.upnext.children[6].innerText = t + 1
       update_queue[k] = {after: p.times[t], code: 2, day: nearest[2].day, time: nearest[2].time}
       setTimeout(load_schedule, p.times[t] + 200 - Date.now())
-      if (study.protocols.hasOwnProperty(p.protocol) && study.protocols[p.protocol].remind_after) {
+      if (Object.hasOwn(study.protocols, p.protocol) && study.protocols[p.protocol].remind_after) {
         setTimeout(load_schedule, p.times[t] + 200 + study.protocols[p.protocol].remind_after * 6e4 - Date.now())
       }
     } else if (!options.n && !page.notifications.childElementCount) {
@@ -637,8 +650,8 @@ function display_schedule(refresh, reset_filter) {
 function display_single_schedule(fs, o, makenew) {
   var id = fs.id,
     s = fs.schedule,
-    start = 'string' === typeof fs.start_time ? toMs(fs.start_time) : fs.start_time,
-    end = 'string' === typeof fs.end_time ? toMs(fs.end_time) : fs.end_time,
+    start = ('string' === typeof fs.start_time ? toMs(fs.start_time) : fs.start_time) - 36e5,
+    end = ('string' === typeof fs.end_time ? toMs(fs.end_time) : fs.end_time) + 36e5,
     classlist = [],
     n,
     d,
@@ -662,7 +675,7 @@ function display_single_schedule(fs, o, makenew) {
     page.ids.appendChild(page.schedule_rows[id].id)
     o.appendChild(page.schedule_rows[id].entries)
   }
-  if (start > end) end += 864e5
+  if (start + 72e5 >= end) end += 864e5
   ee.style.height = 15 + ((end - start) * 360) / 864e5 + 'px'
   ee.style.backgroundPositionY = (-start * 360) / 864e5 + 'px'
   if (makenew) {
@@ -733,7 +746,7 @@ function display_single_schedule(fs, o, makenew) {
         display_blackout(id, s[d], i, ((s[d].blackouts[i].start - (s[d].date + start)) * 360) / 864e5, ee.children[d])
   }
 }
-function display_day(p, s, d, id) {
+function display_day(p, s, d) {
   var e, c
   p.appendChild((e = document.createElement('td')))
   e.className = s.schedule[d].protocol
@@ -760,7 +773,7 @@ function display_time(id, v, e, i, status) {
   t.innerText = i
   t.className = 'index'
   if (
-    schedule.hasOwnProperty(id) &&
+    Object.hasOwn(schedule, id) &&
     schedule[id].hasOwnProperty('schedule') &&
     schedule[id].schedule.length > d &&
     schedule[id].schedule[d].hasOwnProperty('messages') &&
@@ -793,7 +806,7 @@ function tick_clock() {
 function expand_tick(e) {
   if (e.target && e.target.tagName === 'DIV') {
     var id = e.target.firstElementChild.innerText
-    if (id && page.schedule_rows.hasOwnProperty(id)) {
+    if (id && Object.hasOwn(page.schedule_rows, id)) {
       expand_schedule({target: page.schedule_rows[id].entries.firstElementChild.firstElementChild.firstElementChild})
       page.schedule_rows[id].entries.firstElementChild.lastElementChild.scrollIntoView()
     }
@@ -821,12 +834,11 @@ function scheduler_status(type, reset) {
     var t = temp_schedule.schedule,
       s,
       d = t.length,
-      r,
       i,
       c,
       same = true
     type = 'participant'
-    if (temp_schedule.id && study.participants.hasOwnProperty(temp_schedule.id)) {
+    if (temp_schedule.id && Object.hasOwn(study.participants, temp_schedule.id)) {
       s = study.participants[temp_schedule.id].schedule
       if ((same = d === s.length))
         for (; d--; ) {
@@ -860,8 +872,8 @@ function scheduler_status(type, reset) {
         }
       if (same) {
         same =
-          temp_schedule.hasOwnProperty('blackouts') === study.participants[temp_schedule.id].hasOwnProperty('blackouts')
-        if (same && temp_schedule.hasOwnProperty('blackouts')) {
+          Object.hasOwn(temp_schedule, 'blackouts') === study.participants[temp_schedule.id].hasOwnProperty('blackouts')
+        if (same && Object.hasOwn(temp_schedule, 'blackouts')) {
           ;(t = temp_schedule.blackouts),
             (s = study.participants[temp_schedule.id].blackouts),
             (d = s.length),
@@ -905,7 +917,7 @@ function show_hovered(e) {
       b
     page.upnext.nextElementSibling.style.display = ''
     page.upnext.style.display = 'none'
-    if (schedule.hasOwnProperty(id)) {
+    if (Object.hasOwn(schedule, id)) {
       d = schedule[id].schedule[parseInt(e.target.children[1].innerText) - 1]
       b = parseInt(e.target.children[2].innerText)
       e.target.classList.add('selected')
@@ -1018,17 +1030,15 @@ function add_day() {
     c.innerText = '↻'
     e.children[0].appendChild((c = document.createElement('td')))
     c.appendChild(document.createElement('p'))
-    if (!temp_schedule.hasOwnProperty('schedule') || e.firstElementChild.childElementCount === 1)
+    if (!Object.hasOwn(temp_schedule, 'schedule') || e.firstElementChild.childElementCount === 1)
       temp_schedule.schedule = []
     d = temp_schedule.schedule.length
-    temp_schedule.schedule.push({
-      day: d,
-      date: d ? temp_schedule.schedule[d - 1].date + 864e5 : new Date().setHours(24, 0, 0, 0),
-      times: [],
-      statuses: [],
-      accessed_n: [],
-      accessed_first: [],
-    })
+    temp_schedule.schedule.push(
+      Sanitize.schedule_day({
+        day: d,
+        date: d ? temp_schedule.schedule[d - 1].date + 864e5 : new Date().setHours(12, 0, 0, 0) - 432e5,
+      })
+    )
     c.lastElementChild.innerText = former.day.format(temp_schedule.schedule[d].date)
     c.appendChild(document.createElement('p'))
     if (page.scheduler.participant.protocol_select.childElementCount && d < e.children[2].childElementCount) {
@@ -1066,6 +1076,7 @@ function make_schedule(preserve, background) {
   var io = temp_schedule,
     i,
     e = page.scheduler.participant.options.getElementsByTagName('INPUT'),
+    adj,
     day,
     n,
     a,
@@ -1085,36 +1096,30 @@ function make_schedule(preserve, background) {
   if (io.phone) io.phone = Sanitize.phone(io.phone)
   if (!io.start_day) io.start_day = Date.now()
   if ('string' === typeof io.start_day) io.start_day = io.start_day.replace(patterns.numpunct, '')
-  io.start_day = patterns.dashdate.test(io.start_day)
-    ? new Date(io.start_day + 'T12:00:00').getTime()
-    : new Date(io.start_day).setHours(24, 0, 0, 0)
+  io.start_day =
+    (patterns.dashdate.test(io.start_day)
+      ? new Date(io.start_day + 'T12:00:00').getTime()
+      : new Date(io.start_day).setHours(36, 0, 0, 0)) - 432e5
   io.start_time = io.start_time ? toMs(io.start_time) : 0
   if (!io.end_day) io.end_day = io.start_day + 14 * 864e5
   if ('string' === typeof io.end_day) io.end_day = io.end_day.replace(patterns.numpunct, '')
-  io.end_day = patterns.dashdate.test(io.end_day)
-    ? new Date(io.end_day + 'T00:00:00').getTime()
-    : new Date(io.end_day).setHours(24, 0, 0, 0)
+  io.end_day =
+    (patterns.dashdate.test(io.end_day)
+      ? new Date(io.end_day + 'T12:00:00').getTime()
+      : new Date(io.end_day).setHours(36, 0, 0, 0)) - 432e5
   io.end_time = io.end_time ? toMs(io.end_time) : 864e5
-  if (io.start_time > io.end_time) io.end_time += 864e5
+  if (io.start_time + 72e5 > io.end_time) io.end_time += 864e5
   n = Math.ceil(Math.abs(io.end_day - io.start_day) / 864e5) + 1
   io.daysofweek = get_daysofweek()
   for (ck = false, i = io.daysofweek.length; i--; ) {
     ck = true
     break
   }
-  if (!ck) n = 0
-  if (io.hasOwnProperty('blackouts')) {
-    bl = Sanitize.blackouts(io.blackouts)
-    i = bl.length
-    if (n && i)
-      for (; i--; ) {
-        n -= Math.ceil(Math.abs(bl[i].end - bl[i].start) / 864e5) + 1
-      }
-    if (n < 0) n = 0
-  }
-  if (!io.hasOwnProperty('schedule')) io.schedule = []
+  if (!ck || n < 0) n = 0
+  if (Object.hasOwn(io, 'blackouts')) bl = Sanitize.blackouts(io.blackouts)
+  if (!Object.hasOwn(io, 'schedule')) io.schedule = []
   if (n && io.start_time + io.end_time + 1 && io.end_time > io.start_time) {
-    if (!io.hasOwnProperty('schedule')) {
+    if (!Object.hasOwn(io, 'schedule')) {
       io.schedule = []
       preserve = false
     } else if (!io.schedule.length) preserve = false
@@ -1142,15 +1147,10 @@ function make_schedule(preserve, background) {
           io.schedule[d].accessed_n = []
           io.schedule[d].accessed_first = []
         } else
-          io.schedule[d] = {
+          io.schedule[d] = Sanitize.schedule_day({
             day: d,
             date: day + 864e5 * (d + ds),
-            messages: [],
-            times: [],
-            statuses: [],
-            accessed_n: [],
-            accessed_first: [],
-          }
+          })
       }
       if (d < io.schedule.length) io.schedule.splice(d, io.schedule.length - d)
       n = io.schedule.length
@@ -1161,7 +1161,7 @@ function make_schedule(preserve, background) {
           pi++
         } else pd++
         io.schedule[d].protocol = io.protocol_order[pi]
-        if (study.protocols.hasOwnProperty(io.protocol_order[pi]))
+        if (Object.hasOwn(study.protocols, io.protocol_order[pi]))
           roll_times(d, study.protocols[io.protocol_order[pi]], io)
         if (io.schedule[d].times[0] < io.first) io.first = v
         if (io.schedule[d].times[io.schedule[d].times.length - 1] > io.last)
@@ -1241,7 +1241,7 @@ function toggle_panes(e) {
         page.scheduler.panes[i].style.display = ''
         page.scheduler_tabs[i].className = 'selected'
         n = page.scheduler.panes[i].id
-        if (study.hasOwnProperty(n + 's') && study[n + 's'].hasOwnProperty((id = page.scheduler[n].id.value))) {
+        if (Object.hasOwn(study, n + 's') && study[n + 's'].hasOwnProperty((id = page.scheduler[n].id.value))) {
           for (oi = page.scheduler[n].list.childElementCount; oi--; ) {
             if (id === page.scheduler[n].list.children[oi].innerText) {
               page.scheduler[n].list.selectedIndex = oi
@@ -1391,7 +1391,7 @@ function fill_protocol_order(e) {
       p.innerHTML = ''
       if (e.target.innerText === 'all') {
         for (k in study.protocols)
-          if (k !== '' && study.protocols.hasOwnProperty(k)) {
+          if (k !== '' && Object.hasOwn(study.protocols, k)) {
             if (p.childElementCount) p.appendChild(document.createTextNode(', '))
             p.appendChild(document.createElement('span'))
             p.lastElementChild.innerText = k
@@ -1410,7 +1410,7 @@ function fill_protocol_order(e) {
   } else {
     page.filter.protocols.innerHTML = ''
     for (k in study.protocols)
-      if (k !== '' && study.protocols.hasOwnProperty(k)) {
+      if (k !== '' && Object.hasOwn(study.protocols, k)) {
         page.filter.protocols.appendChild((c = document.createElement('div')))
         c.appendChild(document.createElement('input'))
         c.lastElementChild.type = 'checkbox'
@@ -1442,7 +1442,7 @@ function update_user(e) {
   if (e.target.type) {
     if (e.target.type === 'checkbox') {
       if (options.user[e.target.name] !== e.target.checked)
-        scheduler_status('user', !study.users.hasOwnProperty(page.scheduler.user.id.value))
+        scheduler_status('user', !Object.hasOwn(study.users, page.scheduler.user.id.value))
       options.user[e.target.name] = e.target.checked
     }
     backup()
@@ -1519,7 +1519,7 @@ function filter(clear) {
   }
   options.n = 0
   for (k in study.participants)
-    if (study.participants.hasOwnProperty(k)) {
+    if (Object.hasOwn(study.participants, k)) {
       options.n++
       p = study.participants[k]
       if (
@@ -1536,7 +1536,7 @@ function filter(clear) {
         disp++
         show[k] = true
       } else t = 'add'
-      if (page.schedule_rows.hasOwnProperty(k)) {
+      if (Object.hasOwn(page.schedule_rows, k)) {
         page.schedule_rows[k].id.classList[t]('hide')
         page.schedule_rows[k].entries.classList[t]('hide')
       }
@@ -1583,12 +1583,12 @@ function list_logs() {
             e = page.logs.tabs.firstElementChild.firstElementChild,
             c
           logs = JSON.parse(d)
-          if (logs.hasOwnProperty('status')) {
+          if (Object.hasOwn(logs, 'status')) {
             notify(d)
             logs = {}
           }
           for (k in logs)
-            if (k !== 'version' && logs.hasOwnProperty(k)) {
+            if (k !== 'version' && Object.hasOwn(logs, k)) {
               e.appendChild((c = document.createElement('th')))
               c.appendChild((c = document.createElement('button')))
               c.type = 'button'
@@ -1639,9 +1639,9 @@ function toggle_scheduler() {
       n,
       e = page.scheduler.participant.options.getElementsByTagName('INPUT')
     for (i = e.length; i--; )
-      if (e[i].name && !patterns.idPhone.test(e[i].name) && options.participant.hasOwnProperty(e[i].name))
+      if (e[i].name && !patterns.idPhone.test(e[i].name) && Object.hasOwn(options.participant, e[i].name))
         e[i][e[i].type === 'checkbox' ? 'checked' : 'value'] = options.participant[e[i].name]
-    if (options.participant.hasOwnProperty('daysofweek')) {
+    if (Object.hasOwn(options.participant, 'daysofweek')) {
       for (i = options.participant.daysofweek.length; i--; )
         page.scheduler.participant.daysofweek.children[i].firstElementChild.checked = options.participant.daysofweek[i]
     } else {
@@ -1651,15 +1651,15 @@ function toggle_scheduler() {
     edit.holding = edit.e = edit.moved = false
     page.scheduler.participant.blackouts.innerHTML = ''
     for (e = page.scheduler.user.options.getElementsByTagName('INPUT'), i = e.length; i--; )
-      if (e[i].name && options.user.hasOwnProperty(e[i].name))
+      if (e[i].name && Object.hasOwn(options.user, e[i].name))
         e[i][e[i].type === 'checkbox' ? 'checked' : 'value'] = options.user[e[i].name]
     clear_time_edit(page.menu_schedule)
     po.innerHTML = ''
-    if (options.participant.hasOwnProperty('protocols')) {
+    if (Object.hasOwn(options.participant, 'protocols')) {
       for (n = options.participant.protocols.length, i = 0; i < n; i++)
         if (
           options.participant.protocols[i] !== '' &&
-          options.protocol.hasOwnProperty(options.participant.protocols[i])
+          Object.hasOwn(options.protocol, options.participant.protocols[i])
         ) {
           if (po.childElementCount) po.appendChild(document.createTextNode(', '))
           po.appendChild(document.createElement('span'))
@@ -1667,14 +1667,14 @@ function toggle_scheduler() {
         }
     } else {
       for (k in study.protocols)
-        if (k !== study.protocols.hasOwnProperty(k)) {
+        if (k !== Object.hasOwn(study.protocols, k)) {
           if (po.childElementCount) po.appendChild(document.createTextNode(', '))
           po.appendChild(document.createElement('span'))
           po.lastElementChild.innerText = k
         }
     }
     if (
-      options.participant.hasOwnProperty('order_type') &&
+      Object.hasOwn(options.participant, 'order_type') &&
       (i = names.order_type.indexOf(options.participant.order_type.toLowerCase())) !== -1
     )
       page.scheduler.participant.protocol_type.selectedIndex = i
@@ -1686,7 +1686,7 @@ function toggle_scheduler() {
     page.scheduler.notification.classList.remove('showing')
     page.scheduler.participant.submit.innerText = 'Add/update'
     page.scheduler.participant.submit.className = ''
-    temp_schedule = {}
+    temp_schedule = {timezone: timezone}
     make_schedule(true, true)
     toggle_active()
   } else {
@@ -1707,7 +1707,7 @@ function fill_selection(type) {
   if (t === 'protocol')
     page.tick_editor.children[1].children[1].innerHTML = page.scheduler.participant.protocol_select.innerHTML = ''
   for (k in o)
-    if (o.hasOwnProperty(k)) {
+    if (Object.hasOwn(o, k)) {
       if (t === 'protocol') {
         page.tick_editor.children[1].children[1].appendChild(document.createElement('option'))
         page.scheduler.participant.protocol_select.appendChild(document.createElement('p'))
@@ -1781,25 +1781,25 @@ function fill_existing(e, t) {
           : update_user({target: c})
       } else if (c.name) {
         c[c.type === 'checkbox' ? 'checked' : 'value'] =
-          p.hasOwnProperty(c.name) && p[c.name] ? p[c.name] : c.name === 'color' ? '#b0b0b0' : ''
+          Object.hasOwn(p, c.name) && p[c.name] ? p[c.name] : c.name === 'color' ? '#b0b0b0' : ''
       }
     }
     e = page.scheduler[t].options.getElementsByTagName('select')
     if ((i = e.length))
       for (; i--; ) {
         v = e[i].name
-        if (v && names.hasOwnProperty(v))
-          e[i].selectedIndex = p.hasOwnProperty(v) ? names[v].indexOf(p[v].toLowerCase()) : 0
+        if (v && Object.hasOwn(names, v))
+          e[i].selectedIndex = Object.hasOwn(p, v) ? names[v].indexOf(p[v].toLowerCase()) : 0
       }
-    if (p.hasOwnProperty('protocols')) fill_protocol_order(p.protocols)
+    if (Object.hasOwn(p, 'protocols')) fill_protocol_order(p.protocols)
     if (t === 'participant') {
       page.menu_timeline.style.height = '0px'
-      if (p.hasOwnProperty('daysofweek')) {
+      if (Object.hasOwn(p, 'daysofweek')) {
         for (i = 0; i < 7; i++)
           page.scheduler.participant.daysofweek.children[i].firstElementChild.checked = p.daysofweek[i]
       } else p.daysofweek = get_daysofweek()
       page.scheduler.participant.blackouts.innerHTML = ''
-      if (p.hasOwnProperty('blackouts')) {
+      if (Object.hasOwn(p, 'blackouts')) {
         for (n = p.blackouts.length, i = 0; i < n; i++) {
           add_blackout()
           page.scheduler.participant.blackouts.lastElementChild.children[0].value = former.dashdate(
@@ -1836,7 +1836,7 @@ function remove(s) {
           function (d) {
             notify(d)
             if (study[s + 's'].hasOwnProperty(n)) delete study[s + 's'][n]
-            if (s === 'participant' && page.schedule_rows.hasOwnProperty(n)) {
+            if (s === 'participant' && Object.hasOwn(page.schedule_rows, n)) {
               schedule = study.participants
               page.schedule_rows[n].id.parentElement.removeChild(page.schedule_rows[n].id)
               page.schedule_rows[n].entries.parentElement.removeChild(page.schedule_rows[n].entries)
@@ -1865,7 +1865,7 @@ function update_participant_list() {
     k
   e.innerHTML = '<option value="">New Participant</options>'
   for (k in schedule)
-    if (schedule.hasOwnProperty(k)) {
+    if (Object.hasOwn(schedule, k)) {
       e.appendChild(document.createElement('option'))
       e.lastElementChild.value = e.lastElementChild.innerText = k
     }
@@ -1877,7 +1877,7 @@ function update_protocol(e) {
   var m,
     o = page.scheduler.protocol.message,
     pn = page.scheduler.protocol.id.value,
-    p = study.protocols.hasOwnProperty(pn) ? study.protocols[pn] : options.protocol[pn],
+    p = Object.hasOwn(study.protocols, pn) ? study.protocols[pn] : options.protocol[pn],
     u = false
   if (pn) {
     if (!p) p = options.protocol[pn] = {}
@@ -1899,13 +1899,13 @@ function update_protocol(e) {
     }
     if (!e || patterns.mli.test(e.name)) {
       o.innerHTML = ''
-      if (p.hasOwnProperty('initial_message')) build_message(p.initial_message, o, p.link, p.id_parameter, 12345678)
-      if (p.hasOwnProperty('reminder_message')) {
-        if (!p.hasOwnProperty('initial_message')) o.innerHTML = ''
+      if (Object.hasOwn(p, 'initial_message')) build_message(p.initial_message, o, p.link, p.id_parameter, 12345678)
+      if (Object.hasOwn(p, 'reminder_message')) {
+        if (!Object.hasOwn(p, 'initial_message')) o.innerHTML = ''
         build_message(p.reminder_message, o, p.reminder_link ? p.link : false, p.id_parameter, 12345678)
       }
     }
-    if (u) scheduler_status('protocol', !study.protocols.hasOwnProperty(pn))
+    if (u) scheduler_status('protocol', !Object.hasOwn(study.protocols, pn))
   }
 }
 function build_message(m, o, l, p, id) {
@@ -1920,14 +1920,14 @@ function apply_colors() {
   var k, c
   if (page.colors.styleSheet) page.colors.styleSheet.cssText = ''
   for (k in options.protocol)
-    if (options.protocol.hasOwnProperty(k) && options.protocol[k].hasOwnProperty('color')) {
+    if (Object.hasOwn(options.protocol, k) && options.protocol[k].hasOwnProperty('color')) {
       c = '.' + k + '{background: ' + options.protocol[k].color + '}\n'
       page.colors.styleSheet
         ? (page.colors.styleSheet.cssText += c)
         : page.colors.appendChild(document.createTextNode(c))
     }
   for (k in study.protocols)
-    if (study.protocols.hasOwnProperty(k) && study.protocols[k].hasOwnProperty('color')) {
+    if (Object.hasOwn(study.protocols, k) && study.protocols[k].hasOwnProperty('color')) {
       c = '.' + k + '{background: ' + study.protocols[k].color + '}\n'
       page.colors.styleSheet
         ? (page.colors.styleSheet.cssText += c)
@@ -1948,7 +1948,7 @@ function chunk_message(message, output, fun) {
 }
 function genid(e) {
   var id = Math.ceil(Math.random() * 9) + Math.random().toString().match(patterns.d7)[0]
-  if (schedule.hasOwnProperty(id)) return getid(e)
+  if (Object.hasOwn(schedule, id)) return getid(e)
   options.id = id
   backup()
   if (e) e.previousElementSibling.value = id
@@ -2030,9 +2030,9 @@ function toMs(time) {
 function roll_protocols(n, io) {
   io.protocol_days = {}
   for (var a = [], set = [], t = -1, pn = io.protocols.length, i = pn, p; i--; ) {
-    if (study.protocols.hasOwnProperty(io.protocols[i]))
+    if (Object.hasOwn(study.protocols, io.protocols[i]))
       options.protocol[io.protocols[i]] = study.protocols[io.protocols[i]]
-    p = options.protocol.hasOwnProperty(io.protocols[i]) ? options.protocol[io.protocols[i]] : {days: 1}
+    p = Object.hasOwn(options.protocol, io.protocols[i]) ? options.protocol[io.protocols[i]] : {days: 1}
     io.protocol_days[io.protocols[i]] = !p.days ? Math.ceil(n / pn) : p.days < 1 ? Math.ceil(p.days * n) : p.days
     if (!io.protocol_days[io.protocols[i]]) io.protocol_days[io.protocols[i]] = 1
   }
@@ -2078,9 +2078,11 @@ function roll_times(d, p, io) {
       l = se.times.length,
       t = p.randomization,
       invalid = true
+    start += (new Date(start).getTimezoneOffset() - timezone) * 6e4
+    end += (new Date(end).getTimezoneOffset() - timezone) * 6e4
     if (!p.random_start) {
       i++
-      if (se.hasOwnProperty('blackouts'))
+      if (Object.hasOwn(se, 'blackouts'))
         for (b = se.blackouts.length; b--; ) {
           if (start >= se.blackouts[b].start && start <= se.blackouts[b].end)
             start = se.blackouts[b].end + (p.offset || 0) * 6e4
@@ -2096,7 +2098,7 @@ function roll_times(d, p, io) {
       switch (t) {
         case 'none':
           v = i ? se.times[l + i - 1] + p.minsep * 6e4 : start
-          if (se.hasOwnProperty('blackouts'))
+          if (Object.hasOwn(se, 'blackouts'))
             for (b = se.blackouts.length; b--; ) {
               if (v >= se.blackouts[b].start && v <= se.blackouts[b].end) v = se.blackouts[b].end
             }
@@ -2108,7 +2110,7 @@ function roll_times(d, p, io) {
             s++
             v = Math.floor(start + Math.random() * (end - start + 1))
             invalid = false
-            if (se.hasOwnProperty('blackouts'))
+            if (Object.hasOwn(se, 'blackouts'))
               for (b = se.blackouts.length; b--; ) {
                 if (v >= se.blackouts[b].start && v <= se.blackouts[b].end) {
                   invalid = true
@@ -2128,7 +2130,7 @@ function roll_times(d, p, io) {
           s = s && i ? s + binsize : start
           e = Math.min(end, s + binsize)
           if (i && s - se.times[l + i - 1] < p.minsep * 6e4) s = se.times[l + i - 1] + p.minsep * 6e4
-          if (se.hasOwnProperty('blackouts')) {
+          if (Object.hasOwn(se, 'blackouts')) {
             for (b = se.blackouts.length; b--; ) {
               if (i) {
                 if (s >= se.blackouts[b].start && s <= se.blackouts[b].end) {
@@ -2200,7 +2202,7 @@ function post_form(type, build_only) {
       if (!updated)
         for (k in u.object)
           if (
-            u.object.hasOwnProperty(k) &&
+            Object.hasOwn(u.object, k) &&
             (!study[stype][u.id].hasOwnProperty(k) || u.object[k] !== study[stype][u.id][k])
           ) {
             updated = true
@@ -2214,7 +2216,7 @@ function post_form(type, build_only) {
         if (options.study !== 'demo' && !temp_schedule.phone)
           return notify({status: 'provide a phone number to create this participant'}, true)
         u.object.daysofweek = temp_schedule.daysofweek
-        if (temp_schedule.hasOwnProperty('blackouts')) u.object.blackouts = temp_schedule.blackouts
+        if (Object.hasOwn(temp_schedule, 'blackouts')) u.object.blackouts = temp_schedule.blackouts
         u.object.protocols = temp_schedule.protocols
         u.object.schedule = temp_schedule.schedule
         u.object.first = temp_schedule.first
@@ -2246,7 +2248,8 @@ function post_form(type, build_only) {
                   break
                 }
             }
-            ;(ct = []), (cs = [])
+            ct = []
+            cs = []
             for (n = tr.length, i = 0; i < n; i++) {
               ct.push(u.object.schedule[d].times[tr[i]])
               cs.push(u.object.schedule[d].statuses[tr[i]])
@@ -2258,7 +2261,7 @@ function post_form(type, build_only) {
       request(
         '/operation',
         function (d) {
-          if (d.hasOwnProperty('version')) study.version = d.version
+          if (Object.hasOwn(d, 'version')) study.version = d.version
           study[stype][u.id] = u.object
           notify(d)
           if (type === 'participant') {
@@ -2312,7 +2315,7 @@ function notify(s, redirect) {
         e.lastElementChild.innerText = d.status
         page.notifications.lastElementChild.scrollIntoView()
       }
-      if (d.hasOwnProperty('version') && d.version !== study.version) {
+      if (Object.hasOwn(d, 'version') && d.version !== study.version) {
         setTimeout(load_schedule, 20)
       }
     }
@@ -2377,7 +2380,7 @@ function checkin(id, day, time) {
     s.accessed_n[time]++
     if (s.accessed_n[time] === 1) s.accessed_first[time] = Date.now()
     backup_demo()
-    if (update_queue.hasOwnProperty(id)) delete update_queue[id]
+    if (Object.hasOwn(update_queue, id)) delete update_queue[id]
     load_schedule()
     notify({status: 'checkin from participant ' + id + '[' + day + ']' + '[' + time + ']'})
   }
@@ -2396,30 +2399,32 @@ function add_blackout() {
   c.type = 'button'
   c.addEventListener('click', remove_blackout)
   c.innerText = 'remove'
-  if (temp_schedule.hasOwnProperty('blackouts')) {
+  if (Object.hasOwn(temp_schedule, 'blackouts')) {
     temp_schedule.blackouts.push({})
     temp_schedule.blackouts_index.push(temp_schedule.blackouts.length - 1)
   } else {
     temp_schedule.blackouts = [{}]
     temp_schedule.blackouts_index = [0]
   }
-  if (temp_schedule.id && study.participants.hasOwnProperty(temp_schedule.id)) scheduler_status()
+  temp_schedule.updated = true
+  if (temp_schedule.id && Object.hasOwn(study.participants, temp_schedule.id)) scheduler_status()
 }
 function update_blackout(e) {
   var i = e.target.parentElement.cellIndex,
     v = e.target.value
-  if (v && temp_schedule.hasOwnProperty('blackouts') && i < temp_schedule.blackouts.length) {
-    temp_schedule.blackouts[i][e.target.previousElementSibling ? 'end' : 'start'] = new Date(
-      v.replace(patterns.timestamp, '')
-    ).setHours(24, 0, 0, 0)
+  if (v && Object.hasOwn(temp_schedule, 'blackouts') && i < temp_schedule.blackouts.length) {
+    temp_schedule.blackouts[i][e.target.previousElementSibling ? 'end' : 'start'] =
+      new Date(v.replace(patterns.timestamp, '')).setHours(12, 0, 0, 0) - 432e5
   }
+  temp_schedule.updated = true
   make_schedule()
 }
 function remove_blackout(e) {
   var i = e.target.parentElement.cellIndex
-  if (temp_schedule.hasOwnProperty('blackouts') && i < temp_schedule.blackouts.length)
+  if (Object.hasOwn(temp_schedule, 'blackouts') && i < temp_schedule.blackouts.length)
     temp_schedule.blackouts.splice(i, 1)
   e.target.parentElement.parentElement.removeChild(e.target.parentElement)
+  temp_schedule.updated = true
   make_schedule()
 }
 function toggle_active(e) {
@@ -2529,11 +2534,10 @@ function schedule_action_start(e) {
       edit.t = 0
       edit.b = e.target.getBoundingClientRect()
       if (edit.active.innerText === 'add beep') {
-        var p = e.target.parentElement.getBoundingClientRect(),
-          d = e.target.cellIndex,
+        var d = e.target.cellIndex,
           s = temp_schedule.schedule[d],
           v = e.clientY - edit.b.top,
-          t = Math.floor(s.date + temp_schedule.start_time + (v / 360) * 864e5),
+          t = Math.floor(s.date + temp_schedule.start_time - 36e5 + (v / 360) * 864e5),
           i = s.times.length
         edit.active.classList.remove('active')
         edit.holding = edit.active = false
@@ -2560,11 +2564,11 @@ function schedule_action_start(e) {
         var d = e.target.cellIndex,
           s = temp_schedule.schedule[d],
           v = e.clientY - edit.b.top
-        if (!s.hasOwnProperty('blackouts')) {
+        if (!Object.hasOwn(s, 'blackouts')) {
           s.blackouts = []
           s.blackouts_index = []
         }
-        s.blackouts.push({start: Math.floor(s.date + temp_schedule.start_time + (v / 360) * 864e5)})
+        s.blackouts.push({start: Math.floor(s.date + temp_schedule.start_time - 36e5 + (v / 360) * 864e5)})
         s.blackouts_index.push(s.blackouts.length - 1)
         edit.e = display_blackout(temp_schedule.id, s, s.blackouts.length - 1, v, e.target)
         show_time({target: edit.e})
@@ -2595,13 +2599,10 @@ function schedule_action_start(e) {
 function schedule_action_update() {
   if (edit.holding) {
     if (edit.holding.tagName === 'TD') {
-      var td,
-        v,
-        i,
-        a,
+      var i,
         d = edit.holding.cellIndex,
         c = page.tick_editor.children[1],
-        t = new Date(c.firstElementChild.value.replace(patterns.timestamp, '')).setHours(24, 0, 0, 0)
+        t = new Date(c.firstElementChild.value.replace(patterns.timestamp, '')).setHours(12, 0, 0, 0) - 432e5
       if (temp_schedule.schedule.length <= d) {
         temp_schedule.schedule.push({date: t, day: d, times: [], statuses: []})
       } else temp_schedule.schedule[d].date = t
@@ -2616,9 +2617,7 @@ function schedule_action_update() {
         i,
         t,
         s = names.status.length - 1 - page.tick_editor.firstElementChild.lastElementChild.selectedIndex,
-        se,
-        p = edit.holding.parentElement.getBoundingClientRect(),
-        b
+        se
       t =
         edit.holding.className === 'blackout'
           ? toMs(page.tick_editor.children[2].children[0].value)
@@ -2653,7 +2652,7 @@ function schedule_action_update() {
 }
 function scheduler_edit_button() {
   if (edit.holding) {
-    if (temp_schedule.id && study.participants.hasOwnProperty(temp_schedule.id)) {
+    if (temp_schedule.id && Object.hasOwn(study.participants, temp_schedule.id)) {
       var d = edit.holding.parentElement.cellIndex,
         i = temp_schedule.schedule[d].times_index.indexOf(parseInt(edit.holding.lastElementChild.innerText))
       temp_schedule.schedule[d].times[i] = study.participants[temp_schedule.id].schedule[d].times[i]
@@ -2675,14 +2674,13 @@ function scheduler_edit_button() {
 }
 function schedule_action_move(e) {
   if (e.which === 1 && edit.t !== -1 && edit.e) {
-    if (e.clientY < edit.p.top || e.clientY + 0.6 > edit.p.bottom) {
+    if (edit.p.top && (e.clientY < edit.p.top || e.clientY + 0.6 > edit.p.bottom)) {
       schedule_action_end({which: 1, target: edit.e})
       return
     }
     var v = e.clientY - edit.b.init,
       s = temp_schedule.schedule[edit.e.parentElement.cellIndex],
-      i,
-      t
+      i
     switch (edit.t) {
       case 1:
         edit.b.ntop = edit.b.top + v
@@ -2694,13 +2692,15 @@ function schedule_action_move(e) {
             (v + edit.ed.height > edit.p.bottom - edit.p.top ? v - edit.ed.height + 4 : v) + 'px'
           if (edit.e.className === 'blackout') {
             i = s.blackouts_index.indexOf(parseInt(edit.e.children[1].innerText))
-            s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time + (v / 360) * 864e5)
-            s.blackouts[i].end = Math.floor(s.date + temp_schedule.start_time + ((v + edit.b.height) / 360) * 864e5)
+            s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time - 36e5 + (v / 360) * 864e5)
+            s.blackouts[i].end = Math.floor(
+              s.date + temp_schedule.start_time - 36e5 + ((v + edit.b.height) / 360) * 864e5
+            )
             page.tick_editor.children[2].children[0].value = former.mtime.format(s.blackouts[i].start)
             page.tick_editor.children[2].children[1].value = former.mtime.format(s.blackouts[i].end)
           } else {
             s.times[s.times_index.indexOf(parseInt(edit.e.lastElementChild.innerText))] = v = Math.floor(
-              s.date + temp_schedule.start_time + (v / 360) * 864e5
+              s.date + temp_schedule.start_time - 36e5 + (v / 360) * 864e5
             )
             page.tick_editor.firstElementChild.firstElementChild.value = former.mtime.format(v)
           }
@@ -2716,7 +2716,7 @@ function schedule_action_move(e) {
           edit.e.style.top = v + 'px'
           page.tick_editor.style.top =
             (v + edit.ed.height > edit.p.bottom - edit.p.top ? v - edit.ed.height + 4 : v) + 'px'
-          s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time + (v / 360) * 864e5)
+          s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time - 36e5 + (v / 360) * 864e5)
           page.tick_editor.children[2].children[0].value = former.mtime.format(s.blackouts[i].start)
           edit.moved = true
         }
@@ -2747,7 +2747,7 @@ function schedule_action_end(e) {
         u = false
       if (edit.holding) {
         if (e.innerText === 'revert') {
-          if (temp_schedule.id && study.participants.hasOwnProperty(temp_schedule.id)) {
+          if (temp_schedule.id && Object.hasOwn(study.participants, temp_schedule.id)) {
             if (page.tick_editor.parentElement.parentElement.rowIndex === 0) {
               d = edit.holding.cellIndex
               p = study.participants[temp_schedule.id].schedule[d]
@@ -2760,7 +2760,7 @@ function schedule_action_end(e) {
               if (edit.holding.className === 'blackout') {
                 i = temp_schedule.schedule[d].blackouts_index.indexOf(parseInt(edit.holding.children[1].innerText))
                 p = study.participants[temp_schedule.id].schedule[d]
-                if ((u = p.hasOwnProperty('blackouts') && p.blackouts.length > i)) {
+                if ((u = Object.hasOwn(p, 'blackouts') && p.blackouts.length > i)) {
                   temp_schedule.schedule[d].blackouts[i].start = p.blackouts[i].start
                   temp_schedule.schedule[d].blackouts[i].end = p.blackouts[i].end
                 } else notify({status: 'this blackout is not yet saves, and so cannot be reverted'}, true)
@@ -2829,7 +2829,7 @@ function schedule_action_end(e) {
           var b, s
           page.tick_editor.children[0].style.display = page.tick_editor.children[2].style.display = 'none'
           page.tick_editor.children[1].style.display = ''
-          if (!temp_schedule.hasOwnProperty('schedule')) make_schedule(true, true)
+          if (!Object.hasOwn(temp_schedule, 'schedule')) make_schedule(true, true)
           page.tick_editor.children[1].firstElementChild.value = former.dashdate(
             temp_schedule.schedule.length
               ? temp_schedule.schedule.length > e.cellIndex
@@ -2873,13 +2873,10 @@ function schedule_action_end(e) {
             temp_schedule.schedule[h].messages = []
             roll_times(h, study.protocols[temp_schedule.schedule[h].protocol], temp_schedule)
             clear_time_edit(c)
-            c.style.height = page.menu_timeline.style.height =
-              15 + ((temp_schedule.end_time - temp_schedule.start_time) * 360) / 864e5 + 'px'
-            page.menu_timeline.style.backgroundPositionY = (-temp_schedule.start_time * 360) / 864e5 + 'px'
             for (v = study.protocols[temp_schedule.schedule[h].protocol].beeps, i = 0; i < v; i++) {
               display_time(
                 temp_schedule.id,
-                temp_schedule.schedule[h].times[i] - (temp_schedule.schedule[h].date + temp_schedule.start_time),
+                temp_schedule.schedule[h].times[i] - (temp_schedule.schedule[h].date + temp_schedule.start_time - 36e5),
                 c,
                 i,
                 temp_schedule.schedule[h].statuses[i]
@@ -2899,7 +2896,7 @@ function schedule_action_end(e) {
                     temp_schedule.schedule[h],
                     i,
                     ((temp_schedule.schedule[h].blackouts[i].start -
-                      (temp_schedule.schedule[h].date + temp_schedule.start_time)) *
+                      (temp_schedule.schedule[h].date + temp_schedule.start_time - 36e5)) *
                       360) /
                       864e5,
                     c
@@ -2955,9 +2952,10 @@ function schedule_action_end(e) {
             t
           s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time + ((b.top - p.top) / 360) * 864e5)
           s.blackouts[i].end = Math.floor(s.blackouts[i].start + (b.height / 360) * 864e5)
-          if (s.blackouts[i].start > s.blackouts[i].end - 12e5) {
+          s.blackouts[i].start += (new Date(s.blackouts[i].start).getTimezoneOffset() - temp_schedule.timezone) * 6e4
+          s.blackouts[i].end += (new Date(s.blackouts[i].end).getTimezoneOffset() - temp_schedule.timezone) * 6e4
+          if (s.blackouts[i].start >= s.blackouts[i].end - 12e5) {
             s.blackouts[i].end = s.blackouts[i].start + 12e5
-            edit.holding = false
             show_time({target: edit.e})
             edit.holding = edit.e
             schedule_action_update()
@@ -2986,7 +2984,10 @@ function schedule_action_end(e) {
           if (edit.holding === edit.e) {
             if (!edit.moved) {
               edit.holding = false
-            } else scheduler_status()
+            } else {
+              edit.t = 1
+              scheduler_status()
+            }
           } else if (edit.moved || !edit.holding) {
             if (edit.moved) scheduler_status()
             edit.holding = false
@@ -3053,7 +3054,7 @@ function download_participants() {
       for (n = p[k].schedule.length, i = 0; i < n; i++) {
         s = p[k].schedule[i]
         bb = ts + (s.day + 1) + sep + s.date + sep + s.protocol + sep
-        if (s.hasOwnProperty('blackouts')) {
+        if (Object.hasOwn(s, 'blackouts')) {
           for (bn = s.blackouts.length, bi = 0; bi < bn; bi++)
             bb +=
               former.mtime.format(s.blackouts[bi].start) +
@@ -3061,7 +3062,7 @@ function download_participants() {
               former.mtime.format(s.blackouts[bi].end) +
               (bi === bn - 1 ? '' : ' ')
         } else bb += 'NA'
-        if (!s.hasOwnProperty('messages')) s.messages = []
+        if (!Object.hasOwn(s, 'messages')) s.messages = []
         for (bn = s.times.length, bi = 0; bi < bn; bi++) {
           r = bb + sep + s.times[bi] + sep + s.statuses[bi] + sep + s.accessed_first[bi] + sep + s.accessed_n[bi]
           if (s.messages.length > bi) {

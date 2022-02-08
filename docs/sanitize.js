@@ -1,4 +1,17 @@
 'use strict'
+if (!Object.hasOwn) {
+  Object.defineProperty(Object, 'hasOwn', {
+    value: function (object, property) {
+      if (object == null) {
+        throw new TypeError('Cannot convert undefined or null to object')
+      }
+      return Object.prototype.hasOwnProperty.call(Object(object), property)
+    },
+    configurable: true,
+    enumerable: false,
+    writable: true,
+  })
+}
 module.exports = {
   P: {
     email: /^[^@\s]+@[^.\s]+\.[^.\s]{2,}$/i,
@@ -82,10 +95,10 @@ module.exports = {
   message: function (o) {
     o = Object(o)
     var r = {}
-    if (o.hasOwnProperty('messageId')) r.messageId = String(o.messageId)
-    if (o.hasOwnProperty('timestamp')) r.timestamp = String(o.timestamp)
-    if (o.hasOwnProperty('providerResponse')) r.providerResponse = String(o.providerResponse)
-    if (o.hasOwnProperty('status')) r.status = String(o.status)
+    if (Object.hasOwn(o, 'messageId')) r.messageId = String(o.messageId)
+    if (Object.hasOwn(o, 'timestamp')) r.timestamp = String(o.timestamp)
+    if (Object.hasOwn(o, 'providerResponse')) r.providerResponse = String(o.providerResponse)
+    if (Object.hasOwn(o, 'status')) r.status = String(o.status)
     return r
   },
   messages: function (a) {
@@ -116,8 +129,8 @@ module.exports = {
         messages: this.messages(o.messages),
         statuses: this.intObject(o.statuses),
         times: this.intObject(o.times),
-        accessed_first: o.hasOwnProperty('accessed_first') ? this.intObject(o.accessed_first) : [],
-        accessed_n: o.hasOwnProperty('accessed_n') ? this.intObject(o.accessed_n) : [],
+        accessed_first: Object.hasOwn(o, 'accessed_first') ? this.intObject(o.accessed_first) : [],
+        accessed_n: Object.hasOwn(o, 'accessed_n') ? this.intObject(o.accessed_n) : [],
       },
       l = no.times.length
     if (no.accessed_first.length !== l || no.accessed_n.length !== l) {
@@ -128,7 +141,7 @@ module.exports = {
         no.accessed_n.push(0)
       }
     }
-    if (o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
+    if (Object.hasOwn(o, 'blackouts')) no.blackouts = this.blackouts(o.blackouts)
     return no
   },
   schedule: function (a) {
@@ -143,7 +156,7 @@ module.exports = {
     var no = {
       id: this.gen('id', o.id),
       phone: this.phone(o.phone),
-      timezone: o.hasOwnProperty('timezone') ? parseInt(o.timezone) : new Date().getTimezoneOffset(),
+      timezone: Object.hasOwn(o, 'timezone') ? parseInt(o.timezone) : new Date().getTimezoneOffset(),
       start_day: this.dashdate(o.start_day),
       end_day: this.dashdate(o.end_day),
       start_time: this.timestamp(o.start_time),
@@ -155,7 +168,7 @@ module.exports = {
       daysofweek: this.boolObject(o.daysofweek),
       schedule: this.schedule(o.schedule),
     }
-    if (o.hasOwnProperty('blackouts')) no.blackouts = this.blackouts(o.blackouts)
+    if (Object.hasOwn(o, 'blackouts')) no.blackouts = this.blackouts(o.blackouts)
     return no
   },
   protocol: function (o) {
@@ -179,7 +192,7 @@ module.exports = {
         link: this.string(o.link),
         id_parameter: this.gen('id', o.id_parameter),
       }
-    for (k in r) if (r.hasOwnProperty(k)) if (!r[k]) delete r[k]
+    for (k in r) if (Object.hasOwn(r, k)) if (!r[k]) delete r[k]
     return r
   },
   protocols: function (o) {
@@ -187,7 +200,7 @@ module.exports = {
     var r = {},
       k
     for (k in o)
-      if (o.hasOwnProperty(k)) {
+      if (Object.hasOwn(o, k)) {
         r[k] = this.protocol(o[k])
       }
     return r
@@ -214,7 +227,7 @@ module.exports = {
     o = Object(o)
     r.email = this.gen('email', o.email)
     for (k in o)
-      if (r.hasOwnProperty(k) && k !== 'email') {
+      if (Object.hasOwn(r, k) && k !== 'email') {
         r[k] = 'true' === String(o[k])
       }
     return r

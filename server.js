@@ -1,4 +1,17 @@
 'use strict'
+if (!Object.hasOwn) {
+  Object.defineProperty(Object, 'hasOwn', {
+    value: function (object, property) {
+      if (object == null) {
+        throw new TypeError('Cannot convert undefined or null to object')
+      }
+      return Object.prototype.hasOwnProperty.call(Object(object), property)
+    },
+    configurable: true,
+    enumerable: false,
+    writable: true,
+  })
+}
 var express = require('express'),
   app = express(),
   aws = require('aws-sdk'),
@@ -100,10 +113,10 @@ function log(s, entry) {
     })
 }
 function update_studies(m, s, name, protocols) {
-  if (!studies.hasOwnProperty(s)) {
+  if (!Object.hasOwn(studies, s)) {
     var p = {},
       k
-    for (k in protocols) if (protocols.hasOwnProperty(k)) p[k] = Sanitize.protocol(protocols[k])
+    for (k in protocols) if (Object.hasOwn(protocols, k)) p[k] = Sanitize.protocol(protocols[k])
     studies[s] = {dbcopy: {Items: []}, participants: {}, protocols: p, users: {}}
     studies[s].users[name] = Sanitize.perms_template(true)
     if (name !== process.env.ADMIN) studies[s].users[process.env.ADMIN] = Sanitize.perms_template(true)
@@ -125,12 +138,12 @@ function update_studies(m, s, name, protocols) {
 }
 function time_exists(s, id, day, index) {
   var exists =
-    studies.hasOwnProperty(s) &&
-    studies[s].participants.hasOwnProperty(id) &&
-    studies[s].participants[id].hasOwnProperty('schedule') &&
+    Object.hasOwn(studies, s) &&
+    Object.hasOwn(studies[s].participants, id) &&
+    Object.hasOwn(studies[s].participants[id], 'schedule') &&
     studies[s].participants[id].schedule.length > day &&
-    studies[s].participants[id].schedule[day].hasOwnProperty('times') &&
-    studies[s].participants[id].schedule[day].hasOwnProperty('statuses') &&
+    Object.hasOwn(studies[s].participants[id].schedule[day], 'times') &&
+    Object.hasOwn(studies[s].participants[id].schedule[day], 'statuses') &&
     studies[s].participants[id].schedule[day].times.length > index &&
     studies[s].participants[id].schedule[day].statuses.length > index
   if (!exists) log(s, 'time was checked and did not exist: ' + id + '[' + day + '][' + index + ']')
@@ -172,17 +185,17 @@ function update_status(s, id, day, index, status, checkin, first, message_meta) 
     mo = studies[s].participants[id].schedule[day]
     if (message_meta) {
       messageIds[message_meta.messageId] = [s, id, day, index, status]
-      if (message_meta.hasOwnProperty('status') && mo.statuses[index] !== status)
+      if (Object.hasOwn(message_meta, 'status') && mo.statuses[index] !== status)
         req.ExpressionAttributeValues[':s'] = status = mo.statuses[index]
       exists =
-        mo.hasOwnProperty('messages') &&
+        Object.hasOwn(mo, 'messages') &&
         mo.messages.length > index &&
-        (mo.messages[index].hasOwnProperty('initial') || mo.messages[index].hasOwnProperty('reminder'))
+        (Object.hasOwn(mo.messages[index], 'initial') || Object.hasOwn(mo.messages[index], 'reminder'))
       if (exists) {
         m = ', ' + l + 'messages[' + index + '].' + mtype + ' = :m'
         req.ExpressionAttributeValues[':m'] = message_meta
       } else {
-        if (mo.hasOwnProperty('messages')) {
+        if (Object.hasOwn(mo, 'messages')) {
           m = ', ' + l + 'messages[' + index + '] = :m'
           req.ExpressionAttributeValues[':m'] = {}
           req.ExpressionAttributeValues[':m'][mtype] = message_meta
@@ -207,7 +220,7 @@ function update_status(s, id, day, index, status, checkin, first, message_meta) 
         studies[s].participants[id].schedule[day].accessed_n[index] = n
         studies[s].version = Date.now()
         if (message_meta) {
-          if (!mo.hasOwnProperty('messages')) mo.messages = []
+          if (!Object.hasOwn(mo, 'messages')) mo.messages = []
           if (mo.messages.length < mo.statuses.length) {
             for (i = mo.statuses.length; i--; ) if (i >= mo.messages.length) mo.messages.push({})
           }
@@ -279,7 +292,7 @@ function send_message(s, id, day, index, status) {
     if (ds.statuses[index] === 6) {
       update_status(s, id, day, index, 7)
     } else if (
-      !held.hasOwnProperty(fid) &&
+      !Object.hasOwn(held, fid) &&
       ds.statuses[index] === status - 1 &&
       (status === 2 || (status === 3 && pr.reminder_message))
     ) {
@@ -337,7 +350,7 @@ function send_message(s, id, day, index, status) {
           '][' +
           index +
           ']) ' +
-          (held.hasOwnProperty(fid) ? 'because it was in held' : 'due to status: ' + ds.statuses[index] + ', ' + status)
+          (Object.hasOwn(held, fid) ? 'because it was in held' : 'due to status: ' + ds.statuses[index] + ', ' + status)
       )
   }
 }
@@ -365,15 +378,15 @@ function schedule(s, id, day) {
   if (!d) {
     console.log(s + ' ' + id + ': no day found; splicing day ' + day, studies[s].participants[id].schedule)
     studies[s].participants[id].schedule.splice(day, 1)
-  } else if (d.hasOwnProperty('times') && pr) {
+  } else if (Object.hasOwn(d, 'times') && pr) {
     minsep = pr.minsep * 6e4
     remind = pr.remind_after * 6e4 || 0
     end = timeadj(d, studies[s].participants[id].end_time)
     for (n = d.times.length, i = 0; i < n; i++) {
       t = d.times[i]
       if (d.messages && d.messages.length > i) {
-        if (d.messages[i].hasOwnProperty('initial')) messageIds[d.messages[i].initial.messageId] = [s, id, day, i, 2]
-        if (d.messages[i].hasOwnProperty('reminder')) messageIds[d.messages[i].reminder.messageId] = [s, id, day, i, 3]
+        if (Object.hasOwn(d.messages[i], 'initial')) messageIds[d.messages[i].initial.messageId] = [s, id, day, i, 2]
+        if (Object.hasOwn(d.messages[i], 'reminder')) messageIds[d.messages[i].reminder.messageId] = [s, id, day, i, 3]
       }
       if (
         t - now < 3e8 &&
@@ -417,16 +430,16 @@ function schedule(s, id, day) {
         } else if (t < now && d.statuses[i] === 1) {
           updated = true
           d.statuses[i] = 0
-          if (!misses.hasOwnProperty(id)) {
+          if (!Object.hasOwn(misses, id)) {
             nmisses++
             misses[id] = {}
           }
-          if (!misses[id].hasOwnProperty(day)) misses[id][day] = []
+          if (!Object.hasOwn(misses[id], day)) misses[id][day] = []
           misses[id][day].push(i)
         }
       }
     }
-    if (!d.hasOwnProperty('accessed_first') || !d.hasOwnProperty('accessed_n')) {
+    if (!Object.hasOwn(d, 'accessed_first') || !Object.hasOwn(d, 'accessed_n')) {
       updated = true
       d.accessed_first = []
       d.accessed_n = []
@@ -474,10 +487,10 @@ function scan_database(s) {
     } else {
       log(s, m + 'true')
       studies[s].version = Date.now()
-      if (!studies[s].hasOwnProperty('participants')) studies[s].participants = {}
+      if (!Object.hasOwn(studies[s], 'participants')) studies[s].participants = {}
       for (i = d.Items.length, day; i--; ) {
         id = d.Items[i].id
-        if (studies[s].participants.hasOwnProperty(id)) clear_schedule(s, id)
+        if (Object.hasOwn(studies[s].participants, id)) clear_schedule(s, id)
         studies[s].participants[id] = d.Items[i]
       }
       studies[s].dbcopy = d
@@ -495,8 +508,8 @@ function refresh_schedules(s, cleared) {
     nmissing = [0, 0],
     misses = '',
     missed_days
-  if (studies.hasOwnProperty(s)) {
-    if (studies[s].hasOwnProperty('participants')) {
+  if (Object.hasOwn(studies, s)) {
+    if (Object.hasOwn(studies[s], 'participants')) {
       for (id in studies[s].participants) {
         if (!cleared) clear_schedule(s, id)
         for (day = studies[s].participants[id].schedule.length, missed_days = []; day--; ) {
@@ -505,7 +518,7 @@ function refresh_schedules(s, cleared) {
           if (res.nmisses) {
             nmissing[0]++
             for (td in res.misses[id])
-              if (res.misses[id].hasOwnProperty(td)) {
+              if (Object.hasOwn(res.misses[id], td)) {
                 nmissing[1]++
                 missed_days.push(td + '[' + res.misses[id][td].join(', ') + ']')
               }
@@ -575,7 +588,7 @@ function scan_studies() {
       if (d.Items.length) {
         log('sessions', m + 'true')
         for (i = d.Items.length; i--; ) {
-          if (studies.hasOwnProperty(d.Items[i].study)) {
+          if (Object.hasOwn(studies, d.Items[i].study)) {
             studies[d.Items[i].study].users = d.Items[i].users
             studies[d.Items[i].study].protocols = d.Items[i].protocols
           } else
@@ -614,14 +627,14 @@ function scan_local(report) {
     events = {},
     ps = []
   for (study in studies)
-    if (study !== 'demo' && studies.hasOwnProperty(study) && studies[study].hasOwnProperty('participants')) {
+    if (study !== 'demo' && Object.hasOwn(studies, study) && Object.hasOwn(studies[study], 'participants')) {
       s = studies[study].participants
       scanned = [0, 0, 0]
       for (participant in s)
         if (
-          s.hasOwnProperty(participant) &&
-          s[participant].hasOwnProperty('last') &&
-          s[participant].hasOwnProperty('schedule') &&
+          Object.hasOwn(s, participant) &&
+          Object.hasOwn(s[participant], 'last') &&
+          Object.hasOwn(s[participant], 'schedule') &&
           s[participant].last > report_record.from
         ) {
           scanned[0]++
@@ -630,7 +643,7 @@ function scan_local(report) {
             day = s[participant].schedule[n]
             pr = studies[study].protocols[day.protocol]
             inwindow = pr && (!pr.close_after || day.times[i] + pr.close_after * 6e4 > now)
-            if (day.hasOwnProperty('times') && day.hasOwnProperty('statuses')) {
+            if (Object.hasOwn(day, 'times') && Object.hasOwn(day, 'statuses')) {
               for (nd = day.statuses.length, i = 0; i < nd; i++) {
                 scanned[2]++
                 timeiw = inwindow && (i === nd - 1 || day.times[i + 1] > now)
@@ -644,12 +657,12 @@ function scan_local(report) {
                   ) {
                     log(study, 'sending reminder for passed, sent beep: ' + participant + '[' + n + '][' + i + ']')
                     send_message(study, participant, n, i, 3)
-                    if (!caught.hasOwnProperty(study)) caught[study] = []
+                    if (!Object.hasOwn(caught, study)) caught[study] = []
                     caught[study].push(participant + '[' + n + '][' + i + '] (reminder)')
                   } else if (day.statuses[i] === 1 && timeiw) {
                     log(study, 'sending passed, pending beep: ' + participant + '[' + n + '][' + i + ']')
                     send_message(study, participant, n, i, 2)
-                    if (!caught.hasOwnProperty(study)) caught[study] = []
+                    if (!Object.hasOwn(caught, study)) caught[study] = []
                     caught[study].push(participant + '[' + n + '][' + i + ']')
                     schedule(study, participant, n)
                   } else if (
@@ -658,15 +671,15 @@ function scan_local(report) {
                     day.statuses[i] > 1 &&
                     day.statuses[i] < 8
                   ) {
-                    if (!events.hasOwnProperty(study)) events[study] = {}
-                    if (!events[study].hasOwnProperty(participant))
+                    if (!Object.hasOwn(events, study)) events[study] = {}
+                    if (!Object.hasOwn(events[study], participant))
                       events[study][participant] = [0, 0, 0, 0, 0, 0, 0, 0]
                     events[study][participant][day.statuses[i] - 2]++
                     events[study][participant][7] += day.accessed_n[i] !== 0
-                    if (day.hasOwnProperty('messages') && day.messages.length > i) {
+                    if (Object.hasOwn(day, 'messages') && day.messages.length > i) {
                       if (
-                        (day.messages[i].hasOwnProperty('initial') && day.messages[i].initial.status === 'FAILURE') ||
-                        (day.messages[i].hasOwnProperty('reminder') && day.messages[i].reminder.status === 'FAILURE')
+                        (Object.hasOwn(day.messages[i], 'initial') && day.messages[i].initial.status === 'FAILURE') ||
+                        (Object.hasOwn(day.messages[i], 'reminder') && day.messages[i].reminder.status === 'FAILURE')
                       )
                         events[study][participant][6]++
                     }
@@ -694,7 +707,7 @@ function scan_local(report) {
   subj = 'Caught Beeps in '
   n = 0
   for (study in caught)
-    if (caught.hasOwnProperty(study)) {
+    if (Object.hasOwn(caught, study)) {
       subj += (n++ ? ', ' : '') + study
       body += '\n  ' + study + ': ' + caught[study].join(', ')
     }
@@ -710,10 +723,10 @@ function scan_local(report) {
     n = 0
     scanned = [0, 0, 0]
     for (study in events)
-      if (events.hasOwnProperty(study)) {
+      if (Object.hasOwn(events, study)) {
         body += '\n\nBeeps in ' + study + ':\n'
         for (participant in events[study])
-          if (events[study].hasOwnProperty(participant)) {
+          if (Object.hasOwn(events[study], participant)) {
             n++
             ps = events[study][participant]
             ps[4] += ps[5]
@@ -762,8 +775,8 @@ scan_for_report()
 function add_user(o, m, s, base_perms, email, username, req, res) {
   req.body.object = Sanitize.user(req.body.object)
   for (var k in req.body.object)
-    if (req.body.object.hasOwnProperty(k) && 'boolean' === typeof req.body.object[k])
-      req.body.object[k] = req.body.object[k] && base_perms.hasOwnProperty(k) && base_perms[k]
+    if (Object.hasOwn(req.body.object, k) && 'boolean' === typeof req.body.object[k])
+      req.body.object[k] = req.body.object[k] && Object.hasOwn(base_perms, k) && base_perms[k]
   database.update(
     {
       TableName: 'studies',
@@ -777,7 +790,7 @@ function add_user(o, m, s, base_perms, email, username, req, res) {
         m += 'false'
         res.status(400).json(o)
       } else {
-        if (studies[s].users.hasOwnProperty(username)) {
+        if (Object.hasOwn(studies[s].users, username)) {
           m += 'true'
           o.status = 'updated user ' + email
         } else {
@@ -798,7 +811,7 @@ app.post('/status', function (req, res) {
       cords = ['', '', 0, 0, 0],
       d,
       mtype
-    if (body.messageId && messageIds.hasOwnProperty(body.messageId)) {
+    if (body.messageId && Object.hasOwn(messageIds, body.messageId)) {
       cords = messageIds[body.messageId]
       mtype = cords[4] === 2 ? 'initial' : 'reminder'
       d = studies[cords[0]].participants[cords[1]].schedule[cords[2]]
@@ -840,7 +853,7 @@ app.post('/status', function (req, res) {
 })
 app.get('/session', function (req, res) {
   var r = {signedin: false, expires: Date.now() + 36e5}
-  if (req.signedCookies.id && sessions.hasOwnProperty(req.signedCookies.id)) {
+  if (req.signedCookies.id && Object.hasOwn(sessions, req.signedCookies.id)) {
     sessions[req.signedCookies.id].expires = r.expires
     r.signedin = true
   }
@@ -868,7 +881,7 @@ app.post('/checkin', function (req, res) {
     status,
     nt
   if (id) {
-    for (k in studies) if (studies.hasOwnProperty(k) && studies[k].participants.hasOwnProperty(id)) s = k
+    for (k in studies) if (Object.hasOwn(studies, k) && Object.hasOwn(studies[k].participants, id)) s = k
     if (s) {
       m = (access ? 'access' : 'checkin') + ' by ' + id + ', day: '
       for (p = studies[s].participants[id], d = p.schedule.length; d--; ) {
@@ -890,7 +903,7 @@ app.post('/checkin', function (req, res) {
               if (access) {
                 if (pr.reminder_message && status < 4) {
                   status = status === 3 ? 5 : 4
-                  if (beeps.hasOwnProperty((sid = s + id + d + i))) {
+                  if (Object.hasOwn(beeps, (sid = s + id + d + i))) {
                     clearTimeout(beeps[sid])
                     delete beeps[sid]
                     log(s, 'reminder canceled for ' + id + '[' + d + '][' + i + ']')
@@ -931,7 +944,7 @@ app.get('/signin', function (req, res) {
 })
 app.get('/signout', function (req, res) {
   var id = req.signedCookies.id
-  if (id && sessions.hasOwnProperty(id)) {
+  if (id && Object.hasOwn(sessions, id)) {
     log(
       'sessions',
       'signout from ' + req.ip + ' (' + sessions[id].access ? sessions[id].access.username : 'unknown' + ')'
@@ -976,11 +989,11 @@ app.get('/auth', function (req, res) {
       k,
       token
     for (k in sessions)
-      if (sessions.hasOwnProperty(k) && sessions[k].expires < now) {
+      if (Object.hasOwn(sessions, k) && sessions[k].expires < now) {
         log('sessions', 'session removed: ' + k)
         delete sessions[k]
       }
-    while (sessions.hasOwnProperty(id)) id = crypto.randomBytes(36).toString('hex')
+    while (Object.hasOwn(sessions, id)) id = crypto.randomBytes(36).toString('hex')
     cookie_options.sameSite = 'strict'
     res.cookie('id', id, cookie_options)
     token = http.request(
@@ -1033,33 +1046,33 @@ app.post('/operation', function (req, res) {
     o,
     m
   if (id) {
-    if (req.body.hasOwnProperty('type')) type = Sanitize.gen('type', req.body.type)
-    check.session = sessions.hasOwnProperty(id)
+    if (Object.hasOwn(req.body, 'type')) type = Sanitize.gen('type', req.body.type)
+    check.session = Object.hasOwn(sessions, id)
     if (check.session) {
       check.valid = sessions[id].verified
       check.expired = sessions[id].expires < Date.now()
       check.pass = check.valid && !check.expired
       if (check.pass) {
         name = sessions[id].access.username
-        if (!studies.hasOwnProperty(s) && process.env.ADMIN !== name) {
+        if (!Object.hasOwn(studies, s) && process.env.ADMIN !== name) {
           check.perms = Sanitize.perms_template(false)
           for (m in studies)
-            if (studies.hasOwnProperty(m) && studies[m].users.hasOwnProperty(name) && studies[m].users[name].add_study)
+            if (Object.hasOwn(studies, m) && Object.hasOwn(studies[m].users, name) && studies[m].users[name].add_study)
               check.perms.add_study = true
         } else {
           check.perms =
-            studies.hasOwnProperty(s) && studies[s].users.hasOwnProperty(name)
+            Object.hasOwn(studies, s) && Object.hasOwn(studies[s].users, name)
               ? studies[s].users[name]
               : Sanitize.perms_template(process.env.ADMIN === name)
         }
-        check.pass = base_parmissions.hasOwnProperty(type) || (check.perms.hasOwnProperty(type) && check.perms[type])
+        check.pass = Object.hasOwn(base_parmissions, type) || (Object.hasOwn(check.perms, type) && check.perms[type])
       }
-      if (s && !studies.hasOwnProperty(s)) s = s.replace(/[^a-z0-9._-]+/gi, '_')
+      if (s && !Object.hasOwn(studies, s)) s = s.replace(/[^a-z0-9._-]+/gi, '_')
     }
   }
   o = {version: 0}
   if (check.pass) {
-    if (!studies.hasOwnProperty(s)) {
+    if (!Object.hasOwn(studies, s)) {
       switch (type) {
         case 'add_study':
           m = 'create database for study ' + s + ': '
@@ -1106,7 +1119,7 @@ app.post('/operation', function (req, res) {
             s,
             u
           for (s in studies)
-            if (studies.hasOwnProperty(s)) {
+            if (Object.hasOwn(studies, s)) {
               for (u in studies[s].users)
                 if (name === u) {
                   ss.push(s)
@@ -1137,7 +1150,7 @@ app.post('/operation', function (req, res) {
             r.participants = studies[s].participants
           } else
             for (k in studies[s].participants)
-              if (studies[s].participants.hasOwnProperty(k)) {
+              if (Object.hasOwn(studies[s].participants, k)) {
                 r.participants[k] = {schedule: studies[s].participants[k].schedule}
               }
           if (check.perms.view_user) r.users = studies[s].users
@@ -1181,7 +1194,7 @@ app.post('/operation', function (req, res) {
           )
           break
         case 'add_participant':
-          var existing = studies[s].participants.hasOwnProperty(nid)
+          var existing = Object.hasOwn(studies[s].participants, nid)
           m = (existing ? 'update' : 'create') + ' participant ' + nid + ': '
           if (existing) clear_schedule(s, nid)
           req.body.object = Sanitize.participant(req.body.object)
@@ -1211,8 +1224,8 @@ app.post('/operation', function (req, res) {
                 studies[s].participants[nid] = req.body.object
                 for (var day = req.body.object.schedule.length, sres, misses = '', missed_days = []; day--; ) {
                   sres = schedule(s, nid, day)
-                  if (sres.misses.hasOwnProperty(nid))
-                    if (sres.misses[nid].hasOwnProperty(day))
+                  if (Object.hasOwn(sres.misses, nid))
+                    if (Object.hasOwn(sres.misses[nid], day))
                       missed_days.push(day + '[' + sres.misses[nid][day].join(', ') + ']')
                 }
                 if (missed_days.length) {
@@ -1260,7 +1273,7 @@ app.post('/operation', function (req, res) {
           )
           break
         case 'add_protocol':
-          m = (studies[s].protocols.hasOwnProperty(nid) ? 'update' : 'create') + ' protocol ' + nid + ': '
+          m = (Object.hasOwn(studies[s].protocols, nid) ? 'update' : 'create') + ' protocol ' + nid + ': '
           req.body.object = Sanitize.protocol(req.body.object)
           database.update(
             {
@@ -1273,7 +1286,7 @@ app.post('/operation', function (req, res) {
             function (e, d) {
               if (d) {
                 m += 'true'
-                o.status = (studies[s].protocols.hasOwnProperty(nid) ? 'updated' : 'added') + ' protocol ' + nid
+                o.status = (Object.hasOwn(studies[s].protocols, nid) ? 'updated' : 'added') + ' protocol ' + nid
                 studies[s].protocols[nid] = req.body.object
                 studies[s].version = o.version = Date.now()
                 res.json(o)
@@ -1282,7 +1295,7 @@ app.post('/operation', function (req, res) {
                 m += 'false'
                 console.log('add protocol error: ', e)
                 o.status =
-                  'failed to ' + (studies[s].protocols.hasOwnProperty(nid) ? 'update' : 'add') + ' protocol ' + nid
+                  'failed to ' + (Object.hasOwn(studies[s].protocols, nid) ? 'update' : 'add') + ' protocol ' + nid
                 res.status(400).json(o)
               }
               log(s, m)
@@ -1319,7 +1332,7 @@ app.post('/operation', function (req, res) {
           var email = nid,
             k
           for (k in studies[s].users)
-            if (studies[s].users.hasOwnProperty(k) && studies[s].users[k].email === email) {
+            if (Object.hasOwn(studies[s].users, k) && studies[s].users[k].email === email) {
               nid = k
               break
             }
@@ -1363,7 +1376,7 @@ app.post('/operation', function (req, res) {
                       )
                     } else {
                       log(s, m + 'false')
-                      o.status = 'failed to ' + (studies[s].users.hasOwnProperty(nid) ? 'update' : 'add') + ' user'
+                      o.status = 'failed to ' + (Object.hasOwn(studies[s].users, nid) ? 'update' : 'add') + ' user'
                       res.status(400).json(o)
                     }
                   } else add_user(o, m, s, studies[s].users[name], nid, d.User.Username, req, res)
@@ -1374,7 +1387,7 @@ app.post('/operation', function (req, res) {
           break
         case 'remove_user':
           m = 'remove user ' + nid + ': '
-          if (studies[s].users.hasOwnProperty(nid)) {
+          if (Object.hasOwn(studies[s].users, nid)) {
             database.update(
               {
                 TableName: 'studies',
@@ -1386,7 +1399,7 @@ app.post('/operation', function (req, res) {
                 if (d) {
                   delete studies[s].users[nid]
                   for (var k in sessions)
-                    if (sessions.hasOwnProperty(k) && sessions[k].access.username === nid) {
+                    if (Object.hasOwn(sessions, k) && sessions[k].access.username === nid) {
                       delete sessions[k]
                     }
                   studies[s].version = o.version = Date.now()
@@ -1394,7 +1407,7 @@ app.post('/operation', function (req, res) {
                 if (e) console.log('remove user error: ', e)
                 log(s, m + (e ? 'true ' : 'false '))
                 e = true
-                for (m in studies) if (studies.hasOwnProperty(m) && studies[m].users.hasOwnProperty(nid)) e = false
+                for (m in studies) if (Object.hasOwn(studies, m) && Object.hasOwn(studies[m].users, nid)) e = false
                 if (e) {
                   users.adminDeleteUser(
                     {

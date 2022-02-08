@@ -179,7 +179,6 @@ Here, message refers to an HTML element in the question's body, with "message" a
 
 ```html
 <p id="message">Wait for a text to complete this survey.</p>
-<p></p>
 ```
 
 ## environment variables
