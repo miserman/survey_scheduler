@@ -751,7 +751,7 @@ function display_day(p, s, d) {
   p.appendChild((e = document.createElement('td')))
   e.className = s.schedule[d].protocol
   e.appendChild((c = document.createElement('p')))
-  c.innerText = former.day.format(s.schedule[d].date)
+  c.innerText = former.day.format(s.schedule[d].date + 432e5)
   e.appendChild((c = document.createElement('p')))
   c.innerText = s.schedule[d].protocol
   e.appendChild((c = document.createElement('p')))
@@ -1039,7 +1039,7 @@ function add_day() {
         date: d ? temp_schedule.schedule[d - 1].date + 864e5 : new Date().setHours(12, 0, 0, 0) - 432e5,
       })
     )
-    c.lastElementChild.innerText = former.day.format(temp_schedule.schedule[d].date)
+    c.lastElementChild.innerText = former.day.format(temp_schedule.schedule[d].date + 72e5)
     c.appendChild(document.createElement('p'))
     if (page.scheduler.participant.protocol_select.childElementCount && d < e.children[2].childElementCount) {
       temp_schedule.schedule[d].protocol =
@@ -2644,7 +2644,7 @@ function schedule_action_update() {
         edit.holding.className = 'ping ' + names.status[s]
         page.tick_editor.className = names.status[s]
       }
-      edit.holding.style.top = ((t - temp_schedule.start_time) * 360) / 864e5 + 'px'
+      edit.holding.style.top = ((t - temp_schedule.start_time + 36e5) * 360) / 864e5 + 'px'
       position_editor(edit.holding.parentElement.getBoundingClientRect(), edit.holding)
     }
     scheduler_status()
@@ -2896,7 +2896,7 @@ function schedule_action_end(e) {
                     temp_schedule.schedule[h],
                     i,
                     ((temp_schedule.schedule[h].blackouts[i].start -
-                      (temp_schedule.schedule[h].date + temp_schedule.start_time - 36e5)) *
+                      (temp_schedule.schedule[h].date + temp_schedule.start_time)) *
                       360) /
                       864e5,
                     c
@@ -2950,7 +2950,7 @@ function schedule_action_end(e) {
             b = edit.e.getBoundingClientRect(),
             p = edit.e.parentElement.getBoundingClientRect(),
             t
-          s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time + ((b.top - p.top) / 360) * 864e5)
+          s.blackouts[i].start = Math.floor(s.date + temp_schedule.start_time - 36e5 + ((b.top - p.top) / 360) * 864e5)
           s.blackouts[i].end = Math.floor(s.blackouts[i].start + (b.height / 360) * 864e5)
           s.blackouts[i].start += (new Date(s.blackouts[i].start).getTimezoneOffset() - temp_schedule.timezone) * 6e4
           s.blackouts[i].end += (new Date(s.blackouts[i].end).getTimezoneOffset() - temp_schedule.timezone) * 6e4
