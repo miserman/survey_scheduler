@@ -20,7 +20,7 @@ var express = require('express'),
   pem = require('jwk-to-pem'),
   fs = require('fs'),
   http = require('https'),
-  Sanitize = require('./docs/sanitize.js'),
+  Sanitize = require('./app/sanitize.js'),
   date_formatter = Intl.DateTimeFormat('en-us', {
     day: '2-digit',
     month: '2-digit',

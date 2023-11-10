@@ -3,27 +3,23 @@ const http = require('https'),
 exports.handler = async function (event) {
   return new Promise(function (resolve, reject) {
     if (event.awslogs && event.awslogs.data) {
-      var data = Buffer.from(event.awslogs.data, 'base64'),
-        p = /^{/,
-        i,
-        s = {},
-        body,
-        req
-      zlib.gunzip(data, function (e, d) {
+      const p = /^{/
+      zlib.gunzip(Buffer.from(event.awslogs.data, 'base64'), function (e, b) {
         if (e) {
           reject(Error(e))
         } else {
-          for (d = JSON.parse(d.toString('ascii')).logEvents, i = d.length; i--; )
+          const d = JSON.parse(b.toString('ascii')).logEvents
+          for (let i = d.length; i--; )
             if (p.test(d[i].message)) {
-              s = JSON.parse(d[i].message)
+              const s = JSON.parse(d[i].message)
               if (s.notification && s.notification.messageId) {
-                body = JSON.stringify({
+                const body = JSON.stringify({
                   messageId: s.notification.messageId,
                   timestamp: d[i].timestamp || s.notification.timestamp,
                   providerResponse: s.delivery && s.delivery.providerResponse ? s.delivery.providerResponse : '',
                   status: s.status,
                 })
-                req = http.request(
+                const req = http.request(
                   {
                     method: 'POST',
                     hostname: 'example.com',
@@ -33,7 +29,7 @@ exports.handler = async function (event) {
                       'Content-Length': Buffer.byteLength(body),
                     },
                   },
-                  function (res) {
+                  function () {
                     console.log('sent status for message', s.notification.messageId)
                   }
                 )
