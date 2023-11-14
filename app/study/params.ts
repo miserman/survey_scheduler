@@ -1,10 +1,8 @@
-export const sizing = {
-  menuWidth: 180,
-  leftGutter: 100,
-  timelineHeight: 100,
-  timelineHeaderHeight: 30,
-  searchBarHeight: 56,
-}
+export const MENU_WIDTH = 180
+export const SEARCH_BAR_HEIGHT = 56
+export const GUTTER_LEFT = 100
+export const TIMELINE_HEIGHT = 100
+export const TIMELINE_HEADER_HEIGHT = 30
 
 export const palette = {
   primary: {

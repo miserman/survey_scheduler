@@ -25,7 +25,6 @@
     "jsonwebtoken": "latest",
     "jwk-to-pem": "latest",
     "next": "latest",
-    "nextjs": "^0.0.3",
     "react": "latest",
     "react-dom": "latest"
   },
