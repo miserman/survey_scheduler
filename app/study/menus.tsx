@@ -1,9 +1,10 @@
 import {AppBar, Toolbar, Button} from '@mui/material'
 import React, {Ref, useState} from 'react'
-import {UsersMenu} from './submenus/users'
+import {UsersMenu} from './components/users'
 import {GUTTER_LEFT} from './params'
-import {SideMenu} from './submenus/side'
-import {ProtocolsMenu} from './submenus/protocols'
+import {SideMenu} from './components/side'
+import {ProtocolsMenu} from './components/protocols'
+import {ParticipantsMenu} from './components/participants'
 
 export const makeNav = ({study}: {study: string}, ref: Ref<HTMLDivElement>) => {
   const [sideOpen, setSideOpen] = useState(false)
@@ -26,8 +27,9 @@ export const makeNav = ({study}: {study: string}, ref: Ref<HTMLDivElement>) => {
         </Toolbar>
       </AppBar>
       <SideMenu isOpen={sideOpen} onClose={() => setSideOpen(false)} />
-      <UsersMenu isOpen={userOpen} onClose={() => setUserOpen(false)} />
+      <ParticipantsMenu isOpen={participantOpen} onClose={() => setParticipantOpen(false)} />
       <ProtocolsMenu isOpen={protocolOpen} onClose={() => setProtocolOpen(false)} />
+      <UsersMenu isOpen={userOpen} onClose={() => setUserOpen(false)} />
     </>
   )
 }

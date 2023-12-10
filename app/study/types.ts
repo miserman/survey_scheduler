@@ -36,25 +36,31 @@ export type Protocol = {
   reminder_after: number
 }
 
-export type Participant = {
-  id: string
-  daysofweek: boolean[]
-  end_day: string
-  end_time: string
-  first: number
-  last: number
-  order_type: 'shuffle' | 'sample' | 'ordered'
-  phone: number
-  protocols: string[]
-  schedule: Schedule[]
-  start_day: string
-  start_time: string
-  timezone: number
-}
+export type Blackout = {index: number; start: string; end: string}
+
+// export type Participant = {
+//   id: string
+//   daysofweek: boolean[]
+//   end_day: string
+//   end_time: string
+//   first: number
+//   last: number
+//   order_type: 'shuffle' | 'sample' | 'ordered'
+//   phone: number
+//   protocol_days: {[index: string]: number}
+//   protocol_order: string[]
+//   protocols: string[]
+//   schedule: Schedule[]
+//   start_day: string
+//   start_time: string
+//   timezone: number
+//   blackouts?: Blackout[]
+// }
 
 export type Schedule = {
   accessed_first: number[]
   accessed_n: number[]
+  date: number
   day: number
   message?: {initial?: MessageReceipt; reminder?: MessageReceipt}[]
   protocol: string

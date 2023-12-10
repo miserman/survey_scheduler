@@ -85,9 +85,9 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
         }
       }}
       onAddUpdate={() => {
-        protocols[data.email] = {...data} as Protocol
+        protocols[data.name] = {...data} as Protocol
         setUserList(Object.keys(protocols))
-        return data.email
+        return data.name
       }}
     >
       <FormControl fullWidth>
@@ -206,7 +206,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Remind After"
               variant="outlined"
-              name="remind_after"
+              name="reminder_after"
               type="number"
               value={data.reminder_after || ''}
               onChange={handleValueChange}

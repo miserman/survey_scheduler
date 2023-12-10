@@ -6,21 +6,28 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  ListItemText,
+  MenuItem,
+  Select,
+  SelectChangeEvent,
   TextField,
 } from '@mui/material'
 import {SyntheticEvent, useState, ReactNode} from 'react'
 import CloseIcon from '@mui/icons-material/Close'
+import {Blackout, Schedule} from '../types'
 
-export const editData = (
-  state: {[index: string]: any},
+export const editData = <DataType, _>(
+  state: DataType,
   action: {
     key: string
-    value: boolean | string | number | {[index: string]: any}
+    value: boolean | boolean[] | string[] | Blackout[] | Schedule[] | string | number | DataType
   }
 ) => {
-  if ('object' !== typeof action.value) {
+  if ('object' !== typeof action.value || Array.isArray(action.value)) {
     const newState = {...state}
-    ;(newState[action.key] as typeof action.value) = action.value
+    ;(newState[action.key as keyof typeof state] as typeof action.value) = Array.isArray(action.value)
+      ? JSON.parse(JSON.stringify(action.value))
+      : action.value
     return newState
   }
   return {...action.value}
@@ -53,6 +60,7 @@ export const MenuDialog = ({
   children,
   onRemove,
   onAddUpdate,
+  selected,
 }: {
   isOpen: boolean
   onClose: () => void
@@ -63,21 +71,27 @@ export const MenuDialog = ({
   children: ReactNode
   onRemove: (option: string) => void
   onAddUpdate: (option: string) => string
+  selected?: number
 }) => {
-  const [currentOption, setCurrentOption] = useState(options[0])
+  const openSet = 'undefined' === typeof selected
+  const [currentOption, setCurrentOption] = useState(options[selected || 0])
   const [isNewOption, setIsNewOption] = useState(true)
-  const handleSelect = (e: SyntheticEvent | null, value: string) => {
+  const handleSelect = (e: SyntheticEvent | SelectChangeEvent | null, selection: string | ReactNode) => {
+    const value = 'string' === typeof selection ? selection : e && 'value' in e.target ? e.target.value : ''
     setIsNewOption(value === 'New')
     setCurrentOption(value)
     onChange(value)
   }
   const handleRemove = () => {
     onRemove(currentOption)
-    handleSelect(null, 'New')
+    handleSelect(null, openSet ? 'New' : options[0])
+  }
+  const handleReset = () => {
+    handleSelect(null, currentOption)
   }
   const handleAdd = () => {
-    const newUser = onAddUpdate(currentOption)
-    handleSelect(null, newUser)
+    const newOption = onAddUpdate(currentOption)
+    handleSelect(null, newOption)
   }
   return (
     <Dialog scroll="paper" open={isOpen} onClose={onClose}>
@@ -95,26 +109,38 @@ export const MenuDialog = ({
       >
         <CloseIcon />
       </IconButton>
-      <Autocomplete
-        disableClearable
-        sx={{marginBottom: 4}}
-        options={options}
-        value={currentOption}
-        onChange={handleSelect}
-        renderOption={(props, option) => (
-          <li {...props} key={option}>
-            {option}
-          </li>
-        )}
-        renderInput={params => <TextField {...params} aria-label={title} />}
-      ></Autocomplete>
+      {openSet ? (
+        <Autocomplete
+          disableClearable
+          options={options}
+          value={currentOption || options[0]}
+          onChange={handleSelect}
+          renderOption={(props, option) => (
+            <li {...props} key={option}>
+              {option}
+            </li>
+          )}
+          renderInput={params => <TextField {...params} aria-label={title} />}
+        ></Autocomplete>
+      ) : (
+        <Select value={currentOption || options[0]} onChange={handleSelect}>
+          {options.map(option => (
+            <MenuItem key={option} value={option}>
+              <ListItemText primary={option} />
+            </MenuItem>
+          ))}
+        </Select>
+      )}
       <DialogContent sx={{p: 0, paddingTop: 1}}>{children}</DialogContent>
       <DialogActions sx={{p: 0, '& .MuiButtonBase-root': {padding: 2}}}>
-        <Button disabled={isNewOption} onClick={handleRemove}>
+        <Button color="error" disabled={isNewOption} onClick={handleRemove}>
           Remove
         </Button>
+        <Button disabled={!edited} onClick={handleReset}>
+          Reset
+        </Button>
         <Button disabled={isNewOption ? false : !edited} onClick={handleAdd} fullWidth>
-          {isNewOption ? 'Add' : 'Update'}
+          {openSet && isNewOption ? 'Add' : 'Update'}
         </Button>
       </DialogActions>
     </Dialog>

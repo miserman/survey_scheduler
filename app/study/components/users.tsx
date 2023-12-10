@@ -13,11 +13,11 @@ import {
 import {SyntheticEvent, useReducer, useState, useMemo} from 'react'
 import {MenuDialog, editData, trackEdits} from './menu_dialog'
 import {users} from '../root'
-import {User} from '../types'
+import type {User} from '../types'
 
 export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => void}) => {
   const edits = useMemo(() => new Map(), [])
-  const handlePermChange = (e: SyntheticEvent, value?: boolean | string) => {
+  const handleChange = (e: SyntheticEvent, value?: boolean | string) => {
     const key = 'name' in e.target ? (e.target.name as string) : ''
     if (undefined === value && 'value' in e.target) value = e.target.value as string
     if (key && undefined !== value) {
@@ -53,7 +53,7 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
       }}
     >
       <FormControl fullWidth>
-        <TextField value={data.email} name="email" onChange={handlePermChange} label="Email" />
+        <TextField value={data.email} name="email" onChange={handleChange} label="Email" />
         <TableContainer>
           <Table sx={{'& .MuiTableCell-root': {p: 1}}}>
             <TableHead>
@@ -73,18 +73,18 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
                   <Checkbox
                     checked={data.view_study}
                     name="view_study"
-                    onChange={handlePermChange}
+                    onChange={handleChange}
                     disabled={true}
                   ></Checkbox>
                 </TableCell>
                 <TableCell>
-                  <Checkbox checked={data.add_study} name="add_study" onChange={handlePermChange}></Checkbox>
+                  <Checkbox checked={data.add_study} name="add_study" onChange={handleChange}></Checkbox>
                 </TableCell>
                 <TableCell>
                   <Checkbox
                     checked={data.remove_study}
                     name="remove_study"
-                    onChange={handlePermChange}
+                    onChange={handleChange}
                     disabled={true}
                   ></Checkbox>
                 </TableCell>
@@ -94,24 +94,16 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
                   <Typography id="participant-label">Participants</Typography>
                 </TableCell>
                 <TableCell>
-                  <Checkbox
-                    checked={data.view_participant}
-                    name="view_participant"
-                    onChange={handlePermChange}
-                  ></Checkbox>
+                  <Checkbox checked={data.view_participant} name="view_participant" onChange={handleChange}></Checkbox>
                 </TableCell>
                 <TableCell>
-                  <Checkbox
-                    checked={data.add_participant}
-                    name="add_participant"
-                    onChange={handlePermChange}
-                  ></Checkbox>
+                  <Checkbox checked={data.add_participant} name="add_participant" onChange={handleChange}></Checkbox>
                 </TableCell>
                 <TableCell>
                   <Checkbox
                     checked={data.remove_participant}
                     name="remove_participant"
-                    onChange={handlePermChange}
+                    onChange={handleChange}
                   ></Checkbox>
                 </TableCell>
               </TableRow>
@@ -123,19 +115,15 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
                   <Checkbox
                     checked={data.view_protocol}
                     name="view_protocol"
-                    onChange={handlePermChange}
+                    onChange={handleChange}
                     disabled={true}
                   ></Checkbox>
                 </TableCell>
                 <TableCell>
-                  <Checkbox checked={data.add_protocol} name="add_protocol" onChange={handlePermChange}></Checkbox>
+                  <Checkbox checked={data.add_protocol} name="add_protocol" onChange={handleChange}></Checkbox>
                 </TableCell>
                 <TableCell>
-                  <Checkbox
-                    checked={data.remove_protocol}
-                    name="remove_protocol"
-                    onChange={handlePermChange}
-                  ></Checkbox>
+                  <Checkbox checked={data.remove_protocol} name="remove_protocol" onChange={handleChange}></Checkbox>
                 </TableCell>
               </TableRow>
               <TableRow key="user">
@@ -143,13 +131,13 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
                   <Typography id="user-label">Users</Typography>
                 </TableCell>
                 <TableCell>
-                  <Checkbox checked={data.view_user} name="view_user" onChange={handlePermChange}></Checkbox>
+                  <Checkbox checked={data.view_user} name="view_user" onChange={handleChange}></Checkbox>
                 </TableCell>
                 <TableCell>
-                  <Checkbox checked={data.add_user} name="add_user" onChange={handlePermChange}></Checkbox>
+                  <Checkbox checked={data.add_user} name="add_user" onChange={handleChange}></Checkbox>
                 </TableCell>
                 <TableCell>
-                  <Checkbox checked={data.remove_user} name="remove_user" onChange={handlePermChange}></Checkbox>
+                  <Checkbox checked={data.remove_user} name="remove_user" onChange={handleChange}></Checkbox>
                 </TableCell>
               </TableRow>
               <TableRow key="log">
@@ -157,21 +145,16 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
                   <Typography id="log-label">Logs</Typography>
                 </TableCell>
                 <TableCell>
-                  <Checkbox checked={data.view_log} name="view_log" onChange={handlePermChange}></Checkbox>
+                  <Checkbox checked={data.view_log} name="view_log" onChange={handleChange}></Checkbox>
                 </TableCell>
                 <TableCell>
-                  <Checkbox
-                    checked={data.add_log}
-                    name="add_log"
-                    onChange={handlePermChange}
-                    disabled={true}
-                  ></Checkbox>
+                  <Checkbox checked={data.add_log} name="add_log" onChange={handleChange} disabled={true}></Checkbox>
                 </TableCell>
                 <TableCell>
                   <Checkbox
                     checked={data.remove_log}
                     name="remove_log"
-                    onChange={handlePermChange}
+                    onChange={handleChange}
                     disabled={true}
                   ></Checkbox>
                 </TableCell>
