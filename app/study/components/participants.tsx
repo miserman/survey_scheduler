@@ -125,7 +125,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
       onChange={(option: string) => {
         setParticipant(option)
         edits.clear()
-        dispatchEdit({key: '', value: participants[option]})
+        dispatchEdit({key: '', value: makeFullParticipant(participants[option])})
       }}
       onRemove={(option: string) => {
         if (option !== 'New') {
@@ -324,13 +324,14 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                     return (
                       <ScheduleDay
                         key={index}
+                        index={index}
                         day={schedule}
                         protocols={protocols}
                         protocolOrder={data.protocols}
                         start={startTime}
                         height={scheduleHeight}
                         update={(index: number, day: Schedule) => {
-                          data.schedule[index] = day
+                          data.schedule[index] = JSON.parse(JSON.stringify(day))
                           dispatchEdit({key: 'schedule', value: data.schedule})
                         }}
                         remove={(index: number) => {

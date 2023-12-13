@@ -1,3 +1,4 @@
+import {TIMEZONE_OFFSET, former} from '../root'
 import {Blackout, Protocol, Schedule} from '../types'
 
 export type Participant = {
@@ -20,11 +21,13 @@ export type Participant = {
 }
 
 export const makeFullParticipant = (initial: Partial<Participant>) => {
+  const date = new Date()
+  const today = former.dashdate(date.getTime())
   return {
     id: initial.id || '',
     daysofweek: initial.daysofweek || [true, true, true, true, true, true, true],
-    end_day: initial.end_day || '',
-    end_time: initial.end_time || '',
+    end_day: initial.end_day || today,
+    end_time: initial.end_time || today,
     first: initial.first || 0,
     last: initial.last || 0,
     order_type: initial.order_type || 'shuffle',
@@ -33,9 +36,9 @@ export const makeFullParticipant = (initial: Partial<Participant>) => {
     protocol_order: initial.protocol_order || [],
     protocols: initial.protocols || [],
     schedule: initial.schedule || [],
-    start_day: initial.start_day || '',
-    start_time: initial.start_time || '',
-    timezone: initial.timezone || 0,
+    start_day: initial.start_day || today,
+    start_time: initial.start_time || former.time.format(date.getTime()),
+    timezone: initial.timezone || TIMEZONE_OFFSET / 6e4,
     blackouts: initial.blackouts || [],
   } as Participant
 }
@@ -46,8 +49,8 @@ export const makeSchedule = (participant: Participant, protocol: Partial<Protoco
     accessed_n: [],
     date:
       participant.schedule && participant.schedule.length
-        ? participant.schedule[participant.schedule.length].date + 864e5
-        : new Date(participant.start_day).getTime(),
+        ? participant.schedule[participant.schedule.length - 1].date + 864e5
+        : new Date(participant.start_day).getTime() + TIMEZONE_OFFSET,
     day: 0,
     protocol: protocol.name || '',
     statuses: [],

@@ -11,6 +11,7 @@ import {
   Select,
   SelectChangeEvent,
   TextField,
+  Typography,
 } from '@mui/material'
 import {SyntheticEvent, useState, ReactNode} from 'react'
 import CloseIcon from '@mui/icons-material/Close'
@@ -122,6 +123,8 @@ export const MenuDialog = ({
           )}
           renderInput={params => <TextField {...params} aria-label={title} />}
         ></Autocomplete>
+      ) : options.length === 1 ? (
+        <Typography>{options[0]}</Typography>
       ) : (
         <Select value={currentOption || options[0]} onChange={handleSelect}>
           {options.map(option => (

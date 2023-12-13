@@ -1,8 +1,10 @@
 import {ReactNode, createContext, useContext, useMemo, useState} from 'react'
-import type {Participant, Protocol, User} from './types'
+import type {Protocol, User} from './types'
 import {ThemeProvider, createTheme, useMediaQuery} from '@mui/material'
 import {palette} from './params'
+import type {Participant} from './components/participant'
 
+export const TIMEZONE_OFFSET = new Date().getTimezoneOffset() * 6e4
 export const formatDay = Intl.DateTimeFormat('en-us', {month: '2-digit', day: '2-digit'})
 const patterns = {
   addRemove: /^(?:add_|remove_)/,
@@ -35,7 +37,7 @@ const patterns = {
   slash: /\//g,
   n: /[?&][Nn]=(\d+)/,
 }
-const former = {
+export const former = {
   time: Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit'}),
   ftime: Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit', second: 'numeric'}),
   mtime: Intl.DateTimeFormat('en-us', {hour: '2-digit', minute: '2-digit', second: 'numeric', hourCycle: 'h23'}),

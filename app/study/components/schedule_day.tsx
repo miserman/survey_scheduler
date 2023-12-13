@@ -34,6 +34,7 @@ const editScheduleDay = (
 }
 
 export const ScheduleDay = ({
+  index,
   day,
   protocols,
   protocolOrder,
@@ -42,6 +43,7 @@ export const ScheduleDay = ({
   update,
   remove,
 }: {
+  index: number
   day: Schedule
   protocols: Protocols
   protocolOrder: string[]
@@ -51,7 +53,7 @@ export const ScheduleDay = ({
   remove: (index: number) => void
 }) => {
   const edits = useMemo(() => new Map(), [])
-  const [scheduleDay, dispatchEdit] = useReducer(editScheduleDay, {} as Schedule)
+  const [scheduleDay, dispatchEdit] = useReducer(editScheduleDay, day)
   const [editorOpen, setEditorOpen] = useState(false)
   const handleScheduleSelectChange = (e: SelectChangeEvent) => {
     const key = 'name' in e.target ? (e.target.name as keyof Schedule) : ''
@@ -85,7 +87,6 @@ export const ScheduleDay = ({
           <Button
             variant="contained"
             onClick={() => {
-              dispatchEdit({key: '', value: day})
               setEditorOpen(true)
             }}
           >
@@ -99,17 +100,23 @@ export const ScheduleDay = ({
         onClose={() => setEditorOpen(false)}
         edited={!!edits.size}
         title="Schedule Day"
-        options={[]}
-        onChange={() => {}}
-        onRemove={(option: string) => {
-          remove(0)
+        options={[formatDay.format(day.date)]}
+        onChange={() => {
+          dispatchEdit({key: '', value: day})
+          edits.clear()
+        }}
+        onRemove={() => {
+          remove(index)
+          edits.clear()
           setEditorOpen(false)
         }}
         onAddUpdate={() => {
-          update(0, day)
+          edits.clear()
+          update(index, scheduleDay)
           setEditorOpen(false)
           return ''
         }}
+        selected={0}
       >
         <FormControl fullWidth>
           <InputLabel id="schedule-day-protocol">Protocol</InputLabel>
