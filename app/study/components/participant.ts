@@ -21,25 +21,26 @@ export type Participant = {
 }
 
 export const makeFullParticipant = (initial: Partial<Participant>) => {
-  const date = new Date()
-  const today = former.dashdate(date.getTime())
+  const time = Date.now()
+  const today = former.dashdate(time)
+  const copy = JSON.parse(JSON.stringify(initial))
   return {
-    id: initial.id || '',
-    daysofweek: initial.daysofweek || [true, true, true, true, true, true, true],
-    end_day: initial.end_day || today,
-    end_time: initial.end_time || today,
-    first: initial.first || 0,
-    last: initial.last || 0,
-    order_type: initial.order_type || 'shuffle',
-    phone: initial.phone || 0,
-    protocol_days: initial.protocol_days || {},
-    protocol_order: initial.protocol_order || [],
-    protocols: initial.protocols || [],
-    schedule: initial.schedule || [],
-    start_day: initial.start_day || today,
-    start_time: initial.start_time || former.time.format(date.getTime()),
-    timezone: initial.timezone || TIMEZONE_OFFSET / 6e4,
-    blackouts: initial.blackouts || [],
+    id: copy.id || '',
+    daysofweek: copy.daysofweek || [true, true, true, true, true, true, true],
+    end_day: copy.end_day || today,
+    end_time: copy.end_time || today,
+    first: copy.first || 0,
+    last: copy.last || 0,
+    order_type: copy.order_type || 'shuffle',
+    phone: copy.phone || 0,
+    protocol_days: copy.protocol_days || {},
+    protocol_order: copy.protocol_order || [],
+    protocols: copy.protocols || [],
+    schedule: copy.schedule || [],
+    start_day: copy.start_day || today,
+    start_time: copy.start_time || former.time.format(time),
+    timezone: copy.timezone || TIMEZONE_OFFSET / 6e4,
+    blackouts: copy.blackouts || [],
   } as Participant
 }
 

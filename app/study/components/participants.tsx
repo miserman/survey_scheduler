@@ -49,10 +49,9 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
     }
   }
   const handleDayChange = (e: SyntheticEvent, dayValue: boolean) => {
-    const currentDays = data.daysofweek
-    const value = [...currentDays]
+    const value = [...data.daysofweek]
     value[+(e.target as HTMLInputElement).value] = dayValue
-    trackEdits(edits, 'daysofweek', value, currentDays)
+    trackEdits(edits, 'daysofweek', value, data.daysofweek)
     dispatchEdit({key: 'daysofweek', value})
   }
   const handleValueSelect = (e: SelectChangeEvent) => {
@@ -64,17 +63,20 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
     }
   }
   const addProtocol = (protocol: string) => () => {
+    trackEdits(edits, 'protocols', data.protocols, data.protocols)
     dispatchEdit({key: 'protocols', value: [...data.protocols, protocol]})
   }
   const removeProtocol = (index: number) => () => {
     if (data.protocols) {
       const selection = [...data.protocols]
       selection.splice(index, 1)
+      trackEdits(edits, 'protocols', data.protocols, data.protocols)
       dispatchEdit({key: 'protocols', value: selection})
     }
   }
   const addBlackout = () => {
     if (!data.blackouts) data.blackouts = []
+    trackEdits(edits, 'blackouts', data.blackouts, data.blackouts)
     dispatchEdit({key: 'blackouts', value: [...data.blackouts, {index: data.blackouts.length, start: '', end: ''}]})
   }
   const editBlackout = (blackout: Blackout) => (e: SyntheticEvent) => {
@@ -84,6 +86,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
       const pair = input.name === 'start' ? 'end' : 'start'
       b[blackout.index] = {...data.blackouts[blackout.index], [input.name]: input.value}
       if (b[blackout.index][pair] === '') b[blackout.index][pair] = input.value
+      trackEdits(edits, 'blackouts', data.blackouts, data.blackouts)
       dispatchEdit({
         key: 'blackouts',
         value: b,
@@ -93,6 +96,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
   const removeBlackout = (index: number) => () => {
     if (data.blackouts) {
       data.blackouts.splice(index, 1)
+      trackEdits(edits, 'blackouts', data.blackouts, data.blackouts)
       dispatchEdit({
         key: 'blackouts',
         value: data.blackouts,
@@ -102,6 +106,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
   const addSchedule = () => {
     if (!data.schedule) data.schedule = []
     if (data.protocols && data.protocols.length) {
+      trackEdits(edits, 'schedule', data.schedule, data.schedule)
       dispatchEdit({
         key: 'schedule',
         value: [...data.schedule, makeSchedule(data, protocols[data.protocols[0]], data.blackouts)],
@@ -183,13 +188,20 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
               <ButtonGroup aria-label="Protocol Controls">
                 <Button
                   variant="contained"
-                  onClick={() =>
+                  onClick={() => {
+                    trackEdits(edits, 'schedule', data.protocols, data.protocols)
                     dispatchEdit({key: 'protocols', value: Object.keys(protocols).filter(n => n !== 'New')})
-                  }
+                  }}
                 >
                   All
                 </Button>
-                <Button variant="contained" onClick={() => dispatchEdit({key: 'protocols', value: []})}>
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    trackEdits(edits, 'schedule', data.protocols, data.protocols)
+                    dispatchEdit({key: 'protocols', value: []})
+                  }}
+                >
                   None
                 </Button>
               </ButtonGroup>
@@ -332,10 +344,12 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                         height={scheduleHeight}
                         update={(index: number, day: Schedule) => {
                           data.schedule[index] = JSON.parse(JSON.stringify(day))
+                          trackEdits(edits, 'schedule', data.schedule, data.schedule)
                           dispatchEdit({key: 'schedule', value: data.schedule})
                         }}
                         remove={(index: number) => {
                           data.schedule.splice(index, 1)
+                          trackEdits(edits, 'schedule', data.schedule, data.schedule)
                           dispatchEdit({key: 'schedule', value: data.schedule})
                         }}
                       ></ScheduleDay>

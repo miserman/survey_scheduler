@@ -36,7 +36,7 @@ export const editData = <DataType, _>(
 
 export const trackEdits = (edits: Map<string, any>, key: string, value: any, original: any) => {
   if (edits.has(key)) {
-    if (edits.get(key) === value) edits.delete(key)
+    if (edits.get(key) === ('object' === typeof value ? JSON.stringify(value) : value)) edits.delete(key)
   } else {
     edits.set(
       key,
@@ -46,6 +46,8 @@ export const trackEdits = (edits: Map<string, any>, key: string, value: any, ori
           : ''
         : 'number' === typeof original
         ? original + ''
+        : 'object' === typeof original
+        ? JSON.stringify(original)
         : original
     )
   }
@@ -92,7 +94,7 @@ export const MenuDialog = ({
   }
   const handleAdd = () => {
     const newOption = onAddUpdate(currentOption)
-    handleSelect(null, newOption)
+    if (newOption !== '') handleSelect(null, newOption)
   }
   return (
     <Dialog scroll="paper" open={isOpen} onClose={onClose}>
@@ -136,7 +138,7 @@ export const MenuDialog = ({
       )}
       <DialogContent sx={{p: 0, paddingTop: 1}}>{children}</DialogContent>
       <DialogActions sx={{p: 0, '& .MuiButtonBase-root': {padding: 2}}}>
-        <Button color="error" disabled={isNewOption} onClick={handleRemove}>
+        <Button color="error" disabled={openSet && isNewOption} onClick={handleRemove}>
           Remove
         </Button>
         <Button disabled={!edited} onClick={handleReset}>
