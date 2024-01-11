@@ -911,7 +911,6 @@ app.post('/checkin', function (req, res) {
                 }
                 update_status(s, id, d, i, status, true, r.accessed === 0 ? n : 1)
               }
-              break
             }
           }
           if (pdm || r.available) break
