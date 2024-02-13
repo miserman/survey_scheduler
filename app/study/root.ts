@@ -1,10 +1,13 @@
-import {ReactNode, createContext, useContext, useMemo, useState} from 'react'
 import type {Protocol, User} from './types'
-import {ThemeProvider, createTheme, useMediaQuery} from '@mui/material'
-import {palette} from './params'
-import type {Participant} from './components/participant'
+import Participant from './classes/participant'
 
-export const TIMEZONE_OFFSET = new Date().getTimezoneOffset() * 6e4
+export const MS_SECOND = 1000
+export const MS_MINUTE = MS_SECOND * 60
+export const MS_HOUR = MS_MINUTE * 60
+export const MS_DAY = MS_HOUR * 24
+export const MS_WEEK = MS_DAY * 7
+export const TIMEZONE_OFFSET = new Date().getTimezoneOffset() * MS_MINUTE
+
 export const formatDay = Intl.DateTimeFormat('en-us', {month: '2-digit', day: '2-digit'})
 const patterns = {
   addRemove: /^(?:add_|remove_)/,
@@ -96,60 +99,17 @@ export function timeToMs(time: string) {
   return Math.floor(n)
 }
 
-type Themes = 'system' | 'dark' | 'light'
-const ThemeSetter = createContext((theme: Themes) => {})
-export const ThemeContext = ({children}: {children: ReactNode}) => {
-  const paletteDefaultDark = useMediaQuery('(prefers-color-scheme: dark)')
-  const [currentTheme, setCurrentTheme] = useState<Themes>('system')
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode: (currentTheme === 'system' && paletteDefaultDark) || currentTheme === 'dark' ? 'dark' : 'light',
-          ...palette,
-        },
-        components: {
-          // MuiInputLabel: {
-          //   styleOverrides: {
-          //     root: {
-          //       transform: 'translate(7px, 2px) scale(1)',
-          //     },
-          //   },
-          // },
-          // MuiOutlinedInput: {
-          //   styleOverrides: {
-          //     root: {
-          //       '& .MuiOutlinedInput-input': {
-          //         paddingTop: 2,
-          //         paddingLeft: 7,
-          //         paddingBottom: 2,
-          //         paddingRight: 7,
-          //       },
-          //     },
-          //   },
-          // },
-        },
-      }),
-    [paletteDefaultDark, currentTheme]
-  )
-  return (
-    <ThemeProvider theme={theme}>
-      <ThemeSetter.Provider value={setCurrentTheme}>{children}</ThemeSetter.Provider>
-    </ThemeProvider>
-  )
-}
-export const useThemeSetter = () => useContext(ThemeSetter)
+export const participants: {[index: string]: Participant} = {}
 
-export const participants: {[index: string]: Partial<Participant>} = {
-  New: {start_time: '09:00', end_time: '17:00'},
-}
-
-export type Protocols = {[index: string]: Partial<Protocol>}
+export type Protocols = {[index: string]: Protocol}
 export const protocols: Protocols = {
-  New: {},
+  New: {
+    days: 0,
+  },
   signal: {
     name: 'signal',
     color: '#ffcccc',
+    days: 0,
     beeps: 6,
     minsep: 30,
     random_start: true,
@@ -166,6 +126,7 @@ export const protocols: Protocols = {
   event: {
     name: 'event',
     color: '#83f0ff',
+    days: 0,
     beeps: 1,
     offset: 15,
     randomization: 'none',

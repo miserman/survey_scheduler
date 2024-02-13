@@ -49,7 +49,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
   const edits = useMemo(() => new Map(), [])
   const [user, setUser] = useState('New')
   const [userList, setUserList] = useState(Object.keys(protocols))
-  const [data, dispatchEdit] = useReducer(editData, protocols.New)
+  const [data, dispatchEdit] = useReducer(editData<Protocol, any>, protocols.New)
   const handleValueChange = (e: SyntheticEvent, value?: boolean | string | number) => {
     const key = 'name' in e.target ? (e.target.name as keyof Protocol) : ''
     if (undefined === value && 'value' in e.target) value = e.target.value as string
@@ -85,14 +85,18 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
         }
       }}
       onAddUpdate={() => {
-        protocols[data.name] = {...data} as Protocol
-        setUserList(Object.keys(protocols))
-        return data.name
+        if (data.name) {
+          protocols[data.name] = {...data} as Protocol
+          setUserList(Object.keys(protocols))
+          return data.name
+        } else {
+          return 'New'
+        }
       }}
     >
       <FormControl fullWidth>
         <Stack spacing={1}>
-          <Tooltip placement="right" title="Unique name of this data.">
+          <Tooltip placement="right" title="Unique name of this protocol.">
             <TextField
               label="Name"
               variant="outlined"

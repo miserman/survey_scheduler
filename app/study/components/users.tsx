@@ -27,7 +27,7 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
   }
   const [user, setUser] = useState('New')
   const [userList, setUserList] = useState(Object.keys(users))
-  const [data, dispatchEdit] = useReducer(editData, users.New)
+  const [data, dispatchEdit] = useReducer(editData<User, any>, users.New)
   return (
     <MenuDialog
       isOpen={isOpen}

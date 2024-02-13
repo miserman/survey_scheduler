@@ -13,19 +13,20 @@ import {
 import {Beep} from './beep'
 import {Protocols, formatDay} from '../root'
 import {useMemo, useReducer, useState} from 'react'
-import {Schedule} from '../types'
 import {MenuDialog, trackEdits} from './menu_dialog'
+import type {ScheduleSpec} from '../types'
+import Schedule from '../classes/schedule'
 
 const editScheduleDay = (
-  state: Schedule,
+  state: ScheduleSpec,
   action: {
     key: string
-    value: string | number | number[] | Schedule
+    value: string | number | number[] | ScheduleSpec
   }
 ) => {
   if ('object' !== typeof action.value || Array.isArray(action.value)) {
     const newState = {...state}
-    ;(newState[action.key as keyof typeof state] as typeof action.value) = Array.isArray(action.value)
+    ;(newState[action.key as keyof ScheduleSpec] as typeof action.value) = Array.isArray(action.value)
       ? JSON.parse(JSON.stringify(action.value))
       : action.value
     return newState
@@ -44,22 +45,22 @@ export const ScheduleDay = ({
   remove,
 }: {
   index: number
-  day: Schedule
+  day: ScheduleSpec
   protocols: Protocols
   protocolOrder: string[]
   start: number
   height: string
-  update: (index: number, day: Schedule) => void
+  update: (index: number, day: ScheduleSpec) => void
   remove: (index: number) => void
 }) => {
   const edits = useMemo(() => new Map(), [])
   const [scheduleDay, dispatchEdit] = useReducer(editScheduleDay, day)
   const [editorOpen, setEditorOpen] = useState(false)
   const handleScheduleSelectChange = (e: SelectChangeEvent) => {
-    const key = 'name' in e.target ? (e.target.name as keyof Schedule) : ''
+    const key = 'name' in e.target ? (e.target.name as keyof ScheduleSpec) : ''
     if (key) {
       const value = e.target.value
-      trackEdits(edits, key, value, day[key as keyof Schedule])
+      trackEdits(edits, key, value, day[key as keyof ScheduleSpec])
       dispatchEdit({key, value})
     }
   }
@@ -79,7 +80,7 @@ export const ScheduleDay = ({
       </Grid>
       <Grid item xs={12} sx={{height: height}}>
         {day.times.map((_, index) => {
-          return <Beep key={index} schedule={day} index={index} start={start} />
+          return <Beep key={index} schedule={new Schedule(day)} index={index} start={start} />
         })}
       </Grid>
       <Grid item xs={12}>

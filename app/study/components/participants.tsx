@@ -21,11 +21,12 @@ import {
 import {Done as DoneIcon} from '@mui/icons-material'
 import {SyntheticEvent, useReducer, useState, useMemo} from 'react'
 import {MenuDialog, editData, trackEdits} from './menu_dialog'
-import {participants, protocols, timeToMs} from '../root'
-import type {Blackout, Schedule} from '../types'
 import {SCHEDULE_SCALE} from '../params'
-import {Participant, makeFullParticipant, makeSchedule} from './participant'
+import Participant from '../classes/participant'
 import {ScheduleDay} from './schedule_day'
+import {MS_DAY, former, participants, protocols} from '../root'
+import Schedule from '../classes/schedule'
+import type {Blackout, ScheduleSpec} from '../types'
 
 const editParticipant = (
   data: Participant,
@@ -34,7 +35,9 @@ const editParticipant = (
     value: boolean | boolean[] | string[] | Blackout[] | Schedule[] | string | number | Participant
   }
 ) => {
-  if ('object' === typeof action.value && !Array.isArray(action.value)) action.value = makeFullParticipant(action.value)
+  if ('object' === typeof action.value && !Array.isArray(action.value)) {
+    action.value = new Participant(action.value)
+  }
   return editData(data, action) as Participant
 }
 
@@ -77,15 +80,15 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
   const addBlackout = () => {
     if (!data.blackouts) data.blackouts = []
     trackEdits(edits, 'blackouts', data.blackouts, data.blackouts)
-    dispatchEdit({key: 'blackouts', value: [...data.blackouts, {index: data.blackouts.length, start: '', end: ''}]})
+    dispatchEdit({key: 'blackouts', value: [...data.blackouts, {start: '', end: ''}] as Blackout[]})
   }
-  const editBlackout = (blackout: Blackout) => (e: SyntheticEvent) => {
+  const editBlackout = (index: number) => (e: SyntheticEvent) => {
     if (data.blackouts) {
       const input = e.target as HTMLInputElement
       const b = [...data.blackouts]
       const pair = input.name === 'start' ? 'end' : 'start'
-      b[blackout.index] = {...data.blackouts[blackout.index], [input.name]: input.value}
-      if (b[blackout.index][pair] === '') b[blackout.index][pair] = input.value
+      b[index] = {...data.blackouts[index], [input.name]: input.value}
+      if (!b[index][pair]) b[index][pair] = +input.value
       trackEdits(edits, 'blackouts', data.blackouts, data.blackouts)
       dispatchEdit({
         key: 'blackouts',
@@ -107,18 +110,25 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
     if (!data.schedule) data.schedule = []
     if (data.protocols && data.protocols.length) {
       trackEdits(edits, 'schedule', data.schedule, data.schedule)
+      data.rollProtocols(protocols)
+      data.scheduleDay(data.start.day_ms, protocols[data.protocol_order[data.protocol_order.length - 1]])
       dispatchEdit({
         key: 'schedule',
-        value: [...data.schedule, makeSchedule(data, protocols[data.protocols[0]], data.blackouts)],
+        value: [...data.schedule],
       })
     }
   }
   const [participant, setParticipant] = useState('New')
   const [participantList, setParticipantList] = useState(Object.keys(participants))
-  const [data, dispatchEdit] = useReducer(editParticipant, makeFullParticipant(participants.New))
-  const startTime = timeToMs(data.start_time || '00:00')
-  const endTime = timeToMs(data.end_time || '00:00')
-  const scheduleHeight = data.start_time && data.end_time ? (endTime - startTime) / SCHEDULE_SCALE + 'px' : ''
+  const [data, dispatchEdit] = useReducer(
+    editParticipant,
+    new Participant({
+      id: 'New',
+      start: {day: former.dashdate(Date.now()), time: '09:00'},
+      end: {day: former.dashdate(Date.now() + MS_DAY * 7), time: '17:00'},
+    })
+  )
+  const scheduleHeight = (data.end.time_ms - data.start.time_ms) / SCHEDULE_SCALE + 'px'
   if (!data.protocols.length) data.protocols = Object.keys(protocols).filter(n => n !== 'New')
   return (
     <MenuDialog
@@ -130,18 +140,18 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
       onChange={(option: string) => {
         setParticipant(option)
         edits.clear()
-        dispatchEdit({key: '', value: makeFullParticipant(participants[option])})
+        dispatchEdit({key: 'new', value: new Participant(participants[option])})
       }}
       onRemove={(option: string) => {
         if (option !== 'New') {
           delete participants[option]
-          setParticipantList(Object.keys(participants))
+          // setParticipantList(Object.keys(participants))
         }
       }}
       onAddUpdate={() => {
         const id = data.id as string
         participants[id] = JSON.parse(JSON.stringify(data)) as Participant
-        setParticipantList(Object.keys(participants))
+        // setParticipantList(Object.keys(participants))
         return id
       }}
     >
@@ -261,14 +271,14 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                       variant="standard"
                       value={blackout.start}
                       name="start"
-                      onChange={editBlackout(blackout)}
+                      onChange={editBlackout(index)}
                       type="date"
                     ></TextField>
                     <TextField
                       variant="standard"
                       value={blackout.end}
                       name="end"
-                      onChange={editBlackout(blackout)}
+                      onChange={editBlackout(index)}
                       type="date"
                     ></TextField>
                     <Button variant="contained" onClick={removeBlackout(index)}>
@@ -288,15 +298,15 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
           <Grid item xs={9} sx={{display: 'flex', justifyContent: 'space-between'}}>
             <TextField
               variant="standard"
-              value={data.start_day || ''}
-              name="start_day"
+              value={data.start.day || ''}
+              name="start.day"
               onChange={handleValueChange}
               type="date"
             ></TextField>
             <TextField
               variant="standard"
-              value={data.end_day || ''}
-              name="end_day"
+              value={data.end.day || ''}
+              name="end.day"
               onChange={handleValueChange}
               type="date"
             ></TextField>
@@ -312,8 +322,8 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                 </Tooltip>
                 <TextField
                   variant="standard"
-                  value={data.start_time || ''}
-                  name="start_time"
+                  value={data.start.time || ''}
+                  name="start.time"
                   onChange={handleValueChange}
                   type="time"
                 ></TextField>
@@ -322,8 +332,8 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
               <Grid item xs={12}>
                 <TextField
                   variant="standard"
-                  value={data.end_time || ''}
-                  name="end_time"
+                  value={data.end.time || ''}
+                  name="end.time"
                   onChange={handleValueChange}
                   type="time"
                 ></TextField>
@@ -340,9 +350,9 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                         day={schedule}
                         protocols={protocols}
                         protocolOrder={data.protocols}
-                        start={startTime}
+                        start={data.start.time_ms}
                         height={scheduleHeight}
-                        update={(index: number, day: Schedule) => {
+                        update={(index: number, day: ScheduleSpec) => {
                           data.schedule[index] = JSON.parse(JSON.stringify(day))
                           trackEdits(edits, 'schedule', data.schedule, data.schedule)
                           dispatchEdit({key: 'schedule', value: data.schedule})

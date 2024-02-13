@@ -1,6 +1,6 @@
 import {Stack, Typography} from '@mui/material'
-import {Schedule} from '../types'
 import {SCHEDULE_SCALE} from '../params'
+import Schedule from '../classes/schedule'
 
 export const Beep = ({schedule, index, start}: {schedule: Schedule; index: number; start?: number}) => {
   return (

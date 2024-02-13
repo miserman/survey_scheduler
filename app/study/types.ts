@@ -1,3 +1,5 @@
+import type Schedule from './classes/schedule'
+
 export type User = {
   email: string
   view_study: boolean
@@ -18,54 +20,37 @@ export type User = {
 }
 
 export type Protocol = {
-  accesses: number
+  accesses?: number
   days: number
-  beeps: number
-  close_after: number
-  color: string
-  id_parameter: string
-  initial_message: string
-  link: string
-  minsep: number
-  name: string
-  offset: number
-  randomization: 'independent' | 'binned' | 'none'
-  random_start: boolean
-  reminder_link: boolean
-  reminder_message: string
-  reminder_after: number
+  beeps?: number
+  close_after?: number
+  color?: string
+  id_parameter?: string
+  initial_message?: string
+  link?: string
+  minsep?: number
+  name?: string
+  offset?: number
+  randomization?: 'independent' | 'binned' | 'none'
+  random_start?: boolean
+  reminder_link?: boolean
+  reminder_message?: string
+  reminder_after?: number
 }
 
-export type Blackout = {index: number; start: string; end: string}
-
-// export type Participant = {
-//   id: string
-//   daysofweek: boolean[]
-//   end_day: string
-//   end_time: string
-//   first: number
-//   last: number
-//   order_type: 'shuffle' | 'sample' | 'ordered'
-//   phone: number
-//   protocol_days: {[index: string]: number}
-//   protocol_order: string[]
-//   protocols: string[]
-//   schedule: Schedule[]
-//   start_day: string
-//   start_time: string
-//   timezone: number
-//   blackouts?: Blackout[]
-// }
-
-export type Schedule = {
-  accessed_first: number[]
-  accessed_n: number[]
-  date: number
-  day: number
-  message?: {initial?: MessageReceipt; reminder?: MessageReceipt}[]
-  protocol: string
-  statuses: number[]
-  times: number[]
+type DaySpec = {day: string; time: string}
+export type ParticipantSpec = {
+  id: string
+  daysofweek?: boolean[]
+  end: DaySpec
+  order_type?: 'shuffle' | 'sample' | 'ordered'
+  phone?: number
+  protocol_order?: string[]
+  protocols?: string[]
+  schedule?: Schedule[]
+  start: DaySpec
+  timezone?: number
+  blackouts?: Blackout[]
 }
 
 export type MessageReceipt = {
@@ -73,4 +58,15 @@ export type MessageReceipt = {
   providerResponse: string
   status: 'SUCCESS' | 'FAILURE'
   timestamp: string
+}
+export type Blackout = {start: number; end: number}
+
+export type ScheduleSpec = {
+  accessed_first: number[]
+  accessed_n: number[]
+  date: number
+  messages?: {initial?: MessageReceipt; reminder?: MessageReceipt}[]
+  protocol: string
+  statuses: number[]
+  times: number[]
 }

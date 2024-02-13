@@ -14,7 +14,7 @@ import {
   useTheme,
 } from '@mui/material'
 import {MENU_WIDTH} from '../params'
-import {useThemeSetter} from '../root'
+import {useThemeSetter} from '../page'
 
 export const SideMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => void}) => {
   const theme = useTheme()

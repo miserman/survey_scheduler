@@ -15,7 +15,8 @@ import {
 } from '@mui/material'
 import {SyntheticEvent, useState, ReactNode} from 'react'
 import CloseIcon from '@mui/icons-material/Close'
-import {Blackout, Schedule} from '../types'
+import type {Blackout} from '../types'
+import Schedule from '../classes/schedule'
 
 export const editData = <DataType, _>(
   state: DataType,
