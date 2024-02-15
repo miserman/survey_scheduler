@@ -14,7 +14,7 @@ import {Beep} from './beep'
 import {Protocols, formatDay} from '../root'
 import {useMemo, useReducer, useState} from 'react'
 import {MenuDialog, trackEdits} from './menu_dialog'
-import type {ScheduleSpec} from '../types'
+import type {Protocol, ScheduleSpec} from '../types'
 import Schedule from '../classes/schedule'
 
 const editScheduleDay = (
@@ -37,8 +37,8 @@ const editScheduleDay = (
 export const ScheduleDay = ({
   index,
   day,
+  protocol,
   protocols,
-  protocolOrder,
   start,
   height,
   update,
@@ -46,8 +46,8 @@ export const ScheduleDay = ({
 }: {
   index: number
   day: ScheduleSpec
-  protocols: Protocols
-  protocolOrder: string[]
+  protocol: Protocol
+  protocols: string[]
   start: number
   height: string
   update: (index: number, day: ScheduleSpec) => void
@@ -64,6 +64,7 @@ export const ScheduleDay = ({
       dispatchEdit({key, value})
     }
   }
+  const schedule = useMemo(() => new Schedule(day), [day])
   return (
     <Grid item>
       <Grid
@@ -72,15 +73,15 @@ export const ScheduleDay = ({
         sx={{
           textAlign: 'center',
           p: 1,
-          backgroundColor: protocols[day.protocol].color,
+          backgroundColor: protocol.color,
         }}
       >
         <Typography>{formatDay.format(day.date)}</Typography>
         <Typography>{day.protocol}</Typography>
       </Grid>
-      <Grid item xs={12} sx={{height: height}}>
+      <Grid item xs={12} sx={{height, position: 'relative'}}>
         {day.times.map((_, index) => {
-          return <Beep key={index} schedule={new Schedule(day)} index={index} start={start} />
+          return <Beep key={index} schedule={schedule} index={index} start={start} />
         })}
       </Grid>
       <Grid item xs={12}>
@@ -128,7 +129,7 @@ export const ScheduleDay = ({
             name="protocol"
             onChange={handleScheduleSelectChange}
           >
-            {protocolOrder.map(protocol => (
+            {protocols.map(protocol => (
               <MenuItem key={protocol} value={protocol}>
                 <ListItemText primary={protocol} />
               </MenuItem>

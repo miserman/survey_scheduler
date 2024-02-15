@@ -1,16 +1,18 @@
-import {Stack, Typography} from '@mui/material'
+import {Box, Stack} from '@mui/material'
 import {SCHEDULE_SCALE} from '../params'
-import Schedule from '../classes/schedule'
+import type Schedule from '../classes/schedule'
+import {statusClasses} from '../root'
 
 export const Beep = ({schedule, index, start}: {schedule: Schedule; index: number; start?: number}) => {
   return (
     <Stack
       sx={{
         position: 'absolute',
-        top: start ? (schedule.times[index] - schedule.date - start) / SCHEDULE_SCALE + 'px' : '',
+        width: '100%',
+        top: start ? (schedule.times[index] - start) / SCHEDULE_SCALE + 'px' : '',
       }}
     >
-      <Typography>{schedule.times[index]}</Typography>
+      <Box sx={{width: '100%', height: '5px'}} className={statusClasses[schedule.statuses[index]]}></Box>
     </Stack>
   )
 }

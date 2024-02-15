@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
@@ -18,10 +14,38 @@
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+}
+
+.missed {
+  background: #f38d0e;
+}
+.pending {
+  background: #7fb2ff;
+}
+.sent {
+  background: #fdff81;
+}
+.reminded {
+  background: #f9c361;
+}
+.send_received,
+.remind_received {
+  background: #dedede;
+}
+.pause {
+  background: #caf9f9;
+}
+.skipped {
+  background: #8eab79;
+}
+.not_delivered {
+  text-align: center;
+}
+.not_delivered:after {
+  content: '*';
+  font-size: 1.5em;
+  font-weight: bold;
+  line-height: 0.6em;
+  color: #fff;
 }

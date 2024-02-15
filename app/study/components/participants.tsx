@@ -38,9 +38,14 @@ const editParticipant = (
   if ('object' === typeof action.value && !Array.isArray(action.value)) {
     action.value = new Participant(action.value)
   }
-  return editData(data, action) as Participant
+  return new Participant(editData(data, action))
 }
 
+const defaultSpec = {
+  id: '',
+  start: {day: former.dashdate(Date.now()), time: '09:00'},
+  end: {day: former.dashdate(Date.now() + MS_DAY * 7), time: '17:00'},
+}
 export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => void}) => {
   const edits = useMemo(() => new Map(), [])
   const handleValueChange = (e: SyntheticEvent, value?: boolean | string | number) => {
@@ -111,7 +116,8 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
     if (data.protocols && data.protocols.length) {
       trackEdits(edits, 'schedule', data.schedule, data.schedule)
       data.rollProtocols(protocols)
-      data.scheduleDay(data.start.day_ms, protocols[data.protocol_order[data.protocol_order.length - 1]])
+      const index = data.schedule.length
+      data.scheduleDay(data.start.day_ms, protocols[data.protocol_order[index]], index)
       dispatchEdit({
         key: 'schedule',
         value: [...data.schedule],
@@ -119,15 +125,9 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
     }
   }
   const [participant, setParticipant] = useState('New')
+  if (!(participant in participants)) participants[participant] = new Participant(defaultSpec)
   const [participantList, setParticipantList] = useState(Object.keys(participants))
-  const [data, dispatchEdit] = useReducer(
-    editParticipant,
-    new Participant({
-      id: 'New',
-      start: {day: former.dashdate(Date.now()), time: '09:00'},
-      end: {day: former.dashdate(Date.now() + MS_DAY * 7), time: '17:00'},
-    })
-  )
+  const [data, dispatchEdit] = useReducer(editParticipant, participants.New)
   const scheduleHeight = (data.end.time_ms - data.start.time_ms) / SCHEDULE_SCALE + 'px'
   if (!data.protocols.length) data.protocols = Object.keys(protocols).filter(n => n !== 'New')
   return (
@@ -145,13 +145,13 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
       onRemove={(option: string) => {
         if (option !== 'New') {
           delete participants[option]
-          // setParticipantList(Object.keys(participants))
+          setParticipantList(Object.keys(participants))
         }
       }}
       onAddUpdate={() => {
         const id = data.id as string
         participants[id] = JSON.parse(JSON.stringify(data)) as Participant
-        // setParticipantList(Object.keys(participants))
+        setParticipantList(Object.keys(participants))
         return id
       }}
     >
@@ -348,9 +348,9 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                         key={index}
                         index={index}
                         day={schedule}
-                        protocols={protocols}
-                        protocolOrder={data.protocols}
-                        start={data.start.time_ms}
+                        protocol={protocols[data.protocol_order[index]]}
+                        protocols={data.protocols}
+                        start={data.start.day_ms + data.start.time_ms}
                         height={scheduleHeight}
                         update={(index: number, day: ScheduleSpec) => {
                           data.schedule[index] = JSON.parse(JSON.stringify(day))

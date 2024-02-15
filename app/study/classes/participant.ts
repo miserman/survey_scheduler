@@ -112,8 +112,9 @@ export default class Participant {
   }
   scheduleDay(date: number, protocol: Protocol, index?: number) {
     if ('undefined' === typeof index) index = this.schedule.length
-    this.protocol_order[index] = protocol.name || ''
-    const schedule = new Schedule()
+    const protocolName = protocol.name || ''
+    this.protocol_order[index] = protocolName
+    const schedule = new Schedule({date: this.start.day_ms + MS_DAY * index, protocol: protocolName})
     let start = date + this.start.time_ms
     start += (new Date(start).getTimezoneOffset() - this.timezone) * MS_HOUR
     let end = date + this.end.time_ms

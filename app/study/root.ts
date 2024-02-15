@@ -99,6 +99,17 @@ export function timeToMs(time: string) {
   return Math.floor(n)
 }
 
+export const statusClasses = [
+  'missed',
+  'pending',
+  'sent',
+  'reminded',
+  'send_received',
+  'remind_received',
+  'pause',
+  'skipped',
+]
+
 export const participants: {[index: string]: Participant} = {}
 
 export type Protocols = {[index: string]: Protocol}
