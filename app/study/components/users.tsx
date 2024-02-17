@@ -1,6 +1,6 @@
 import {
   Checkbox,
-  FormControl,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -52,10 +52,10 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
         return data.email
       }}
     >
-      <FormControl fullWidth>
-        <TextField value={data.email} name="email" onChange={handleChange} label="Email" />
+      <Stack spacing={1} paddingLeft={1} paddingRight={1}>
+        <TextField value={data.email} name="email" size="small" onChange={handleChange} label="Email" />
         <TableContainer>
-          <Table sx={{'& .MuiTableCell-root': {p: 1}}}>
+          <Table sx={{'& .MuiTableCell-root': {p: 0}}}>
             <TableHead>
               <TableRow>
                 <TableCell>Access to</TableCell>
@@ -162,7 +162,7 @@ export const UsersMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () => vo
             </TableBody>
           </Table>
         </TableContainer>
-      </FormControl>
+      </Stack>
     </MenuDialog>
   )
 }

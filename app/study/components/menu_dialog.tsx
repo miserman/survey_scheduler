@@ -115,6 +115,7 @@ export const MenuDialog = ({
       </IconButton>
       {openSet ? (
         <Autocomplete
+          size="small"
           disableClearable
           options={options}
           value={currentOption || options[0]}

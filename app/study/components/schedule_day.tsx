@@ -1,17 +1,6 @@
-import {
-  Button,
-  FormControl,
-  Grid,
-  InputLabel,
-  ListItemText,
-  MenuItem,
-  Select,
-  SelectChangeEvent,
-  Stack,
-  Typography,
-} from '@mui/material'
+import {Button, FormControl, Grid, InputLabel, ListItemText, MenuItem, Select, Typography} from '@mui/material'
 import {Beep} from './beep'
-import {Protocols, formatDay} from '../root'
+import {formatDay} from '../root'
 import {useMemo, useReducer, useState} from 'react'
 import {MenuDialog, trackEdits} from './menu_dialog'
 import type {Protocol, ScheduleSpec} from '../types'
@@ -56,14 +45,6 @@ export const ScheduleDay = ({
   const edits = useMemo(() => new Map(), [])
   const [scheduleDay, dispatchEdit] = useReducer(editScheduleDay, day)
   const [editorOpen, setEditorOpen] = useState(false)
-  const handleScheduleSelectChange = (e: SelectChangeEvent) => {
-    const key = 'name' in e.target ? (e.target.name as keyof ScheduleSpec) : ''
-    if (key) {
-      const value = e.target.value
-      trackEdits(edits, key, value, day[key as keyof ScheduleSpec])
-      dispatchEdit({key, value})
-    }
-  }
   const schedule = useMemo(() => new Schedule(day), [day])
   return (
     <Grid item>
@@ -72,30 +53,27 @@ export const ScheduleDay = ({
         xs={12}
         sx={{
           textAlign: 'center',
-          p: 1,
-          backgroundColor: protocol.color,
         }}
       >
         <Typography>{formatDay.format(day.date)}</Typography>
-        <Typography>{day.protocol}</Typography>
+        <Typography sx={{backgroundColor: protocol.color}}>{day.protocol}</Typography>
       </Grid>
+      <Button size="small">Pause</Button>
       <Grid item xs={12} sx={{height, position: 'relative'}}>
         {day.times.map((_, index) => {
-          return <Beep key={index} schedule={schedule} index={index} start={start} />
+          return <Beep key={index} schedule={schedule} index={index} start={schedule.date + start} />
         })}
       </Grid>
       <Grid item xs={12}>
-        <Stack>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setEditorOpen(true)
-            }}
-          >
-            Edit
-          </Button>
-          <Button>Pause</Button>
-        </Stack>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => {
+            setEditorOpen(true)
+          }}
+        >
+          Edit
+        </Button>
       </Grid>
       <MenuDialog
         isOpen={editorOpen}
@@ -127,7 +105,14 @@ export const ScheduleDay = ({
             labelId="schedule-day-protocol"
             value={scheduleDay.protocol}
             name="protocol"
-            onChange={handleScheduleSelectChange}
+            onChange={e => {
+              const key = 'name' in e.target ? (e.target.name as keyof ScheduleSpec) : ''
+              if (key) {
+                const value = e.target.value
+                trackEdits(edits, key, value, day[key as keyof ScheduleSpec])
+                dispatchEdit({key, value})
+              }
+            }}
           >
             {protocols.map(protocol => (
               <MenuItem key={protocol} value={protocol}>

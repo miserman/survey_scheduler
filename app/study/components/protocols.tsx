@@ -94,12 +94,13 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
         }
       }}
     >
-      <FormControl fullWidth>
+      <Stack spacing={1} paddingLeft={1} paddingRight={1}>
         <Stack spacing={1}>
           <Tooltip placement="right" title="Unique name of this protocol.">
             <TextField
               label="Name"
               variant="outlined"
+              size="small"
               name="name"
               value={data.name || ''}
               onChange={handleValueChange}
@@ -112,6 +113,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Color"
               variant="outlined"
+              size="small"
               name="color"
               type="color"
               value={data.color || '#000000'}
@@ -125,6 +127,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Days"
               variant="outlined"
+              size="small"
               name="days"
               type="number"
               value={data.days || ''}
@@ -135,6 +138,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Beeps"
               variant="outlined"
+              size="small"
               name="beeps"
               type="number"
               value={data.beeps || ''}
@@ -145,6 +149,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Minimum Separation"
               variant="outlined"
+              size="small"
               name="minsep"
               type="number"
               value={data.minsep || ''}
@@ -155,6 +160,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Start Offset"
               variant="outlined"
+              size="small"
               name="offset"
               type="number"
               value={data.offset || ''}
@@ -180,6 +186,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
               <InputLabel id="protocol-label-randomization">Randomization</InputLabel>
               <Select
                 label="Randomization"
+                size="small"
                 labelId="protocol-label-randomization"
                 value={data.randomization || 'none'}
                 name="randomization"
@@ -210,6 +217,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Remind After"
               variant="outlined"
+              size="small"
               name="reminder_after"
               type="number"
               value={data.reminder_after || ''}
@@ -220,6 +228,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Close After"
               variant="outlined"
+              size="small"
               name="close_after"
               type="number"
               value={data.close_after || ''}
@@ -233,6 +242,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Allowed Accesses"
               variant="outlined"
+              size="small"
               name="accesses"
               type="number"
               value={data.accesses || ''}
@@ -243,6 +253,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Initial Message"
               variant="outlined"
+              size="small"
               name="initial_message"
               value={data.initial_message || ''}
               onChange={handleValueChange}
@@ -255,6 +266,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Reminder message"
               variant="outlined"
+              size="small"
               name="reminder_message"
               value={data.reminder_message || ''}
               onChange={handleValueChange}
@@ -281,6 +293,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="Link"
               variant="outlined"
+              size="small"
               name="link"
               value={data.link || ''}
               onChange={handleValueChange}
@@ -293,6 +306,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
             <TextField
               label="ID Parameter"
               variant="outlined"
+              size="small"
               name="id_parameter"
               value={data.id_parameter || ''}
               onChange={handleValueChange}
@@ -304,7 +318,7 @@ export const ProtocolsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: () =
           <Message spec={data} />
           <Message reminder={true} spec={data} />
         </Stack>
-      </FormControl>
+      </Stack>
     </MenuDialog>
   )
 }

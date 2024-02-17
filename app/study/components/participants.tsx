@@ -117,7 +117,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
       trackEdits(edits, 'schedule', data.schedule, data.schedule)
       data.rollProtocols(protocols)
       const index = data.schedule.length
-      data.scheduleDay(data.start.day_ms, protocols[data.protocol_order[index]], index)
+      data.scheduleDay(data.start.day_ms + index * MS_DAY, protocols[data.protocol_order[index]], index)
       dispatchEdit({
         key: 'schedule',
         value: [...data.schedule],
@@ -155,18 +155,12 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
         return id
       }}
     >
-      <FormControl fullWidth>
+      <Stack spacing={1} paddingLeft={1} paddingRight={1}>
         <Tooltip placement="left" title="Unique string identifying this participant, to be added to their survey link.">
-          <TextField variant="standard" value={data.id || ''} name="id" onChange={handleValueChange} label="ID" />
+          <TextField size="small" value={data.id || ''} name="id" onChange={handleValueChange} label="ID" />
         </Tooltip>
         <Tooltip placement="left" title="10 digit number (e.g., 1231231234)">
-          <TextField
-            variant="standard"
-            value={data.phone || ''}
-            name="phone"
-            onChange={handleValueChange}
-            label="Phone"
-          />
+          <TextField size="small" value={data.phone || ''} name="phone" onChange={handleValueChange} label="Phone" />
         </Tooltip>
         <Stack direction="row">
           <FormControl>
@@ -174,7 +168,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
               <InputLabel id="protocol-label-order">Order Type</InputLabel>
             </Tooltip>
             <Select
-              variant="standard"
+              size="small"
               label="Order Type"
               labelId="protocol-label-order"
               value={data.order_type || 'shuffle'}
@@ -198,6 +192,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
               <ButtonGroup aria-label="Protocol Controls">
                 <Button
                   variant="contained"
+                  size="small"
                   onClick={() => {
                     trackEdits(edits, 'schedule', data.protocols, data.protocols)
                     dispatchEdit({key: 'protocols', value: Object.keys(protocols).filter(n => n !== 'New')})
@@ -207,6 +202,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                 </Button>
                 <Button
                   variant="contained"
+                  size="small"
                   onClick={() => {
                     trackEdits(edits, 'schedule', data.protocols, data.protocols)
                     dispatchEdit({key: 'protocols', value: []})
@@ -258,7 +254,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
             <Tooltip placement="left" title="Start and end dates on and between which beeps cannot be schedules.">
               <FormLabel component="legend">Blackout Days</FormLabel>
             </Tooltip>
-            <Button variant="outlined" onClick={addBlackout}>
+            <Button variant="outlined" size="small" onClick={addBlackout}>
               Add
             </Button>
           </Stack>
@@ -269,6 +265,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                   <Paper key={index} elevation={5} sx={{display: 'flex', flexDirection: 'column', m: 1}}>
                     <TextField
                       variant="standard"
+                      size="small"
                       value={blackout.start}
                       name="start"
                       onChange={editBlackout(index)}
@@ -276,12 +273,13 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                     ></TextField>
                     <TextField
                       variant="standard"
+                      size="small"
                       value={blackout.end}
                       name="end"
                       onChange={editBlackout(index)}
                       type="date"
                     ></TextField>
-                    <Button variant="contained" onClick={removeBlackout(index)}>
+                    <Button variant="contained" size="small" onClick={removeBlackout(index)}>
                       Remove
                     </Button>
                   </Paper>
@@ -298,6 +296,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
           <Grid item xs={9} sx={{display: 'flex', justifyContent: 'space-between'}}>
             <TextField
               variant="standard"
+              size="small"
               value={data.start.day || ''}
               name="start.day"
               onChange={handleValueChange}
@@ -305,6 +304,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
             ></TextField>
             <TextField
               variant="standard"
+              size="small"
               value={data.end.day || ''}
               name="end.day"
               onChange={handleValueChange}
@@ -322,6 +322,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                 </Tooltip>
                 <TextField
                   variant="standard"
+                  size="small"
                   value={data.start.time || ''}
                   name="start.time"
                   onChange={handleValueChange}
@@ -332,6 +333,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
               <Grid item xs={12}>
                 <TextField
                   variant="standard"
+                  size="small"
                   value={data.end.time || ''}
                   name="end.time"
                   onChange={handleValueChange}
@@ -339,42 +341,44 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                 ></TextField>
               </Grid>
             </Grid>
-            <Grid container item xs={9}>
-              {data.schedule &&
-                data.schedule.map((schedule, index) => {
-                  if (schedule) {
-                    return (
-                      <ScheduleDay
-                        key={index}
-                        index={index}
-                        day={schedule}
-                        protocol={protocols[data.protocol_order[index]]}
-                        protocols={data.protocols}
-                        start={data.start.day_ms + data.start.time_ms}
-                        height={scheduleHeight}
-                        update={(index: number, day: ScheduleSpec) => {
-                          data.schedule[index] = JSON.parse(JSON.stringify(day))
-                          trackEdits(edits, 'schedule', data.schedule, data.schedule)
-                          dispatchEdit({key: 'schedule', value: data.schedule})
-                        }}
-                        remove={(index: number) => {
-                          data.schedule.splice(index, 1)
-                          trackEdits(edits, 'schedule', data.schedule, data.schedule)
-                          dispatchEdit({key: 'schedule', value: data.schedule})
-                        }}
-                      ></ScheduleDay>
-                    )
-                  }
-                })}
+            <Grid container item xs={9} sx={{overflow: 'auto'}}>
+              <Grid flexWrap="nowrap" container>
+                {data.schedule &&
+                  data.schedule.map((schedule, index) => {
+                    if (schedule) {
+                      return (
+                        <ScheduleDay
+                          key={index}
+                          index={index}
+                          day={schedule}
+                          protocol={protocols[data.protocol_order[index]]}
+                          protocols={data.protocols}
+                          start={data.start.time_ms}
+                          height={scheduleHeight}
+                          update={(index: number, day: ScheduleSpec) => {
+                            data.schedule[index] = JSON.parse(JSON.stringify(day))
+                            trackEdits(edits, 'schedule', data.schedule, data.schedule)
+                            dispatchEdit({key: 'schedule', value: data.schedule})
+                          }}
+                          remove={(index: number) => {
+                            data.schedule.splice(index, 1)
+                            trackEdits(edits, 'schedule', data.schedule, data.schedule)
+                            dispatchEdit({key: 'schedule', value: data.schedule})
+                          }}
+                        ></ScheduleDay>
+                      )
+                    }
+                  })}
+              </Grid>
             </Grid>
           </Grid>
         </Grid>
         <Stack>
-          <Button variant="outlined" onClick={addSchedule}>
+          <Button variant="contained" size="small" onClick={addSchedule}>
             Add Day
           </Button>
         </Stack>
-      </FormControl>
+      </Stack>
     </MenuDialog>
   )
 }
