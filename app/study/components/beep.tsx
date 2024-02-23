@@ -13,6 +13,7 @@ export const Beep = ({schedule, index, start}: {schedule: Schedule; index: numbe
       }}
     >
       <Tooltip
+        placement="left"
         title={
           <Box textAlign="center">
             <p>{former.time.format(schedule.times[index])}</p>

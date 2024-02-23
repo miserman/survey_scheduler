@@ -59,11 +59,11 @@ export default class Participant {
     if (!this.timezone) this.timezone = TIMEZONE_OFFSET / MS_MINUTE
   }
   updateDate(newDay: string | number, which: 'start' | 'end') {
-    if ('number' === typeof newDay) newDay = former.day.format(newDay)
+    if ('number' === typeof newDay) newDay = former.dashdate(newDay)
     this[which].day = newDay
     this[which].day_ms = new Date(newDay + 'T12:00:00').getTime()
     if (this.end.day_ms && this.start.day_ms) {
-      this.n_days = Math.floor((this.end.day_ms - this.start.day_ms) / MS_DAY)
+      this.n_days = Math.floor((this.end.day_ms - this.start.day_ms) / MS_DAY) + 1
     }
   }
   updateTime(newTime: string | number, which: 'start' | 'end') {
@@ -71,20 +71,22 @@ export default class Participant {
     this[which].time = newTime
     this[which].time_ms = timeToMs(newTime)
   }
-  rollProtocols(protocols: Protocols) {
+  rollProtocols(protocols: Protocols, start = 0) {
     if (!this.protocols.length) this.protocols = Object.keys(protocols)
-    this.protocol_order = []
+    this.protocol_order.splice(start, this.protocol_order.length - start - 1)
     const n_protocols = this.protocols.length
-    let days = 0
+    let days = start
     let i = 0
     switch (this.order_type) {
       case 'shuffle':
         const shuffled = [...this.protocols].sort(byRandom)
         i = n_protocols
         while (days < this.n_days) {
-          const selected = this.protocols[--i]
+          const selected = shuffled[--i]
           const protocolDays = getProtocolDays(protocols[selected].days, this.n_days, n_protocols)
-          for (let assignDay = protocolDays; assignDay--; ) this.protocol_order.push(selected)
+          const nAdded = this.protocol_order.length
+          for (let assignDay = Math.min(protocolDays, this.n_days - nAdded); assignDay--; )
+            this.protocol_order.push(selected)
           days += protocolDays
           if (!i) {
             i = n_protocols
@@ -96,7 +98,9 @@ export default class Participant {
         while (days < this.n_days) {
           const selected = this.protocols[i]
           const protocolDays = getProtocolDays(protocols[selected].days, this.n_days, n_protocols)
-          for (let assignDay = protocolDays; assignDay--; ) this.protocol_order.push(selected)
+          const nAdded = this.protocol_order.length
+          for (let assignDay = Math.min(protocolDays, this.n_days - nAdded); assignDay--; )
+            this.protocol_order.push(selected)
           days += protocolDays
           if (++i === n_protocols) i = 0
         }
@@ -105,7 +109,9 @@ export default class Participant {
         while (days < this.n_days) {
           const selected = this.protocols[Math.min(n_protocols - 1, Math.floor(Math.random() * n_protocols))]
           const protocolDays = getProtocolDays(protocols[selected].days, this.n_days, n_protocols)
-          for (let assignDay = protocolDays; assignDay--; ) this.protocol_order.push(selected)
+          const nAdded = this.protocol_order.length
+          for (let assignDay = Math.min(protocolDays, this.n_days - nAdded); assignDay--; )
+            this.protocol_order.push(selected)
           days += protocolDays
         }
     }
@@ -114,14 +120,20 @@ export default class Participant {
     if ('undefined' === typeof index) index = this.schedule.length
     const protocolName = protocol.name || ''
     this.protocol_order[index] = protocolName
-    const schedule = new Schedule({date: this.start.day_ms + MS_DAY * index, protocol: protocolName})
     let start = date + this.start.time_ms
+    const schedule = new Schedule({date: start, protocol: protocolName})
     start += (new Date(start).getTimezoneOffset() - this.timezone) * MS_HOUR
     let end = date + this.end.time_ms
     end += (new Date(end).getTimezoneOffset() - this.timezone) * MS_HOUR
     schedule.rollTimes(protocol, start, end)
     if ('number' === typeof index) this.schedule[index] = schedule
     return schedule
+  }
+  addDay(protocols: Protocols) {
+    this.updateDate(this.end.day_ms + MS_DAY, 'end')
+    const last = this.schedule.length
+    this.rollProtocols(protocols, last)
+    this.scheduleDay(this.end.day_ms, protocols[this.protocol_order[last]], last)
   }
   rollSchedule(protocols: Protocols) {
     this.rollProtocols(protocols)

@@ -99,7 +99,7 @@ export default class Schedule {
             break
           }
         }
-        // if (invalid) throw Error('failed to find a valid time for beep ' + beepIndex)
+        if (invalid) throw Error('failed to find a valid time for beep ' + beepIndex)
       }
       if (protocol.randomization === 'independent') this.times.sort()
     }

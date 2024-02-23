@@ -1,10 +1,12 @@
-import {Button, FormControl, Grid, InputLabel, ListItemText, MenuItem, Select, Typography} from '@mui/material'
+import {Button, FormControl, Grid, InputLabel, ListItemText, MenuItem, Select, Stack, Typography} from '@mui/material'
 import {Beep} from './beep'
 import {formatDay} from '../root'
 import {useMemo, useReducer, useState} from 'react'
 import {MenuDialog, trackEdits} from './menu_dialog'
 import type {Protocol, ScheduleSpec} from '../types'
 import Schedule from '../classes/schedule'
+import {TimePicker} from '@mui/x-date-pickers'
+import dayjs from 'dayjs'
 
 const editScheduleDay = (
   state: ScheduleSpec,
@@ -29,6 +31,7 @@ export const ScheduleDay = ({
   protocol,
   protocols,
   start,
+  end,
   height,
   update,
   remove,
@@ -38,6 +41,7 @@ export const ScheduleDay = ({
   protocol: Protocol
   protocols: string[]
   start: number
+  end: number
   height: string
   update: (index: number, day: ScheduleSpec) => void
   remove: (index: number) => void
@@ -61,7 +65,7 @@ export const ScheduleDay = ({
       <Button size="small">Pause</Button>
       <Grid item xs={12} sx={{height, position: 'relative'}}>
         {day.times.map((_, index) => {
-          return <Beep key={index} schedule={schedule} index={index} start={schedule.date + start} />
+          return <Beep key={index} schedule={schedule} index={index} start={schedule.date} />
         })}
       </Grid>
       <Grid item xs={12}>
@@ -102,6 +106,7 @@ export const ScheduleDay = ({
           <InputLabel id="schedule-day-protocol">Protocol</InputLabel>
           <Select
             label="Protocol"
+            size="small"
             labelId="schedule-day-protocol"
             value={scheduleDay.protocol}
             name="protocol"
@@ -121,6 +126,23 @@ export const ScheduleDay = ({
             ))}
           </Select>
         </FormControl>
+        <Stack spacing={0.5} padding={1}>
+          {schedule.times.map((time, index) => (
+            <TimePicker
+              key={index}
+              value={dayjs(time)}
+              onChange={value => {
+                if (value) {
+                  const base = new Date(schedule.date).setHours(0)
+                  const newTime = dayjs(value).toDate().getTime()
+                  day.times[index] = base + Math.min(end, Math.max(newTime, start))
+                  trackEdits(edits, 'times', day.times, day.times)
+                  dispatchEdit({key: 'times', value: [...day.times]})
+                }
+              }}
+            ></TimePicker>
+          ))}
+        </Stack>
       </MenuDialog>
     </Grid>
   )

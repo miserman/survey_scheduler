@@ -5,6 +5,8 @@ import {SEARCH_BAR_HEIGHT, palette} from './params'
 import {makeNav} from './menus'
 import Timeline from './timeline'
 import {makeSearch} from './search'
+import {LocalizationProvider} from '@mui/x-date-pickers'
+import {AdapterDayjs} from '@mui/x-date-pickers/AdapterDayjs'
 
 const Nav = forwardRef(makeNav)
 const Search = forwardRef(makeSearch)
@@ -46,9 +48,11 @@ export const ThemeContext = ({children}: {children: ReactNode}) => {
     [paletteDefaultDark, currentTheme]
   )
   return (
-    <ThemeProvider theme={theme}>
-      <ThemeSetter.Provider value={setCurrentTheme}>{children}</ThemeSetter.Provider>
-    </ThemeProvider>
+    <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <ThemeProvider theme={theme}>
+        <ThemeSetter.Provider value={setCurrentTheme}>{children}</ThemeSetter.Provider>
+      </ThemeProvider>
+    </LocalizationProvider>
   )
 }
 export const useThemeSetter = () => useContext(ThemeSetter)

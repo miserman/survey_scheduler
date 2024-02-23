@@ -19,7 +19,7 @@ import {
   Tooltip,
 } from '@mui/material'
 import {Done as DoneIcon} from '@mui/icons-material'
-import {SyntheticEvent, useReducer, useState, useMemo} from 'react'
+import {SyntheticEvent, useReducer, useState, useMemo, useEffect} from 'react'
 import {MenuDialog, editData, trackEdits} from './menu_dialog'
 import {SCHEDULE_SCALE} from '../params'
 import Participant from '../classes/participant'
@@ -27,6 +27,8 @@ import {ScheduleDay} from './schedule_day'
 import {MS_DAY, former, participants, protocols} from '../root'
 import Schedule from '../classes/schedule'
 import type {Blackout, ScheduleSpec} from '../types'
+import {DatePicker, TimePicker} from '@mui/x-date-pickers'
+import dayjs from 'dayjs'
 
 const editParticipant = (
   data: Participant,
@@ -37,6 +39,8 @@ const editParticipant = (
 ) => {
   if ('object' === typeof action.value && !Array.isArray(action.value)) {
     action.value = new Participant(action.value)
+  } else if (action.key === 'start' || action.key === 'end') {
+    return data
   }
   return new Participant(editData(data, action))
 }
@@ -114,10 +118,13 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
   const addSchedule = () => {
     if (!data.schedule) data.schedule = []
     if (data.protocols && data.protocols.length) {
+      data.addDay(protocols)
+      trackEdits(edits, 'end', data.end, data.end)
+      dispatchEdit({
+        key: 'end',
+        value: data.end.day_ms,
+      })
       trackEdits(edits, 'schedule', data.schedule, data.schedule)
-      data.rollProtocols(protocols)
-      const index = data.schedule.length
-      data.scheduleDay(data.start.day_ms + index * MS_DAY, protocols[data.protocol_order[index]], index)
       dispatchEdit({
         key: 'schedule',
         value: [...data.schedule],
@@ -130,6 +137,8 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
   const [data, dispatchEdit] = useReducer(editParticipant, participants.New)
   const scheduleHeight = (data.end.time_ms - data.start.time_ms) / SCHEDULE_SCALE + 'px'
   if (!data.protocols.length) data.protocols = Object.keys(protocols).filter(n => n !== 'New')
+  if (!data.schedule.length) data.rollSchedule(protocols)
+  useEffect(() => data.rollSchedule(protocols), [data.blackouts, data.daysofweek, data.protocol_order, protocols])
   return (
     <MenuDialog
       isOpen={isOpen}
@@ -294,22 +303,28 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
             </Tooltip>
           </Grid>
           <Grid item xs={9} sx={{display: 'flex', justifyContent: 'space-between'}}>
-            <TextField
-              variant="standard"
-              size="small"
-              value={data.start.day || ''}
+            <DatePicker
+              value={dayjs(data.start.day_ms || '')}
               name="start.day"
-              onChange={handleValueChange}
-              type="date"
-            ></TextField>
-            <TextField
-              variant="standard"
-              size="small"
-              value={data.end.day || ''}
+              onChange={date => {
+                if (date) {
+                  const value = date.toDate().getTime()
+                  trackEdits(edits, 'start.day', value, participants[participant].start.day_ms)
+                  dispatchEdit({key: 'start.day', value})
+                }
+              }}
+            ></DatePicker>
+            <DatePicker
+              value={dayjs(data.end.day_ms || '')}
               name="end.day"
-              onChange={handleValueChange}
-              type="date"
-            ></TextField>
+              onChange={date => {
+                if (date) {
+                  const value = date.toDate().getTime()
+                  trackEdits(edits, 'end.day', value, participants[participant].end.day_ms)
+                  dispatchEdit({key: 'end.day', value})
+                }
+              }}
+            ></DatePicker>
           </Grid>
           <Grid container>
             <Grid container item xs={3} spacing={0} sx={{alignContent: 'flex-start'}}>
@@ -320,25 +335,31 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                 >
                   <FormLabel component="legend">Time Range</FormLabel>
                 </Tooltip>
-                <TextField
-                  variant="standard"
-                  size="small"
-                  value={data.start.time || ''}
+                <TimePicker
+                  value={dayjs(data.start.time_ms || '')}
                   name="start.time"
-                  onChange={handleValueChange}
-                  type="time"
-                ></TextField>
+                  onChange={date => {
+                    if (date) {
+                      const value = date.toDate().getTime()
+                      trackEdits(edits, 'start.time', value, participants[participant].start.time_ms)
+                      dispatchEdit({key: 'start.time', value})
+                    }
+                  }}
+                ></TimePicker>
               </Grid>
               <Grid item xs={12} sx={{height: scheduleHeight}}></Grid>
               <Grid item xs={12}>
-                <TextField
-                  variant="standard"
-                  size="small"
-                  value={data.end.time || ''}
+                <TimePicker
+                  value={dayjs(data.end.time_ms || '')}
                   name="end.time"
-                  onChange={handleValueChange}
-                  type="time"
-                ></TextField>
+                  onChange={date => {
+                    if (date) {
+                      const value = date.toDate().getTime()
+                      trackEdits(edits, 'end.time', value, participants[participant].end.time_ms)
+                      dispatchEdit({key: 'end.time', value})
+                    }
+                  }}
+                ></TimePicker>
               </Grid>
             </Grid>
             <Grid container item xs={9} sx={{overflow: 'auto'}}>
@@ -354,6 +375,7 @@ export const ParticipantsMenu = ({isOpen, onClose}: {isOpen: boolean; onClose: (
                           protocol={protocols[data.protocol_order[index]]}
                           protocols={data.protocols}
                           start={data.start.time_ms}
+                          end={data.end.time_ms}
                           height={scheduleHeight}
                           update={(index: number, day: ScheduleSpec) => {
                             data.schedule[index] = JSON.parse(JSON.stringify(day))
