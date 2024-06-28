@@ -2,7 +2,7 @@
 
 A Node.js app to schedule texts for experience sampling studies.
 
-<img src='docs/icon.png' width='200px'>
+<img src='app/icon.png' width='200px'>
 
 ## demo
 
@@ -42,6 +42,102 @@ The app has these requirements:
 The easiest way to run the app may be from Amazon's [Elastic Beanstalk](https://aws.amazon.com/elasticbeanstalk/), but the app does require a secured connection for [Cognito](https://aws.amazon.com/cognito/)'s callback, which is easiest to set up with a load balancer on Elastic Beanstalk.
 
 Another simple hosting option is Google's [App Engine](https://cloud.google.com/appengine/), but it will sometimes maintain multiple instances by default, so that may be something to manage.
+
+```mermaid
+flowchart LR
+    classDef process fill:#00700040
+    classDef endpoint fill:#00ff0050
+    node[Server] -- establish/update schedules --> beep(beep):::process
+    status{{/status}}:::endpoint -- request beep status --> node
+    op{{/opperation}}:::endpoint -- request info / update --> node
+    signin{{/signin}}:::endpoint -- request signin --> node
+    auth{{/auth}}:::endpoint -- grant access --> node
+    checkin{{/checkin}}:::endpoint -- update access status --> node
+    db[DynamoDB] -- send schedules --> node
+    node -- update schedules --> db
+    beep -- send message--> sns[SNS]
+    sns -- send SMS --> phone[Participant's phone]
+    phone -- confirm recipt --> sns
+    sns -- log delivery status --> lambda[Lambda]
+    lambda -- update delivery status--> status
+    phone -- follow link --> survey[Qualtrics]
+    checkin -- send access status --> survey
+    survey -- check access status --> checkin
+    beep -- update status --> db
+    ui[Client] -- sign in --> signin
+    signin -- redirect --> cognito[Cognito]
+    cognito --> auth
+    node -- send schedules --> ui
+    ui -- edit schedules --> op
+    ui -- maintain session --> session{{/session}}:::endpoint
+    session -- refresh session --> node
+    session -- next session expiry --> ui
+```
+
+### Authentication
+
+```mermaid
+sequenceDiagram
+    /signin -->> Server: GET to request login
+    Server ->> Cognito: assign state to cookie, redirect
+    Cognito ->> Cognito: login
+    Cognito -->> /auth: assign code to cookie, GET
+    /auth -->> Server: GET
+    Server ->> Cognito: verify state, assign token ID, POST code to get token
+    Cognito -->> Server: verify token ID and token, establish session
+```
+
+### Managing Schedules
+
+```mermaid
+sequenceDiagram
+    Note over Server,DynamoDB: server startup
+    Server ->> DynamoDB: scan studies table
+    DynamoDB -->> Server: receive study names
+    Server ->> DynamoDB: scan each study table
+    DynamoDB -->> Server: receive study data
+    Server -->> Server: schedule upcoming beeps
+    Note over Server,list_studies: client startup
+    list_studies -->> Server: request study names
+    Server ->> list_studies: receive study names
+    load_schedules -->> Server: request study data
+    Server ->> load_schedules: receive study data, display schedules
+    loop add or edit schedule/protocol/user
+        action_type -->> Server: action payload
+        Server -->> Server: perform action
+        Server ->> DynamoDB: update store
+        DynamoDB -->> Server: confirm
+        Server ->> action_type: respond
+    end
+    box action types posted to /operation from client
+        participant list_studies
+        participant load_schedules
+        participant action_type
+    end
+```
+
+### Beep Flow
+
+```mermaid
+sequenceDiagram
+    Server -->> Server: schedule beep
+    Note over Server,SNS: triggering beep
+    Server ->> SNS: on beep, publish message
+    SNS -->> Server: confirm publish
+    Server ->> DynamoDB: update beep status
+    Note over SNS,Phone: texting beep message
+    SNS ->> Phone: SMS to participant's phone
+    Phone -->> SNS: confirm
+    Note over SNS,Lambda: delivery status logging
+    SNS ->> Lambda: log SMS status
+    Lambda -->> Server: POST status to /status
+    Server ->> DynamoDB: update beep status
+    Note over Phone,Qualtrics: participant response
+    Phone ->> Qualtrics: participant follows link
+    Qualtrics -->> Server: POST to /checkin
+    Server ->> Qualtrics: allow or deny based on beep protocol and time
+    Server ->> DynamoDB: update beep status
+```
 
 ## services
 
@@ -119,7 +215,7 @@ Qualtrics can also checkin with the app when the survey is accessed:
 1. Add a body parameter, and set its Body Parameters to application/json, Parameter to your ID parameter, and set a String to the extracted ID via Piped Text (e.g., ${e://Field/id})
 1. If you want the checkin to also update the corresponding beep's status and access count, add a body parameter called "access" with a Boolean value of True. The "access" parameter can be used to separate an availability check from a status and accessed count update. For example, you might place a Web Services element without an "access" parameter at the start of the survey, and use it to gate access to the survey (if the survey is visited outside of a beep window, or more than allowed accesses), then add another Web Services element with an "access" parameter after the survey has been started. This would help avoid response time or loading issues in the case of limited allowed accesses (e.g., if the checkin goes through but the survey fails to fully load or receive a response in time, the survey can be refreshed without counting as another access).
 1. Finally, Add Embedded Data..., and set a value for available, accessed, day, days, beep, and beeps
-   ![](docs/example_webservice.png)
+   ![](tools/example_webservice.png)
 
 If the app recognizes the ID, it responds with an object like this:
 
