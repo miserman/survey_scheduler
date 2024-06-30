@@ -1,7 +1,6 @@
-import {Close} from '@mui/icons-material'
+import {Close, ReceiptLong} from '@mui/icons-material'
 import {
   Box,
-  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -11,6 +10,7 @@ import {
   ListItemButton,
   ListItemText,
   Stack,
+  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material'
@@ -21,24 +21,25 @@ import {FeedbackContext, SessionContext} from '../context'
 const fileNameSeps = /[_.]/g
 function formatLogName(file: string) {
   const parts = file.split(fileNameSeps)
-  if (parts.length < 2 || parts[1].length < 6) return file
-  const d = parts[1].split('')
+  const lastPart = parts.length - 2
+  if (lastPart < 0 || parts[lastPart].length < 6) return file
+  const d = parts[lastPart].split('')
   return d[0] + d[1] + '/' + d[2] + d[3] + '/' + d[4] + d[5]
 }
 type LogMetadata = {name: string; date: string; time: Date}
 function byTime(a: LogMetadata, b: LogMetadata) {
   return a.time > b.time ? -1 : 1
 }
-export function ListLogs({prefix}: {prefix: string}) {
+export function ListLogs({study}: {study: string}) {
   const session = useContext(SessionContext)
   const theme = useTheme()
   const notify = useContext(FeedbackContext)
   const [logs, setLogs] = useState<{name: string; date: string; time: Date}[]>([])
   const [showLogs, setShowLogs] = useState(false)
   useEffect(() => {
-    if (session.signedin && showLogs) {
+    if (study && session.signedin && showLogs) {
       const getLogFiles = async () => {
-        const res = await operation({type: 'list_logs', study: 'sessions', prefix})
+        const res = await operation({type: 'list_logs', study})
         if (res.error) {
           notify('failed to list logs: ' + res.status)
           setLogs([])
@@ -59,9 +60,9 @@ export function ListLogs({prefix}: {prefix: string}) {
       }
       getLogFiles()
     }
-  }, [prefix, session.signedin, showLogs, notify])
+  }, [study, session.signedin, showLogs, notify])
   const requestLog = async (file: string) => {
-    const res = await operation({type: 'view_log', study: 'sessions', file})
+    const res = await operation({type: 'view_log', study, file})
     if (res.error) {
       notify('failed to retrieve log ' + file + ': ' + res.status)
     } else {
@@ -72,11 +73,20 @@ export function ListLogs({prefix}: {prefix: string}) {
   const toggleLogs = () => setShowLogs(!showLogs)
   return (
     <>
-      <Button onClick={toggleLogs} variant="contained" disabled={!session.signedin}>
-        Server Logs
-      </Button>
+      <Tooltip title="Server Logs" placement="left">
+        <span>
+          <IconButton onClick={toggleLogs} disabled={!session.signedin}>
+            <ReceiptLong />
+          </IconButton>
+        </span>
+      </Tooltip>
       {showLogs && (
-        <Dialog fullScreen open={showLogs} onClose={toggleLogs}>
+        <Dialog
+          fullScreen
+          open={showLogs}
+          onClose={toggleLogs}
+          sx={{position: 'fixed', top: 48, right: 0, bottom: 0, left: 0, zIndex: 1300}}
+        >
           <DialogTitle sx={{pb: 1}}>Server Logs Viewer</DialogTitle>
           <IconButton
             aria-label="close logs viewer"

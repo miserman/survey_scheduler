@@ -27,6 +27,6 @@ export async function addUser(study: string, name: string, perms: User) {
   } catch (e) {
     status = 'failed to add user ' + name + ' to Cognito' + ': ' + e
   }
-  log('sessions', status === 'success' ? 'added user ' + name + ' to study ' + study : status)
+  log(study, status === 'success' ? 'added user ' + name + ' to study ' + study : status)
   return status
 }

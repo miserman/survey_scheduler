@@ -2,6 +2,7 @@ import {DynamoDBClient, CreateTableCommand, DeleteTableCommand} from '@aws-sdk/c
 import {DeleteCommand, PutCommand, ScanCommand, UpdateCommand} from '@aws-sdk/lib-dynamodb'
 import {StudyMetadata} from '@/app/store/studies'
 import {User} from './user'
+import {Protocol} from './protocol'
 
 const DDB = new DynamoDBClient({region: process.env.REGION})
 
@@ -59,8 +60,31 @@ export function removeStudyUser(study: string, userId: string) {
     new UpdateCommand({
       TableName: 'studies',
       Key: {study},
-      UpdateExpression: 'DELETE #u.#n',
+      UpdateExpression: 'REMOVE #u.#n',
       ExpressionAttributeNames: {'#u': 'users', '#n': userId},
+    })
+  )
+}
+
+export function updateStudyProtocol(study: string, name: string, protocol: Partial<Protocol>) {
+  return DDB.send(
+    new UpdateCommand({
+      TableName: 'studies',
+      Key: {study},
+      UpdateExpression: 'SET #p.#n = :p',
+      ExpressionAttributeNames: {'#p': 'protocols', '#n': name},
+      ExpressionAttributeValues: {':p': protocol},
+    })
+  )
+}
+
+export function removeStudyProtocol(study: string, name: string) {
+  return DDB.send(
+    new UpdateCommand({
+      TableName: 'studies',
+      Key: {study},
+      UpdateExpression: 'REMOVE #p.#n',
+      ExpressionAttributeNames: {'#p': 'protocols', '#n': name},
     })
   )
 }

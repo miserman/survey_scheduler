@@ -58,8 +58,6 @@ export function UserEditDialog({study}: {study: string}) {
       setChanged(false)
     } else {
       user[action.key as 'add_study'] = action.value as boolean
-      // console.log(state.current)
-      // console.log(JSON.stringify(user))
       setChanged(state.current !== JSON.stringify(user))
     }
   }
@@ -75,12 +73,13 @@ export function UserEditDialog({study}: {study: string}) {
     }
   }
   const submitUser = async () => {
-    const req = await operation({type: 'add_user', study, name: user.email as string, perms: new User(user)})
+    const parsed = new User(user)
+    const req = await operation({type: 'add_user', study, name: parsed.email, perms: parsed})
     if (req.error) {
-      notify('failed to ' + (selected === 'New' ? 'add' : 'update') + ' user ' + selected + ': ' + req.status)
+      notify('failed to ' + (selected === 'New' ? 'add' : 'update') + ' user ' + parsed.email + ': ' + req.status)
     } else {
-      notify((selected === 'New' ? 'added' : 'updated') + ' user ' + selected, true)
-      changeUser(selected)
+      notify((selected === 'New' ? 'added' : 'updated') + ' user ' + parsed.email, true)
+      changeUser(parsed.email)
     }
   }
   const deleteUser = async () => {
@@ -95,7 +94,7 @@ export function UserEditDialog({study}: {study: string}) {
   useEffect(() => {
     if (session.signedin && open) {
       const getUsers = async () => {
-        const req = await operation({type: 'list_users', study})
+        const req = await operation({type: 'view_user', study})
         if (req.error) {
           notify('failed to retrieve users: ' + req.status)
         } else {
@@ -112,14 +111,14 @@ export function UserEditDialog({study}: {study: string}) {
       </Button>
       {open && (
         <Dialog open={open} onClose={toggleOpen}>
-          <DialogTitle sx={{pb: 1}}>User Access Editor</DialogTitle>
+          <DialogTitle sx={{p: 1}}>User Access Editor</DialogTitle>
           <IconButton
             aria-label="close user editor"
             onClick={toggleOpen}
             sx={{
               position: 'absolute',
-              right: 8,
-              top: 12,
+              right: 0,
+              top: 4,
             }}
             className="close-button"
           >

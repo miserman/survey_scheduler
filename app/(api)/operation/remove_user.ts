@@ -15,6 +15,6 @@ export async function removeUser(study: string, name: string) {
   } catch (e) {
     status = 'failed to remove user ' + name + ' from study ' + study + ': ' + e
   }
-  log('sessions', status === 'success' ? 'removed user ' + name + ' from study ' + study : status)
+  log(study, status === 'success' ? 'removed user ' + name + ' from study ' + study : status)
   return status
 }

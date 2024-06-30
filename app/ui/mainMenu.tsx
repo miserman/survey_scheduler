@@ -44,7 +44,6 @@ export function MainMenu() {
                 >
                   Change Study
                 </Button>
-                <ListLogs prefix="sessions" />
               </Stack>
             </CardContent>
             <CardActions>

@@ -6,7 +6,15 @@ const stringParams = [
   'link',
   'reminder_message',
 ] as (keyof Protocol)[]
-const numberParams = ['accesses', 'days', 'beeps', 'close_after', 'minsep', 'reminder_after'] as (keyof Protocol)[]
+const numberParams = [
+  'accesses',
+  'days',
+  'beeps',
+  'close_after',
+  'minsep',
+  'offset',
+  'reminder_after',
+] as (keyof Protocol)[]
 const randomizationOptions = ['independent', 'binned', 'none']
 
 export class Protocol {
@@ -15,7 +23,7 @@ export class Protocol {
   days = 0
   beeps = 1
   close_after = 0
-  color = '#555'
+  color = '#555555'
   id_parameter = ''
   initial_message = ''
   link = ''

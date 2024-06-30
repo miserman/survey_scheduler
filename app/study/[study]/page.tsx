@@ -1,8 +1,9 @@
 'use client'
-import {Box, Typography} from '@mui/material'
+import {Box, Stack, Typography} from '@mui/material'
 import {useState} from 'react'
 import {BottomDrawer} from '@/app/ui/bottomDrawer'
 import {UserEditDialog} from '@/app/ui/editUsers'
+import {ProtocolEditDialog} from '@/app/ui/editProtocols'
 
 const drawerHeight = '30vh'
 
@@ -20,11 +21,11 @@ export default function Study({params}: {params: {study: string}}) {
         transition: 'bottom 225ms cubic-bezier(0, 0, 0.2, 1)',
       }}
     >
-      <Typography sx={{fontSize: '1.2em', position: 'fixed', top: 10, left: 50, zIndex: 1301}} noWrap>
-        {params.study}
-      </Typography>
       <BottomDrawer open={drawerOpen} setOpen={setDrawerOpen} height={drawerHeight}>
-        <UserEditDialog study={params.study} />
+        <Stack spacing={1} direction="row">
+          <UserEditDialog study={params.study} />
+          <ProtocolEditDialog study={params.study} />
+        </Stack>
       </BottomDrawer>
     </Box>
   )
