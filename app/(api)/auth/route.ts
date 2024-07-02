@@ -2,7 +2,7 @@ import {cookieOptions} from '@/utils/defaults'
 import {randomBytes} from 'crypto'
 import {cookies} from 'next/headers'
 import {type NextRequest} from 'next/server'
-import {sessions} from '@/app/store/sessions'
+import {sessions} from '@/app/store'
 import {log} from '@/utils/log'
 import {redirect} from 'next/navigation'
 

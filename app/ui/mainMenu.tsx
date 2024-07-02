@@ -1,7 +1,6 @@
 import {Close, DarkMode, LightMode, Menu} from '@mui/icons-material'
 import {Button, Card, CardActions, CardContent, CardHeader, Drawer, IconButton, Stack, useTheme} from '@mui/material'
 import {useContext, useState} from 'react'
-import {ListLogs} from './logs'
 import {useRouter} from 'next/navigation'
 import {PaletteModeContext, SessionContext} from '../context'
 

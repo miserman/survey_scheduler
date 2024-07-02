@@ -1,6 +1,6 @@
 'use client'
 import {createContext, useCallback, useEffect, useMemo, useReducer, useState, type ReactNode} from 'react'
-import type {SessionStatus} from './store/sessions'
+import type {SessionStatus} from '../lib/sessions'
 import {MS_HOUR} from '@/utils/times'
 import {Box, Container, CssBaseline, ThemeProvider, createTheme, useMediaQuery} from '@mui/material'
 import {Nav} from './ui/nav'

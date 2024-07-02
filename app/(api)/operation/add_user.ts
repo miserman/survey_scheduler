@@ -1,6 +1,6 @@
 import {updateStudyUser} from '@/lib/database'
 import {User, cognitoAddUser} from '@/lib/user'
-import {studies} from '@/app/store/studies'
+import {studies} from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function addUser(study: string, name: string, perms: User) {

@@ -1,6 +1,6 @@
 import {log} from '@/utils/log'
 import {NextRequest} from 'next/server'
-import {sessions} from '../../store/sessions'
+import {sessions} from '@/app/store'
 import {redirect} from 'next/navigation'
 
 export async function GET(request: NextRequest) {

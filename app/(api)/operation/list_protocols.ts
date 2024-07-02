@@ -1,4 +1,4 @@
-import {studies, studiesStatus} from '@/app/store/studies'
+import {studies, studiesStatus} from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function listProtocols(study: string) {

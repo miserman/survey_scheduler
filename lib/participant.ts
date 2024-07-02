@@ -1,4 +1,4 @@
-import {MS_DAY, MS_HOUR, MS_MINUTE, TIMEZONE_OFFSET, dashdate, format_time, timeToMs} from '@/utils/times'
+import {MS_DAY, MS_HOUR, MS_MINUTE, MS_WEEK, TIMEZONE_OFFSET, dashdate, format_time, timeToMs} from '@/utils/times'
 import type {Blackout} from './blackout'
 import type {Protocol, Protocols} from './protocol'
 import Schedule from './schedule'
@@ -17,6 +17,8 @@ function getProtocolDays(protocolDays: number, scheduleDays: number, nProtocols:
 function byRandom() {
   return Math.random() - 0.5
 }
+
+const scheduledBeeps = new Map<string, NodeJS.Timeout>()
 
 export default class Participant {
   // always specified
@@ -40,18 +42,33 @@ export default class Participant {
   timezone = 0
   end_ms: DayParsed = {day: 0, time: 0}
   start_ms: DayParsed = {day: 0, time: 0}
+  study = ''
 
-  constructor(participant: Partial<Participant>) {
+  // environment-based
+  messager = (day: Schedule, index: number) => {}
+  logger = (message: string) => {}
+
+  constructor(
+    participant: Partial<Participant>,
+    messager?: (day: Schedule, index: number) => void,
+    logger?: (messager: string) => void
+  ) {
     const spec = Object(participant)
     Object.keys(spec).forEach(k => {
       const value = spec[k as keyof Participant]
       if ('undefined' !== typeof value) (this[k as keyof Participant] as typeof value) = value
     })
-    this.updateDate(spec.start.day, 'start')
-    this.updateDate(spec.end.day, 'end')
-    this.updateTime(spec.start.time, 'start')
-    this.updateTime(spec.end.time, 'end')
+    if ('start' in spec) {
+      this.updateDate(spec.start.day, 'start')
+      this.updateTime(spec.start.time, 'start')
+    }
+    if ('end' in spec) {
+      this.updateDate(spec.end.day, 'end')
+      this.updateTime(spec.end.time, 'end')
+    }
     if (!this.timezone) this.timezone = TIMEZONE_OFFSET / MS_MINUTE
+    if (messager) this.messager = messager
+    if (logger) this.logger = logger
   }
   updateDate(newDay: string | number, which: 'start' | 'end') {
     if ('number' === typeof newDay) newDay = dashdate(newDay)
@@ -137,4 +154,42 @@ export default class Participant {
       this.scheduleDay(start + i * MS_DAY, protocols[this.protocol_order[i]], i)
     }
   }
+  checkBeep(day: number, index: number) {
+    const now = Date.now()
+    let status: 'ineligible' | 'standard' | 'paused' | 'late' = 'ineligible'
+    if (day > -1 && this.schedule.length < day) {
+      const daySchedule = this.schedule[index]
+      if (index > -1 && daySchedule.times.length < index) {
+        const time = daySchedule.times[index]
+        const priorStatus = daySchedule.statuses[index]
+        if ((priorStatus === 1 || priorStatus === 6) && time > now - MS_MINUTE * 15 && time < now + MS_WEEK) {
+          status = time > now ? (priorStatus === 1 ? 'standard' : 'paused') : 'late'
+        }
+      }
+    }
+    return status
+  }
+  sendBeep(day: number, index: number) {
+    const status = this.checkBeep(day, index)
+    if (status !== 'ineligible') {
+      this.messager(this.schedule[day], index)
+    }
+  }
+  establish() {
+    const now = Date.now()
+    this.schedule.forEach((daySchedule, day) => {
+      daySchedule.times.forEach((time, index) => {
+        const status = this.checkBeep(day, index)
+        if (status === 'standard' || status === 'paused') {
+          scheduledBeeps.set(
+            this.study + this.id + day + index,
+            setTimeout(() => {
+              this.sendBeep(day, index)
+            }, time - now)
+          )
+        }
+      })
+    })
+  }
 }
+export type Participants = {[index: string]: Participant}

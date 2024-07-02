@@ -1,6 +1,6 @@
 import {updateStudyProtocol} from '@/lib/database'
 import {Protocol} from '@/lib/protocol'
-import {studies} from '@/app/store/studies'
+import {studies} from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function addProtocol(study: string, name: string, params: Protocol) {

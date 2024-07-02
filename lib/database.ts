@@ -1,6 +1,6 @@
 import {DynamoDBClient, CreateTableCommand, DeleteTableCommand} from '@aws-sdk/client-dynamodb'
 import {DeleteCommand, PutCommand, ScanCommand, UpdateCommand} from '@aws-sdk/lib-dynamodb'
-import {StudyMetadata} from '@/app/store/studies'
+import {StudyMetadata} from '@/lib/studies'
 import {User} from './user'
 import {Protocol} from './protocol'
 

@@ -1,6 +1,6 @@
 import {log} from '@/utils/log'
 import {createTable, scanTable} from '@/lib/database'
-import type Participant from '@/lib/participant'
+import Participant from '@/lib/participant'
 import {Protocol, type Protocols} from '@/lib/protocol'
 import type {User, Users} from '@/lib/user'
 
@@ -58,6 +58,16 @@ export class Study {
   updateUsers(users: Users) {
     this.users = users
   }
+  updateParticipants(participants: Participant[]) {
+    this.participants = {}
+    participants.forEach(p => (this.participants[p.id] = new Participant(p)))
+  }
+  establishSchedules() {
+    Object.keys(this.participants).forEach(name => {
+      const participant = this.participants[name]
+      participant.establish()
+    })
+  }
   export() {
     const res = {study: this.name, protocols: {}, users: {}} as StudyMetadata
     Object.keys(this.protocols).forEach(name => (res.protocols[name] = this.protocols[name].export()))
@@ -66,20 +76,14 @@ export class Study {
   }
 }
 
-export const studies: {
-  [index: string]: Study
-} = {}
-export const studiesStatusResolvers: {[index: string]: (value: boolean) => void} = {
-  studies_table_scanned: (value: boolean) => {},
-}
-export const studiesStatus: {[index: string]: Promise<boolean>} = {
-  studies_table_scanned: new Promise<boolean>(resolve => {
-    studiesStatusResolvers.studies_table_scanned = resolve
-  }),
-}
+export type Studies = {[index: string]: Study}
 
 // retrieve study list with users and protocols
-async function scanStudies() {
+export async function scanStudies(
+  studies: Studies,
+  statuses: {[index: string]: Promise<boolean>},
+  resolvers: {[index: string]: (value: boolean) => void}
+) {
   try {
     const studiesTable = await scanTable('studies')
     if (studiesTable.$metadata.httpStatusCode === 400) {
@@ -98,16 +102,24 @@ async function scanStudies() {
         studiesTable.Items.forEach(item => {
           const {study, protocols, users} = item as {study: string; protocols: Protocols; users: Users}
           if (study in studies) {
+            console.log('adding protocols and users to existing study')
             const s = studies[study]
             s.updateProtocols(protocols)
             s.updateUsers(users)
           } else {
+            console.log('making new study from protocols and users')
             studies[study] = new Study(study, {protocols, users})
           }
+          statuses[study] = new Promise(resolve => {
+            resolvers[study] = resolve
+          })
+          retrieveStudy(study, studies, resolvers[study])
         })
-        studiesStatusResolvers.studies_table_scanned(true)
+        resolvers.studies_table_scanned(true)
+        log('sessions', 'scanned studies table')
+      } else {
+        log('sessions', 'scanned studies table with no items')
       }
-      log('sessions', 'scanned studies table')
     } else {
       log('sessions', 'failed to make scan request: HTTP Code ' + studiesTable.$metadata.httpStatusCode)
     }
@@ -115,4 +127,34 @@ async function scanStudies() {
     log('sessions', 'failed to can studies table: ' + e)
   }
 }
-scanStudies()
+
+// retrieve participant schedules
+async function retrieveStudy(study: string, studies: Studies, resolver: (value: boolean) => void) {
+  try {
+    const studySchedules = await scanTable(study)
+    if (studySchedules.$metadata.httpStatusCode === 200) {
+      if (studySchedules.Items) {
+        if (study in studies) {
+          console.log('adding participants to existing study')
+          const s = studies[study]
+          s.dbcopy = studySchedules as unknown as {Items: Participant[]}
+          s.updateParticipants(s.dbcopy.Items)
+        } else {
+          console.log('making new study with participants')
+          studies[study] = new Study(study, studySchedules as unknown as {Items: Participant[]})
+        }
+        resolver(true)
+        log(study, 'scanned participants table')
+      } else {
+        log(study, 'scanned participant table with no items')
+      }
+    } else {
+      log(
+        study,
+        'failed to make retrieve study ' + study + ' request: HTTP Code ' + studySchedules.$metadata.httpStatusCode
+      )
+    }
+  } catch (e) {
+    log(study, 'failed to retrieve study ' + study + ': ' + e)
+  }
+}

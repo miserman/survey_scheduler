@@ -1,7 +1,6 @@
 import {log} from '@/utils/log'
 import {NextRequest} from 'next/server'
-import {messageMap} from '@/app/store/messages'
-import {studies} from '@/app/store/studies'
+import {messageMap, studies} from '@/app/store'
 
 function email_notification(Subject: string, Message: string) {
   // if (process.env.NOTIFICATIONS)

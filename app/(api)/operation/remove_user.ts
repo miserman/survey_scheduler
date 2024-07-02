@@ -1,5 +1,5 @@
 import {removeStudyUser} from '@/lib/database'
-import {studies} from '@/app/store/studies'
+import {studies} from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function removeUser(study: string, name: string) {

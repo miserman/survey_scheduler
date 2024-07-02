@@ -12,6 +12,7 @@ export type Operations =
   | {type: 'view_protocol'; study: string}
   | {type: 'add_protocol'; study: string; name: string; params: Protocol}
   | {type: 'remove_protocol'; study: string; name: string}
+  | {type: 'view_participant'; study: string}
 
 export async function operation(
   body: Operations
@@ -22,5 +23,5 @@ export async function operation(
   })
   return req.ok
     ? {error: false, content: await req.json()}
-    : {error: true, status: req.status + ' (' + req.statusText + ')', message: await req.json()}
+    : {error: true, status: req.status + ' (' + req.statusText + ')', message: await req.text()}
 }

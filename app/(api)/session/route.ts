@@ -1,5 +1,5 @@
 import {cookies} from 'next/headers'
-import {sessions} from '@/app/store/sessions'
+import {sessions} from '@/app/store'
 import {MS_HOUR} from '@/utils/times'
 import {log} from '@/utils/log'
 

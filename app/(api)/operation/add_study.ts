@@ -1,6 +1,7 @@
 import {createTable, updateTable} from '@/lib/database'
 import {User} from '@/lib/user'
-import {Study, studies} from '@/app/store/studies'
+import {Study} from '@/lib/studies'
+import {studies} from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function addStudy(user: string, name: string) {
