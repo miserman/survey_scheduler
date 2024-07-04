@@ -92,7 +92,7 @@ export default function UserEditDialog({study, open, onClose}: {study: string; o
   useEffect(() => {
     if (session.signedin) {
       const getUsers = async () => {
-        const req = await operation({type: 'view_user', study})
+        const req = await operation<Users>({type: 'view_user', study})
         if (req.error) {
           notify('failed to retrieve users: ' + req.status)
         } else {

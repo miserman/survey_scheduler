@@ -193,3 +193,11 @@ export default class Participant {
   }
 }
 export type Participants = {[index: string]: Participant}
+
+export class ParticipantSummary {
+  upcoming = 0
+  orders: {[index: string]: number} = {}
+  protocols: {[index: string]: number} = {}
+  first = {earliest: Infinity, latest: -Infinity}
+  last = {earliest: Infinity, latest: -Infinity}
+}

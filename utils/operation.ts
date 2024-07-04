@@ -14,9 +14,9 @@ export type Operations =
   | {type: 'remove_protocol'; study: string; name: string}
   | {type: 'view_participant'; study: string}
 
-export async function operation(
+export async function operation<T>(
   body: Operations
-): Promise<{error: false; content: any} | {error: true; status: string; message: any}> {
+): Promise<{error: false; content: T} | {error: true; status: string; message: any}> {
   const req = await fetch('/operation', {
     method: 'POST',
     body: JSON.stringify(body),

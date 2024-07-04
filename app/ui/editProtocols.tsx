@@ -25,7 +25,7 @@ import {
 } from '@mui/material'
 import {ReactNode, SyntheticEvent, useContext, useEffect, useMemo, useReducer, useState} from 'react'
 import {FeedbackContext, SessionContext} from '../context'
-import {Protocol, Protocols} from '@/lib/protocol'
+import {Protocol, type Protocols} from '@/lib/protocol'
 import {Close} from '@mui/icons-material'
 import {ConfirmUpdate} from './confirmUpdate'
 
@@ -139,7 +139,7 @@ export default function ProtocolEditDialog({
   useEffect(() => {
     if (session.signedin && open) {
       const getProtocols = async () => {
-        const req = await operation({type: 'view_protocol', study})
+        const req = await operation<Protocols>({type: 'view_protocol', study})
         if (req.error) {
           notify('failed to retrieve protocols: ' + req.status)
         } else {
