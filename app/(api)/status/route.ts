@@ -1,6 +1,6 @@
 import {log} from '@/utils/log'
 import {NextRequest} from 'next/server'
-import {messageMap, studies} from '@/app/store'
+import useStore from '@/app/store'
 
 function email_notification(Subject: string, Message: string) {
   // if (process.env.NOTIFICATIONS)
@@ -18,6 +18,7 @@ function email_notification(Subject: string, Message: string) {
 
 // receive message status updates from SNS and Lambda
 export async function POST(request: NextRequest) {
+  const {messageMap, studies} = useStore()
   const body = {messageId: '', providerResponse: '', timestamp: '', status: ''}
   if (request.body) {
     if (body.messageId && body.messageId in messageMap) {

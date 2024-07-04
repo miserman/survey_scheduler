@@ -2,13 +2,14 @@ import {cookieOptions} from '@/utils/defaults'
 import {randomBytes} from 'crypto'
 import {cookies} from 'next/headers'
 import {type NextRequest} from 'next/server'
-import {sessions} from '@/app/store'
+import useStore from '@/app/store'
 import {log} from '@/utils/log'
 import {redirect} from 'next/navigation'
 
 const {DOMAIN, REGION, REDIRECT, CLIENT} = process.env
 
 async function establishSession(request: NextRequest, development: boolean) {
+  const {sessions} = useStore()
   const state = request.nextUrl.searchParams.get('state')
   const cookieState = request.cookies.get('id')
   if (state && cookieState && state === cookieState.value) {

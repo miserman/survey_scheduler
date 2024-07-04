@@ -12,15 +12,20 @@ import {listProtocols} from './list_protocols'
 import {addProtocol} from './add_protocol'
 import {removeProtocol} from './remove_protocol'
 import {listParticipants} from './list_participants'
-import {sessions, studies} from '@/app/store'
+import useStore from '@/app/store'
 
 const openAccess = {
   load_schedule: true,
   rescan: true,
   list_logs: true,
 }
+const logActions = {
+  list_logs: true,
+  view_log: true,
+}
 
 export async function POST(request: NextRequest) {
+  const {studies, sessions} = useStore()
   const req = (await request.json()) as Operations
   const id = request.cookies.get('id')
   const session = id && sessions.get(id.value)
@@ -29,8 +34,17 @@ export async function POST(request: NextRequest) {
     if ('list_studies' === req.type) {
       const studies = username ? await listStudies(username) : []
       return Response.json(studies)
-    } else if ('list_logs' === req.type && req.study === 'sessions' && username === process.env.ADMIN) {
-      return Response.json(await listLogs(req.study + ''))
+    } else if (
+      req.study === 'sessions' &&
+      req.type in logActions &&
+      (username === process.env.ADMIN || username === 'test_user')
+    ) {
+      switch (req.type) {
+        case 'list_logs':
+          return Response.json(await listLogs(req.study + ''))
+        case 'view_log':
+          return Response.json(await readLog(req.file + ''))
+      }
     } else if (session.payload && req.study in studies) {
       const perms = studies[req.study].users[username]
       if (!perms || (!(req.type in openAccess) && !perms[req.type as keyof typeof perms])) {

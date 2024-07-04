@@ -1,10 +1,11 @@
 import {createTable, updateTable} from '@/lib/database'
 import {User} from '@/lib/user'
 import {Study} from '@/lib/studies'
-import {studies} from '@/app/store'
+import useStore from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function addStudy(user: string, name: string) {
+  const {studies} = useStore()
   let status = 'failed to add study ' + name + ': unknown'
   try {
     const createRequest = await createTable(name, 'id')

@@ -1,9 +1,10 @@
 import {log} from '@/utils/log'
 import {NextRequest} from 'next/server'
-import {sessions} from '@/app/store'
+import useStore from '@/app/store'
 import {redirect} from 'next/navigation'
 
 export async function GET(request: NextRequest) {
+  const {sessions} = useStore()
   const id = request.cookies.get('id')
   const session = id && sessions.get(id.value)
   if (id && session) {

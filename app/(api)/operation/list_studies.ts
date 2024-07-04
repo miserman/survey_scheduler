@@ -1,7 +1,8 @@
-import {studies, studiesStatus} from '@/app/store'
+import useStore from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function listStudies(user: string) {
+  const {studies, studiesStatus} = useStore()
   await studiesStatus.studies_table_scanned
   const selection: string[] = []
   Object.keys(studies).forEach(study => {

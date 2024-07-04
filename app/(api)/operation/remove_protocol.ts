@@ -1,8 +1,9 @@
 import {removeStudyProtocol} from '@/lib/database'
-import {studies} from '@/app/store'
+import useStore from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function removeProtocol(study: string, name: string) {
+  const {studies} = useStore()
   let status = 'failed to remove protocol ' + name + ' from study ' + study + ': unknown'
   try {
     const createRequest = await removeStudyProtocol(study, name)

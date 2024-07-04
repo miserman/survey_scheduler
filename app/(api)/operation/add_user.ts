@@ -1,9 +1,10 @@
 import {updateStudyUser} from '@/lib/database'
 import {User, cognitoAddUser} from '@/lib/user'
-import {studies} from '@/app/store'
+import useStore from '@/app/store'
 import {log} from '@/utils/log'
 
 export async function addUser(study: string, name: string, perms: User) {
+  const {studies} = useStore()
   let status = 'failed to add user ' + name + ' to study ' + study + ': unknown'
   const user = new User(perms)
   try {

@@ -1,9 +1,10 @@
 import {cookies} from 'next/headers'
-import {sessions} from '@/app/store'
+import useStore from '@/app/store'
 import {MS_HOUR} from '@/utils/times'
 import {log} from '@/utils/log'
 
 export async function GET() {
+  const {sessions} = useStore()
   const res = {signedin: false, expires: Date.now() + MS_HOUR}
   const id = cookies().get('id')
   if (id && id.value) {
