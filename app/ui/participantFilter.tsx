@@ -94,11 +94,11 @@ export function ParticipantFilter({
           Reset
         </Button>
       </Stack>
-      <Stack direction="row" spacing={1}>
+      <Stack direction="row" spacing={1} sx={{overflowX: 'auto'}}>
         <Paper elevation={5} sx={{p: 1}}>
           <Stack spacing={1}>
             <Typography>Participant Info</Typography>
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} sx={{minWidth: '200px'}}>
               <TextField size="small" label="ID Contains" name="id" value={filter.id} onChange={handleChange} />
               <IconButton onClick={() => filterAction({type: 'update', key: 'id', value: ''})}>
                 <Close />
@@ -118,7 +118,7 @@ export function ParticipantFilter({
             </Stack>
           </Stack>
         </Paper>
-        <Paper elevation={5} sx={{p: 1}}>
+        <Paper elevation={5} sx={{p: 1, '& span.MuiTypography-root': {whiteSpace: 'nowrap'}}}>
           <Typography>Schedule Parameters</Typography>
           <Stack spacing={1} direction="row">
             <FormControl>
@@ -173,7 +173,7 @@ export function ParticipantFilter({
         </Paper>
         <Paper elevation={5} sx={{p: 1}}>
           <Typography>Beep Times</Typography>
-          <Stack spacing={3} sx={{pt: 2}}>
+          <Stack spacing={3} sx={{pt: 2, minWidth: '530px'}}>
             <Stack spacing={1} direction="row">
               <Stack direction="row">
                 <DateTimePicker

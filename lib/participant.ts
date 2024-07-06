@@ -3,7 +3,6 @@ import type {Blackout} from './blackout'
 import type {Protocol, Protocols} from './protocol'
 import Schedule from './schedule'
 
-type DayEntered = {day: string; time: string}
 type DayParsed = {day: number; time: number}
 
 function getProtocolDays(protocolDays: number, scheduleDays: number, nProtocols: number) {
@@ -23,15 +22,17 @@ const scheduledBeeps = new Map<string, NodeJS.Timeout>()
 export default class Participant {
   // always specified
   id = ''
-  end: DayEntered = {day: '', time: ''}
-  start: DayEntered = {day: '', time: ''}
+  start_day = ''
+  start_time = ''
+  end_day = ''
+  end_time = ''
 
   // valid defaults
   protocols: string[] = []
   blackouts: Blackout[] = []
   daysofweek = [true, true, true, true, true, true, true]
   order_type: 'shuffle' | 'sample' | 'ordered' = 'shuffle'
-  phone = 0
+  phone = ''
 
   // always filled
   schedule: Schedule[] = []
@@ -49,30 +50,28 @@ export default class Participant {
   logger = (message: string) => {}
 
   constructor(
-    participant: Partial<Participant>,
+    participant?: Partial<Participant>,
     messager?: (day: Schedule, index: number) => void,
     logger?: (messager: string) => void
   ) {
-    const spec = Object(participant)
+    const spec = Object(participant || {})
     Object.keys(spec).forEach(k => {
       const value = spec[k as keyof Participant]
       if ('undefined' !== typeof value) (this[k as keyof Participant] as typeof value) = value
     })
-    if ('start' in spec) {
-      this.updateDate(spec.start.day, 'start')
-      this.updateTime(spec.start.time, 'start')
-    }
-    if ('end' in spec) {
-      this.updateDate(spec.end.day, 'end')
-      this.updateTime(spec.end.time, 'end')
-    }
+    this.phone += ''
+    this.updateDate(spec.start_day, 'start')
+    this.updateTime(spec.start_time, 'start')
+    this.updateDate(spec.end_day, 'end')
+    this.updateTime(spec.end_time, 'end')
     if (!this.timezone) this.timezone = TIMEZONE_OFFSET / MS_MINUTE
     if (messager) this.messager = messager
     if (logger) this.logger = logger
   }
   updateDate(newDay: string | number, which: 'start' | 'end') {
     if ('number' === typeof newDay) newDay = dashdate(newDay)
-    this[which].day = newDay
+    if (!newDay) newDay = dashdate(Date.now())
+    this[`${which}_day`] = newDay
     this[`${which}_ms`].day = new Date(newDay + 'T12:00:00').getTime()
     if (this.end_ms.day && this.start_ms.day) {
       this.n_days = Math.floor((this.end_ms.day - this.start_ms.day) / MS_DAY) + 1
@@ -80,7 +79,8 @@ export default class Participant {
   }
   updateTime(newTime: string | number, which: 'start' | 'end') {
     if ('number' === typeof newTime) newTime = format_time(newTime)
-    this[which].time = newTime
+    if (!newTime) newTime = format_time(Date.now())
+    this[`${which}_time`] = newTime
     this[`${which}_ms`].time = timeToMs(newTime)
   }
   rollProtocols(protocols: Protocols, start = 0) {

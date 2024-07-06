@@ -12,8 +12,10 @@ export default function Home() {
   const notify = useContext(FeedbackContext)
 
   const [studies, setStudies] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
   useEffect(() => {
     if (session.signedin) {
+      setLoading(true)
       const getStudyNames = async () => {
         const res = await operation({type: 'list_studies'})
         if (res.error) {
@@ -22,6 +24,7 @@ export default function Home() {
         } else {
           setStudies(res.content as string[])
         }
+        setLoading(false)
       }
       getStudyNames()
     }
@@ -44,11 +47,11 @@ export default function Home() {
       forwardRef<HTMLDivElement>(function StudiesListWrap(props, ref) {
         return (
           <div ref={ref} {...props}>
-            <StudiesList signedin={session.signedin} studies={studies} updateStudies={setStudies} />
+            <StudiesList signedin={session.signedin} studies={studies} updateStudies={setStudies} loading={loading} />
           </div>
         )
       }),
-    [session.signedin, studies]
+    [session.signedin, studies, loading]
   )
 
   return (

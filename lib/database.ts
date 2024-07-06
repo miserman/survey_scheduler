@@ -1,8 +1,9 @@
 import {DynamoDBClient, CreateTableCommand, DeleteTableCommand} from '@aws-sdk/client-dynamodb'
 import {DeleteCommand, PutCommand, ScanCommand, UpdateCommand} from '@aws-sdk/lib-dynamodb'
-import {StudyMetadata} from '@/lib/studies'
-import {User} from './user'
-import {Protocol} from './protocol'
+import type {StudyMetadata} from '@/lib/studies'
+import type {User} from './user'
+import type {Protocol} from './protocol'
+import type Participant from './participant'
 
 const DDB = new DynamoDBClient({region: process.env.REGION})
 
@@ -39,7 +40,7 @@ export function scanTable(TableName: string) {
   return DDB.send(new ScanCommand({TableName}))
 }
 
-export function updateTable(TableName: string, Item: StudyMetadata) {
+export function updateTable(TableName: string, Item: StudyMetadata | Participant) {
   return DDB.send(new PutCommand({TableName, Item}))
 }
 

@@ -13,6 +13,8 @@ import {addProtocol} from './add_protocol'
 import {removeProtocol} from './remove_protocol'
 import {listParticipants} from './list_participants'
 import useStore from '@/app/store'
+import {removeParticipant} from './remove_participant'
+import {addParticipant} from './add_participant'
 
 const openAccess = {
   load_schedule: true,
@@ -46,42 +48,48 @@ export async function POST(request: NextRequest) {
           return Response.json(await readLog(req.file + ''))
       }
     } else if (session.payload && req.study in studies) {
-      const perms = studies[req.study].users[username]
+      const study = req.study + ''
+      const perms = studies[study].users[username]
       if (!perms || (!(req.type in openAccess) && !perms[req.type as keyof typeof perms])) {
         return new Response(null, {status: 403})
       }
       let status = 'failed'
       switch (req.type) {
         case 'list_logs':
-          const logs = await listLogs(req.study + '')
+          const logs = await listLogs(study)
           return Response.json(logs)
         case 'view_log':
           const logContent = await readLog(req.file + '')
           return Response.json(logContent)
         case 'add_study':
-          return Response.json(await addStudy(username, req.study + ''))
+          return Response.json(await addStudy(username, study))
         case 'remove_study':
-          status = await removeStudy(req.study + '')
+          status = await removeStudy(study)
           return Response.json(status, {status: status === 'success' ? 200 : 500})
         case 'view_user':
-          const users = await listUsers(req.study + '')
+          const users = await listUsers(study)
           return Response.json(users)
         case 'add_user':
-          return Response.json(await addUser(req.study + '', req.name + '', req.perms))
+          return Response.json(await addUser(study, req.name + '', req.perms))
         case 'remove_user':
-          status = await removeUser(req.study + '', req.name + '')
+          status = await removeUser(study, req.name + '')
           return Response.json(status, {status: status === 'success' ? 200 : 500})
         case 'view_protocol':
-          const protocols = await listProtocols(req.study + '')
+          const protocols = await listProtocols(study)
           return Response.json(protocols)
         case 'add_protocol':
-          return Response.json(await addProtocol(req.study + '', req.name + '', req.params))
+          return Response.json(await addProtocol(study, req.name + '', req.params))
         case 'remove_protocol':
-          status = await removeProtocol(req.study + '', req.name + '')
+          status = await removeProtocol(study, req.name + '')
           return Response.json(status, {status: status === 'success' ? 200 : 500})
         case 'view_participant':
-          const participants = await listParticipants(req.study + '')
+          const participants = await listParticipants(study)
           return Response.json(participants)
+        case 'add_participant':
+          return Response.json(await addParticipant(study, req.id + '', req.participant))
+        case 'remove_participant':
+          status = await removeParticipant(study, req.id + '')
+          return Response.json(status, {status: status === 'success' ? 200 : 500})
         default:
           return new Response(null, {status: 405})
       }

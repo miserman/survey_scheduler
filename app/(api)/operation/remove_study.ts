@@ -18,7 +18,7 @@ export async function removeStudy(name: string) {
             updateRequest.$metadata.httpStatusCode
         }
       } catch (e) {
-        status = 'failed to remove study ' + name + ' from studies table'
+        status = 'failed to remove study ' + name + ' from studies table: ' + e
       }
     } else {
       status = 'failed to make delete request for ' + name + ': HTTP status ' + removeRequest.$metadata.httpStatusCode

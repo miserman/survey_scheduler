@@ -1,18 +1,21 @@
 import {operation} from '@/utils/operation'
-import {Button, Divider, List, ListItem, ListItemButton, ListItemText} from '@mui/material'
+import {Button, Divider, IconButton, List, ListItem, ListItemButton, ListItemText, Skeleton} from '@mui/material'
 import {ConfirmDelete} from './confirmDelete'
 import {useContext} from 'react'
 import {FeedbackContext} from '../context'
 import {useRouter} from 'next/navigation'
+import {Delete} from '@mui/icons-material'
 
 export function StudiesList({
   signedin,
   studies,
   updateStudies,
+  loading,
 }: {
   signedin: boolean
   studies: string[]
   updateStudies: (studies: string[]) => void
+  loading: boolean
 }) {
   const router = useRouter()
   const notify = useContext(FeedbackContext)
@@ -47,9 +50,16 @@ export function StudiesList({
             </ListItem>
           ))
         ) : (
-          <ListItem disableGutters>
+          <ListItem
+            disableGutters
+            secondaryAction={
+              <IconButton disabled>
+                <Delete />
+              </IconButton>
+            }
+          >
             <ListItemButton disabled>
-              <ListItemText primary="No existing studies." />
+              <ListItemText primary={loading ? <Skeleton variant="text" animation="wave" /> : 'No existing studies.'} />
             </ListItemButton>
           </ListItem>
         )

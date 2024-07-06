@@ -10,6 +10,7 @@ import {operation} from '@/utils/operation'
 import {ParticipantFilter, defaultFilter, updateFilter} from '@/app/ui/participantFilter'
 import Participant from '@/lib/participant'
 
+const ParticipantEditDialog = dynamic(() => import('@/app/ui/editParticipant'))
 const UserEditDialog = dynamic(() => import('@/app/ui/editUsers'))
 const ProtocolEditDialog = dynamic(() => import('@/app/ui/editProtocols'))
 
@@ -19,6 +20,7 @@ export default function Study({params}: {params: {study: string}}) {
   const session = useContext(SessionContext)
   const notify = useContext(FeedbackContext)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [participantOpen, setParticipantOpen] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
   const [protocolOpen, setProtocolOpen] = useState(false)
 
@@ -134,7 +136,7 @@ export default function Study({params}: {params: {study: string}}) {
       >
         <Stack spacing={1} direction="row" sx={{pl: 1, width: '100%', justifyContent: 'space-between'}}>
           <Stack direction="row" spacing={1}>
-            <Button variant="contained" onClick={() => setUserOpen(true)}>
+            <Button variant="contained" onClick={() => setParticipantOpen(true)}>
               Participants
             </Button>
             <Typography className="note" sx={{alignSelf: 'center'}}>
@@ -151,6 +153,14 @@ export default function Study({params}: {params: {study: string}}) {
           </Stack>
         </Stack>
       </BottomDrawer>
+      {participantOpen && (
+        <ParticipantEditDialog
+          study={params.study}
+          open={participantOpen}
+          onClose={() => setParticipantOpen(false)}
+          protocols={Object.keys(summary.protocols)}
+        />
+      )}
       {userOpen && <UserEditDialog study={params.study} open={userOpen} onClose={() => setUserOpen(false)} />}
       {protocolOpen && (
         <ProtocolEditDialog study={params.study} open={protocolOpen} onClose={() => setProtocolOpen(false)} />

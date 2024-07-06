@@ -1,5 +1,6 @@
-import {Protocol} from '@/lib/protocol'
-import {User} from '@/lib/user'
+import type Participant from '@/lib/participant'
+import type {Protocol} from '@/lib/protocol'
+import type {User} from '@/lib/user'
 
 export type Operations =
   | {type: 'list_studies'}
@@ -13,6 +14,8 @@ export type Operations =
   | {type: 'add_protocol'; study: string; name: string; params: Protocol}
   | {type: 'remove_protocol'; study: string; name: string}
   | {type: 'view_participant'; study: string}
+  | {type: 'add_participant'; study: string; id: string; participant: Participant}
+  | {type: 'remove_participant'; study: string; id: string}
 
 export async function operation<T>(
   body: Operations

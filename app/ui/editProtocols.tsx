@@ -97,14 +97,13 @@ export default function ProtocolEditDialog({
   }
   const handleChange = (e: SyntheticEvent, value?: boolean) => {
     if ('name' in e.target) {
+      const key = e.target.name as keyof Protocol
       if ('undefined' === typeof value) {
         if ('value' in e.target) {
           const value = e.target.value as string
-          const key = e.target.name as keyof Protocol
           requestAnimationFrame(() => updateState({type: 'edit', key, value}))
         }
       } else {
-        const key = e.target.name as keyof Protocol
         requestAnimationFrame(() => updateState({type: 'edit', key, value}))
       }
     }

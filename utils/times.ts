@@ -1,3 +1,5 @@
+import dayjs from 'dayjs'
+
 export const MS_SECOND = 1000
 export const MS_MINUTE = MS_SECOND * 60
 export const MS_HOUR = MS_MINUTE * 60
@@ -21,6 +23,7 @@ export function dashdate(time: number) {
 
 const patterns = {
   apm: /[ap:]/i,
+  ap: /[ap]/i,
   anycolon: /:/,
   colon: /:/g,
   a: /a/i,
@@ -33,20 +36,21 @@ export function timeToMs(time: string) {
   let n = 0
   if (patterns.apm.test(s)) {
     if (patterns.anycolon.test(s)) {
-      p = s.replace(patterns.numpunct, '').split(patterns.colon)
-      n = +p[0]
-      if (n < 12 && patterns.p.test(s)) {
-        n += 12
-      } else if (n === 12 && patterns.a.test(s)) n = 0
-      n = n * 36e5 + +p[1] * 6e4 + (p.length === 3 ? +p[2] * 1e3 : 0)
+      // p = s.replace(patterns.numpunct, '').split(patterns.colon)
+      // n = +p[0]
+      // if (n < 12 && patterns.p.test(s)) {
+      //   n += 12
+      // } else if (n === 12 && patterns.a.test(s)) n = 0
+      // n = n * MS_HOUR + +p[1] * MS_MINUTE + (p.length === 3 ? +p[2] * MS_SECOND : 0)
+      return dayjs(time, patterns.ap.test(s) ? 'hh:mm A' : 'HH:mm').valueOf()
     } else {
       n = +s.replace(patterns.numpunct, '')
       if (n < 12 && patterns.p.test(s)) n += 12
-      n *= 36e5
+      n *= MS_HOUR
     }
   } else {
     n = +time
-    if (n < 36e5) n *= n < 25 ? 36e5 : n < 1440 ? 6e4 : 1e3
+    if (n < MS_HOUR) n *= n < 25 ? MS_HOUR : n < 1440 ? MS_MINUTE : MS_SECOND
   }
   return Math.floor(n)
 }

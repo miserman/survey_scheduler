@@ -7,8 +7,10 @@ describe('roll protocol works', function () {
   const protocols = {a: protocol, b: protocol, c: protocol}
   const p = new Participant({
     id: '123',
-    start: {day: '2024-02-05', time: '08:00'},
-    end: {day: '2024-02-14', time: '17:00'},
+    start_day: '2024-02-05',
+    start_time: '08:00',
+    end_day: '2024-02-14',
+    end_time: '17:00',
   })
 
   test('ordered works', async () => {
@@ -35,8 +37,10 @@ describe('schedule day works', function () {
   }
   const p = new Participant({
     id: '123',
-    start: {day: '2024-02-05', time: '08:00'},
-    end: {day: '2024-02-11', time: '17:00'},
+    start_day: '2024-02-05',
+    start_time: '08:00',
+    end_day: '2024-02-11',
+    end_time: '17:00',
   })
   p.rollSchedule(protocols)
   test('no randomization works', async () => {
