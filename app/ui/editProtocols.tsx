@@ -28,6 +28,7 @@ import {FeedbackContext, SessionContext} from '../context'
 import {Protocol, type Protocols} from '@/lib/protocol'
 import {Close} from '@mui/icons-material'
 import {ConfirmUpdate} from './confirmUpdate'
+import {ConfirmDelete} from './confirmDelete'
 
 const url_protocol = /^https?:\/\//
 const MessagePreview = ({reminder, spec}: {reminder?: boolean; spec: Partial<Protocol>}) => {
@@ -473,9 +474,7 @@ export default function ProtocolEditDialog({
         </Paper>
       </DialogContent>
       <DialogActions sx={{justifyContent: 'space-between'}}>
-        <Button variant="contained" color="error" disabled={selected === 'New'} onClick={deleteProtocol}>
-          Delete
-        </Button>
+        <ConfirmDelete name={'protocol ' + selected} disabled={selected === 'New'} onConfirm={deleteProtocol} />
         <Box>
           <Button disabled={!changed} onClick={() => updateState({type: 'replace', protocol: protocols[selected]})}>
             Reset

@@ -25,8 +25,8 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
-import {SyntheticEvent, useContext, useEffect, useMemo, useReducer, useState} from 'react'
-import {FeedbackContext, SessionContext} from '../context'
+import {SyntheticEvent, useContext, useMemo, useReducer, useState} from 'react'
+import {FeedbackContext} from '../context'
 import Participant, {type Participants} from '@/lib/participant'
 import {Add, Casino, Close} from '@mui/icons-material'
 import {ConfirmUpdate} from './confirmUpdate'
@@ -34,11 +34,14 @@ import {DatePicker, TimePicker} from '@mui/x-date-pickers'
 import dayjs from 'dayjs'
 import {Blackout} from '@/lib/blackout'
 import {EditBlackout} from './editBlackout'
+import Schedule from '@/lib/schedule'
+import {ScheduleDay} from './schedule'
+import {ConfirmDelete} from './confirmDelete'
 
 const daysofweek_labels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 type EditParticipantAction =
   | {type: 'replace'; participant: Partial<Participant>}
-  | {type: 'edit'; key: string; value: string | boolean | number | string[] | boolean[] | Blackout[]}
+  | {type: 'edit'; key: string; value: string | boolean | number | string[] | boolean[] | Blackout[] | Schedule[]}
 function editParticipant(state: Partial<Participant>, action: EditParticipantAction): Participant {
   if (action.type === 'replace') {
     return new Participant(action.participant)
@@ -46,21 +49,26 @@ function editParticipant(state: Partial<Participant>, action: EditParticipantAct
     return new Participant({...state, [action.key]: action.value})
   }
 }
-const state = {current: JSON.stringify(new Participant())}
+const state = {current: JSON.stringify(new Participant()), study: ''}
 export default function ParticipantEditDialog({
-  study,
   open,
   onClose,
+  study,
+  currentParticipants,
+  updateParticipants,
   protocols,
 }: {
-  study: string
   open: boolean
   onClose: () => void
+  study: string
+  currentParticipants: Participants
+  updateParticipants: (participants: Participants) => void
   protocols: string[]
 }) {
-  const session = useContext(SessionContext)
   const notify = useContext(FeedbackContext)
-  const [participants, setParticipants] = useState<Participants>({New: new Participant({protocols})})
+  const participants: Participants = useMemo(() => {
+    return {New: new Participant({protocols}), ...currentParticipants}
+  }, [currentParticipants])
   const [participant, setParticipant] = useReducer(editParticipant, participants.New)
   const [selected, setSelected] = useState('New')
   const [changed, setChanged] = useState(false)
@@ -113,23 +121,10 @@ export default function ParticipantEditDialog({
     } else {
       notify('removed participant ' + selected, true)
       delete participants[selected]
-      setParticipants({...participants})
+      updateParticipants({...participants})
       updateState({type: 'replace', participant: participants.New})
     }
   }
-  useEffect(() => {
-    if (session.signedin && open) {
-      const getParticipants = async () => {
-        const req = await operation<Participants>({type: 'view_participant', study})
-        if (req.error) {
-          notify('failed to retrieve participants: ' + req.status)
-        } else {
-          setParticipants({New: new Participant({protocols}), ...req.content})
-        }
-      }
-      getParticipants()
-    }
-  }, [session.signedin, open, notify, study])
   const ParticipantList = useMemo(
     () =>
       Object.keys(participants).map(id => (
@@ -162,7 +157,6 @@ export default function ParticipantEditDialog({
       />
     ))
   }, [participant.daysofweek])
-
   const BlackoutDays = useMemo(() => {
     return participant.blackouts.map((blackout, index) => {
       if (blackout) {
@@ -185,12 +179,35 @@ export default function ParticipantEditDialog({
       }
     })
   }, [participant.blackouts])
+  const Schedules = useMemo(() => {
+    return participant.schedule.map((schedule, index) => {
+      if (schedule) {
+        return (
+          <ScheduleDay
+            key={index}
+            schedule={schedule}
+            onRemove={() => {
+              const newSchedule = [...participant.schedule]
+              newSchedule.splice(index, 1)
+              updateState({type: 'edit', key: 'schedule', value: newSchedule})
+            }}
+            onUpdate={(newSchedule: Schedule) => {
+              const value = [...participant.schedule]
+              value[index] = newSchedule
+              updateState({type: 'edit', key: 'schedule', value})
+            }}
+          ></ScheduleDay>
+        )
+      }
+    })
+  }, [participant.schedule])
 
   const existing = selected !== 'New'
   return (
     <Dialog
       open={open}
       onClose={onClose}
+      keepMounted
       sx={{mt: 3, '& .MuiDialog-container > .MuiPaper-root': {height: '100%', width: '100hw', maxWidth: '100%'}}}
     >
       <DialogTitle sx={{p: 1}}>Participant Editor</DialogTitle>
@@ -219,7 +236,6 @@ export default function ParticipantEditDialog({
             onChange={e => {
               const name = e.target.value
               updateState({type: 'replace', participant: {...participants[name]}})
-              return
             }}
           >
             {ParticipantList}
@@ -314,100 +330,111 @@ export default function ParticipantEditDialog({
                 </Select>
               </FormControl>
             </Stack>
-            <Typography variant="h6">Day Coverage</Typography>
-            <Stack spacing={2} direction="row">
-              <Stack spacing={2} sx={{width: 150, pt: 1}}>
-                <DatePicker
-                  value={dayjs(participant.start_ms.day)}
-                  name="start_day"
-                  sx={{'& input': {p: 1}}}
-                  label="Start Day"
-                  onChange={date => {
-                    if (date) updateState({type: 'edit', key: 'start_day', value: date.valueOf()})
-                  }}
-                ></DatePicker>
-                <DatePicker
-                  value={dayjs(participant.end_ms.day)}
-                  name="end_day"
-                  sx={{'& input': {p: 1}}}
-                  label="End Day"
-                  onChange={date => {
-                    if (date) updateState({type: 'edit', key: 'end_day', value: date.valueOf()})
-                  }}
-                ></DatePicker>
-              </Stack>
-              <FormControl>
-                <FormLabel component="legend">Days of the Week</FormLabel>
-                <FormGroup aria-label="Days of the Week" sx={{'& .MuiTypography-root': {fontSize: '.8em'}}}>
-                  {DaysOfWeek}
-                </FormGroup>
-              </FormControl>
-              <FormControl>
-                <Stack spacing={1} direction="row">
-                  <FormLabel component="legend">Blackout Days</FormLabel>
-                  <IconButton
-                    sx={{p: 0}}
-                    size="small"
-                    title="Add blackout day"
-                    onClick={() => {
-                      const newBlackouts = [...participant.blackouts]
-                      newBlackouts.push(new Blackout({}))
-                      updateState({type: 'edit', key: 'blackouts', value: newBlackouts})
-                    }}
-                  >
-                    <Add />
-                  </IconButton>
-                </Stack>
-                <FormGroup aria-label="Blackout Days">
-                  <Stack spacing={1} sx={{maxHeight: 160, overflowY: 'auto', pt: 1}}>
-                    {BlackoutDays}
+            <Stack direction="row" spacing={1}>
+              <Box>
+                <Typography variant="h6">Day Coverage</Typography>
+                <Stack spacing={2} direction="row">
+                  <Stack spacing={2} sx={{width: 150, pt: 1}}>
+                    <DatePicker
+                      value={dayjs(participant.start_ms.day)}
+                      name="start_day"
+                      sx={{'& input': {p: 1}}}
+                      label="Start Day"
+                      onChange={date => {
+                        if (date) updateState({type: 'edit', key: 'start_day', value: date.valueOf()})
+                      }}
+                    ></DatePicker>
+                    <DatePicker
+                      value={dayjs(participant.end_ms.day)}
+                      name="end_day"
+                      sx={{'& input': {p: 1}}}
+                      label="End Day"
+                      onChange={date => {
+                        if (date) updateState({type: 'edit', key: 'end_day', value: date.valueOf()})
+                      }}
+                    ></DatePicker>
                   </Stack>
-                </FormGroup>
-                {!!BlackoutDays.length ? (
-                  <Button
-                    sx={{mt: 1}}
-                    size="small"
-                    color="error"
-                    onClick={() => updateState({type: 'edit', key: 'blackouts', value: []})}
-                  >
-                    Clear
-                  </Button>
-                ) : (
-                  <Chip disabled label="No Blackout Days" />
-                )}
-              </FormControl>
-            </Stack>
-            <Typography variant="h6">Time Range</Typography>
-            <Stack spacing={2} direction="row">
-              <TimePicker
-                value={dayjs(participant.start_ms.time)}
-                name="start_time"
-                sx={{'& input': {p: 1, maxWidth: 70}}}
-                label="Start Time"
-                onChange={date => {
-                  if (date) updateState({type: 'edit', key: 'start_time', value: date.valueOf()})
-                }}
-              ></TimePicker>
-              <TimePicker
-                value={dayjs(participant.end_ms.time)}
-                name="end_time"
-                sx={{'& input': {p: 1, maxWidth: 70}}}
-                label="End Time"
-                onChange={date => {
-                  if (date) updateState({type: 'edit', key: 'end_time', value: date.valueOf()})
-                }}
-              ></TimePicker>
+                  <FormControl>
+                    <FormLabel component="legend">Days of the Week</FormLabel>
+                    <FormGroup aria-label="Days of the Week" sx={{'& .MuiTypography-root': {fontSize: '.8em'}}}>
+                      {DaysOfWeek}
+                    </FormGroup>
+                  </FormControl>
+                  <FormControl>
+                    <Stack spacing={1} direction="row">
+                      <FormLabel component="legend">Blackout Days</FormLabel>
+                      <IconButton
+                        sx={{p: 0}}
+                        size="small"
+                        title="Add blackout day"
+                        onClick={() => {
+                          const newBlackouts = [...participant.blackouts]
+                          newBlackouts.push(new Blackout({}))
+                          updateState({type: 'edit', key: 'blackouts', value: newBlackouts})
+                        }}
+                      >
+                        <Add />
+                      </IconButton>
+                    </Stack>
+                    <FormGroup aria-label="Blackout Days">
+                      <Stack spacing={1} sx={{maxHeight: 160, overflowY: 'auto', pt: 1}}>
+                        {BlackoutDays}
+                      </Stack>
+                    </FormGroup>
+                    {!!BlackoutDays.length ? (
+                      <Button
+                        sx={{mt: 1}}
+                        size="small"
+                        color="error"
+                        onClick={() => updateState({type: 'edit', key: 'blackouts', value: []})}
+                      >
+                        Clear
+                      </Button>
+                    ) : (
+                      <Chip disabled label="No Blackout Days" />
+                    )}
+                  </FormControl>
+                </Stack>
+              </Box>
+              <Box>
+                <Typography variant="h6">Time Range</Typography>
+                <Stack spacing={2} sx={{maxWidth: 140, pt: 1}}>
+                  <TimePicker
+                    value={dayjs(participant.start_ms.time)}
+                    name="start_time"
+                    sx={{'& input': {p: 1}}}
+                    label="Start Time"
+                    onChange={date => {
+                      if (date) updateState({type: 'edit', key: 'start_time', value: date.valueOf()})
+                    }}
+                  ></TimePicker>
+                  <TimePicker
+                    value={dayjs(participant.end_ms.time)}
+                    name="end_time"
+                    sx={{'& input': {p: 1}}}
+                    label="End Time"
+                    onChange={date => {
+                      if (date) updateState({type: 'edit', key: 'end_time', value: date.valueOf()})
+                    }}
+                  ></TimePicker>
+                </Stack>
+              </Box>
             </Stack>
           </Stack>
           <Typography variant="h6" sx={{pt: 2}}>
             Schedule
           </Typography>
+          <Stack direction="row" sx={{overflowX: 'auto'}}>
+            {Schedules}
+          </Stack>
         </Paper>
       </DialogContent>
       <DialogActions sx={{justifyContent: 'space-between'}}>
-        <Button variant="contained" color="error" disabled={selected === 'New'} onClick={deleteParticipant}>
-          Delete
-        </Button>
+        <ConfirmDelete
+          name={'participant ' + selected}
+          onConfirm={() => updateState({type: 'replace', participant: participants[selected]})}
+          disabled={!changed}
+        />
         <Box>
           <Button
             disabled={!changed}

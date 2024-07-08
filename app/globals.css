@@ -2,3 +2,36 @@
   font-size: 0.8em;
   opacity: 0.8;
 }
+
+.send_received,
+.remind_received {
+  background: #dedede;
+}
+.pending {
+  background: #7fb2ff;
+}
+.pause {
+  background: #caf9f9;
+}
+.skipped {
+  background: #8eab79;
+}
+.sent {
+  background: #fdff81;
+}
+.reminded {
+  background: #f9c361;
+}
+.not_delivered {
+  text-align: center;
+}
+.not_delivered:after {
+  content: '*';
+  font-size: 1.5em;
+  font-weight: bold;
+  line-height: 0.6em;
+  color: #fff;
+}
+.missed {
+  background: #f38d0e;
+}

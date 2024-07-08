@@ -1,7 +1,18 @@
 import {MS_MINUTE} from '@/utils/times'
-import type {Blackout} from './blackout'
+import {Blackout} from './blackout'
 import type {MessageReceipts} from './message'
 import {Protocol} from './protocol'
+
+export const statusLabels = [
+  'missed',
+  'pending',
+  'sent',
+  'reminded',
+  'send_received',
+  'remind_received',
+  'pause',
+  'skipped',
+]
 
 const rollMethods = {
   none: function (start: number, step: number) {
@@ -28,10 +39,14 @@ export default class Schedule {
 
   constructor(schedule?: Partial<Schedule>) {
     if (schedule) {
-      const o = Object(schedule)
+      const o = JSON.parse(JSON.stringify(schedule))
       Object.keys(o).forEach(k => {
-        const value = o[k as keyof Schedule]
-        if ('undefined' !== typeof value) (this[k as keyof Schedule] as typeof value) = value
+        if (k === 'blackouts') {
+          o.blackouts.forEach((b: Partial<Blackout>) => this.blackouts.push(new Blackout(b)))
+        } else if (k in this) {
+          const value = o[k as keyof Schedule]
+          if ('undefined' !== typeof value) (this[k as keyof Schedule] as typeof value) = value
+        }
       })
     }
   }
@@ -41,6 +56,16 @@ export default class Schedule {
     this.accessed_n[index] = accessed_n
     this.accessed_first[index] = accessed_first
     this.messages[index] = message
+  }
+  addBeep() {
+    this.setBeep(this.times.length, this.times[this.times.length - 1])
+  }
+  removeBeep(index: number) {
+    this.times.splice(index, 1)
+    this.statuses.splice(index, 1)
+    this.accessed_n.splice(index, 1)
+    this.accessed_first.splice(index, 1)
+    this.messages.splice(index, 1)
   }
   inBlackout(start: number) {
     const n = this.blackouts.length

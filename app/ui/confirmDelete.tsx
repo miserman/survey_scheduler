@@ -2,14 +2,30 @@ import {Close, Delete} from '@mui/icons-material'
 import {Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Typography} from '@mui/material'
 import {useState} from 'react'
 
-export function ConfirmDelete({name, onConfirm}: {name: string; onConfirm: () => void}) {
+export function ConfirmDelete({
+  name,
+  onConfirm,
+  disabled,
+  icon,
+}: {
+  name: string
+  onConfirm: () => void
+  disabled?: boolean
+  icon?: boolean
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
   const toggleMenu = () => setMenuOpen(!menuOpen)
   return (
     <>
-      <IconButton color="error" onClick={toggleMenu} aria-label="delete">
-        <Delete />
-      </IconButton>
+      {icon ? (
+        <IconButton color="error" onClick={toggleMenu} aria-label="delete" disabled={disabled}>
+          <Delete />
+        </IconButton>
+      ) : (
+        <Button color="error" variant="contained" onClick={toggleMenu} disabled={disabled}>
+          Delete
+        </Button>
+      )}
       {menuOpen && (
         <Dialog open={menuOpen} onClose={toggleMenu}>
           <DialogTitle>Confirm</DialogTitle>

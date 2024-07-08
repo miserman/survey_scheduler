@@ -153,18 +153,16 @@ export default function Study({params}: {params: {study: string}}) {
           </Stack>
         </Stack>
       </BottomDrawer>
-      {participantOpen && (
-        <ParticipantEditDialog
-          study={params.study}
-          open={participantOpen}
-          onClose={() => setParticipantOpen(false)}
-          protocols={Object.keys(summary.protocols)}
-        />
-      )}
-      {userOpen && <UserEditDialog study={params.study} open={userOpen} onClose={() => setUserOpen(false)} />}
-      {protocolOpen && (
-        <ProtocolEditDialog study={params.study} open={protocolOpen} onClose={() => setProtocolOpen(false)} />
-      )}
+      <ParticipantEditDialog
+        open={participantOpen}
+        onClose={() => setParticipantOpen(false)}
+        study={params.study}
+        currentParticipants={participants}
+        updateParticipants={newParticipants => setParticipants(newParticipants)}
+        protocols={Object.keys(summary.protocols)}
+      />
+      <UserEditDialog study={params.study} open={userOpen} onClose={() => setUserOpen(false)} />
+      <ProtocolEditDialog study={params.study} open={protocolOpen} onClose={() => setProtocolOpen(false)} />
     </Box>
   ) : (
     redirect('/')

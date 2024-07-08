@@ -22,11 +22,12 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import {SyntheticEvent, useContext, useEffect, useMemo, useReducer, useState} from 'react'
+import {SyntheticEvent, useCallback, useContext, useEffect, useMemo, useReducer, useState} from 'react'
 import {FeedbackContext, SessionContext} from '../context'
 import {User, Users} from '@/lib/user'
 import {Close} from '@mui/icons-material'
 import {ConfirmUpdate} from './confirmUpdate'
+import {ConfirmDelete} from './confirmDelete'
 
 type EditUserAction = {type: 'replace'; user: Partial<User>} | {type: 'edit'; key: string; value: string | boolean}
 function editUser(state: Partial<User>, action: EditUserAction): Partial<User> {
@@ -44,22 +45,28 @@ export default function UserEditDialog({study, open, onClose}: {study: string; o
   const [user, setUser] = useReducer(editUser, users.New)
   const [selected, setSelected] = useState('New')
   const [changed, setChanged] = useState(false)
-  const changeUser = (user: string) => {
-    setSelected(user)
-    if (!users[user].email) users[user].email = user
-    users[user] = new User(users[user])
-    state.current = JSON.stringify(users[user])
-  }
-  const updateState = (action: EditUserAction) => {
-    setUser(action)
-    if (action.type === 'replace') {
-      setChanged(false)
-    } else {
-      user[action.key as 'add_study'] = action.value as boolean
-      setChanged(state.current !== JSON.stringify(user))
-    }
-  }
-  const handleChange = (e: SyntheticEvent, value?: boolean) => {
+  const changeUser = useCallback(
+    (user: string) => {
+      setSelected(user)
+      if (!users[user].email) users[user].email = user
+      users[user] = new User(users[user])
+      state.current = JSON.stringify(users[user])
+    },
+    [users]
+  )
+  const updateState = useCallback(
+    (action: EditUserAction) => {
+      setUser(action)
+      if (action.type === 'replace') {
+        setChanged(false)
+      } else {
+        user[action.key as 'add_study'] = action.value as boolean
+        setChanged(state.current !== JSON.stringify(user))
+      }
+    },
+    [user]
+  )
+  const handleChange = useCallback((e: SyntheticEvent, value?: boolean) => {
     if ('undefined' === typeof value) {
       if ('value' in e.target) {
         const value = e.target.value as string
@@ -69,8 +76,8 @@ export default function UserEditDialog({study, open, onClose}: {study: string; o
       const key = e.target.name as 'add_study'
       updateState({type: 'edit', key, value})
     }
-  }
-  const submitUser = async () => {
+  }, [])
+  const submitUser = useCallback(async () => {
     const parsed = new User(user)
     const req = await operation({type: 'add_user', study, name: parsed.email, perms: parsed})
     if (req.error) {
@@ -79,18 +86,18 @@ export default function UserEditDialog({study, open, onClose}: {study: string; o
       notify((selected === 'New' ? 'added' : 'updated') + ' user ' + parsed.email, true)
       changeUser(parsed.email)
     }
-  }
-  const deleteUser = async () => {
-    const req = await operation({type: 'remove_user', study, name: selected})
+  }, [user])
+  const deleteUser = useCallback(async (name: string) => {
+    const req = await operation({type: 'remove_user', study, name})
     if (req.error) {
-      notify('failed to remove user ' + selected + ': ' + req.status)
+      notify('failed to remove user ' + name + ': ' + req.status)
     } else {
-      notify('removed user ' + selected, true)
+      notify('removed user ' + name, true)
       changeUser('New')
     }
-  }
+  }, [])
   useEffect(() => {
-    if (session.signedin) {
+    if (session.signedin && open) {
       const getUsers = async () => {
         const req = await operation<Users>({type: 'view_user', study})
         if (req.error) {
@@ -101,7 +108,7 @@ export default function UserEditDialog({study, open, onClose}: {study: string; o
       }
       getUsers()
     }
-  }, [session.signedin, notify, study])
+  }, [session.signedin, open, notify, study])
   const UserList = useMemo(
     () =>
       Object.keys(users).map(id => {
@@ -143,7 +150,6 @@ export default function UserEditDialog({study, open, onClose}: {study: string; o
               const email = e.target.value
               changeUser(email)
               updateState({type: 'replace', user: {...users[email]}})
-              return
             }}
           >
             {UserList}
@@ -256,9 +262,7 @@ export default function UserEditDialog({study, open, onClose}: {study: string; o
         </Paper>
       </DialogContent>
       <DialogActions sx={{justifyContent: 'space-between'}}>
-        <Button variant="contained" color="error" disabled={selected === 'New'} onClick={deleteUser}>
-          Delete
-        </Button>
+        <ConfirmDelete name={'user ' + selected} disabled={selected === 'New'} onConfirm={() => deleteUser(selected)} />
         <Box>
           <Button disabled={!changed} onClick={() => updateState({type: 'replace', user: users[selected]})}>
             Reset

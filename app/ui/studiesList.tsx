@@ -41,6 +41,7 @@ export function StudiesList({
                       updateStudies(studies)
                     }
                   }}
+                  icon={true}
                 />
               }
             >
