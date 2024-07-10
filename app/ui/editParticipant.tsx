@@ -174,6 +174,7 @@ export default function ParticipantEditDialog({
               newBlackouts[index] = newBlackout
               updateState({type: 'edit', key: 'blackouts', value: newBlackouts})
             }}
+            format="ddd M/D/YY"
           ></EditBlackout>
         )
       }

@@ -39,15 +39,17 @@ export default class Schedule {
 
   constructor(schedule?: Partial<Schedule>) {
     if (schedule) {
-      const o = JSON.parse(JSON.stringify(schedule))
-      Object.keys(o).forEach(k => {
-        if (k === 'blackouts') {
-          o.blackouts.forEach((b: Partial<Blackout>) => this.blackouts.push(new Blackout(b)))
-        } else if (k in this) {
+      const o = Object(schedule)
+      ;['accessed_first', 'accessed_n', 'date', 'messages', 'protocol', 'statuses', 'times'].forEach(k => {
+        if (k in o) {
           const value = o[k as keyof Schedule]
-          if ('undefined' !== typeof value) (this[k as keyof Schedule] as typeof value) = value
+          if ('undefined' !== typeof value)
+            (this[k as keyof Schedule] as typeof value) = Array.isArray(value) ? [...value] : value
         }
       })
+      if ('blackouts' in o) {
+        o.blackouts.forEach((b: Partial<Blackout>) => this.blackouts.push(new Blackout(b)))
+      }
     }
   }
   setBeep(index: number, time: number, status = 1, accessed_n = 0, accessed_first = 0, message: MessageReceipts = {}) {
@@ -66,6 +68,15 @@ export default class Schedule {
     this.accessed_n.splice(index, 1)
     this.accessed_first.splice(index, 1)
     this.messages.splice(index, 1)
+  }
+  setBlackout(index: number, spec: Partial<Blackout>) {
+    this.blackouts[index] = new Blackout(spec)
+  }
+  addBlackout(blackout: Partial<Blackout>) {
+    this.blackouts.push(new Blackout(blackout))
+  }
+  removeBlackout(index: number) {
+    this.blackouts.splice(index, 1)
   }
   inBlackout(start: number) {
     const n = this.blackouts.length

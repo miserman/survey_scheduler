@@ -1,5 +1,5 @@
 import {MS_DAY, MS_HOUR, MS_MINUTE, MS_WEEK, TIMEZONE_OFFSET, dashdate, format_time, timeToMs} from '@/utils/times'
-import type {Blackout} from './blackout'
+import {Blackout} from './blackout'
 import type {Protocol, Protocols} from './protocol'
 import Schedule from './schedule'
 
@@ -54,10 +54,17 @@ export default class Participant {
     messager?: (day: Schedule, index: number) => void,
     logger?: (messager: string) => void
   ) {
-    const spec = Object(participant || {})
+    const spec = Object(participant)
     Object.keys(spec).forEach(k => {
-      const value = spec[k as keyof Participant]
-      if ('undefined' !== typeof value) (this[k as keyof Participant] as typeof value) = value
+      if (k === 'blackouts') {
+        this.blackouts = spec[k].map((b: Partial<Blackout>) => new Blackout(b))
+      } else if (k === 'schedule') {
+        this.schedule = spec[k].map((s: Partial<Schedule>) => new Schedule(s))
+      } else {
+        const value = spec[k as keyof Participant]
+        if ('undefined' !== typeof value)
+          (this[k as keyof Participant] as typeof value) = Array.isArray(value) ? [...value] : value
+      }
     })
     this.phone += ''
     this.updateDate(spec.start_day, 'start')

@@ -3,6 +3,7 @@ import {Add, Close, Delete} from '@mui/icons-material'
 import {
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -13,17 +14,24 @@ import {
   MenuItem,
   Select,
   Stack,
+  Toolbar,
+  Typography,
 } from '@mui/material'
 import {TimePicker} from '@mui/x-date-pickers'
 import dayjs from 'dayjs'
 import {useMemo, useReducer, useState} from 'react'
+import {EditBlackout} from './editBlackout'
+import type {Blackout} from '@/lib/blackout'
 
 type EditScheduleAction =
   | {type: 'add'}
   | {type: 'remove'; index: number}
-  | {type: 'replace'; schedule: Schedule}
   | {type: 'edit'; key: 'times' | 'statuses'; value: number[]}
   | {type: 'edit'; key: 'protocol'; value: string}
+  | {type: 'add_blackout'; blackout: Partial<Blackout>}
+  | {type: 'remove_blackout'; index: number}
+  | {type: 'edit_blackout'; index: number; blackout: Partial<Blackout>}
+  | {type: 'replace'; schedule: Schedule}
 function updateSchedule(state: Schedule, action: EditScheduleAction) {
   if (action.type === 'replace') return new Schedule(action.schedule)
   const newState = new Schedule(state)
@@ -36,6 +44,15 @@ function updateSchedule(state: Schedule, action: EditScheduleAction) {
       break
     case 'edit':
       ;(newState[action.key] as typeof action.value) = action.value
+      break
+    case 'add_blackout':
+      newState.addBlackout(action.blackout)
+      break
+    case 'remove_blackout':
+      newState.removeBlackout(action.index)
+      break
+    case 'edit_blackout':
+      newState.setBlackout(action.index, action.blackout)
       break
   }
   return newState
@@ -70,7 +87,6 @@ function StatusSelect({current, onChange}: {current: number; onChange: (status: 
   )
 }
 
-const state = {current: JSON.stringify(new Schedule())}
 export function EditSchedule({
   initial,
   onRemove,
@@ -83,15 +99,16 @@ export function EditSchedule({
   const [menuOpen, setMenuOpen] = useState(false)
   const toggleMenu = () => setMenuOpen(!menuOpen)
   const [schedule, setSchedule] = useReducer(updateSchedule, new Schedule(initial))
+  const [current, setCurrent] = useState('')
   useMemo(() => {
     setSchedule({type: 'replace', schedule: initial})
-    state.current = JSON.stringify(initial)
+    setCurrent(JSON.stringify(new Schedule(initial)))
   }, [initial])
   const [changed, setChanged] = useState(false)
   const updateState = (action: EditScheduleAction) => {
     setSchedule(action)
     if (action.type === 'replace') {
-      state.current = JSON.stringify(action.schedule)
+      setCurrent(JSON.stringify(new Schedule(action.schedule)))
       setChanged(false)
     } else {
       const tempSchedule = new Schedule(schedule)
@@ -102,7 +119,7 @@ export function EditSchedule({
       } else {
         tempSchedule.addBeep()
       }
-      setChanged(state.current !== JSON.stringify(tempSchedule))
+      setChanged(current !== JSON.stringify(tempSchedule))
     }
   }
   const times = schedule.times.map(time => dayjs(time))
@@ -127,8 +144,14 @@ export function EditSchedule({
           >
             <Close />
           </IconButton>
-          <DialogContent sx={{p: 1}}>
-            <Stack spacing={1}>
+          <DialogContent sx={{p: 0}}>
+            <Toolbar sx={{pl: 1, minHeight: '1px !important'}} disableGutters>
+              <Typography variant="h6">Beeps</Typography>
+              <IconButton title="Add beep" sx={{width: 40}} onClick={() => updateState({type: 'add'})}>
+                <Add />
+              </IconButton>
+            </Toolbar>
+            <Stack spacing={1} sx={{p: 1, pt: 2, mb: 1, bgcolor: 'background.paper'}}>
               {times.map((time, index) => (
                 <Stack key={index} spacing={1} direction="row">
                   <TimePicker
@@ -156,15 +179,32 @@ export function EditSchedule({
                   </IconButton>
                 </Stack>
               ))}
-              <Box>
-                <IconButton
-                  title="Add beep"
-                  sx={{width: 40, float: 'right'}}
-                  onClick={() => updateState({type: 'add'})}
-                >
-                  <Add />
-                </IconButton>
-              </Box>
+            </Stack>
+            <Toolbar sx={{pl: 1, minHeight: '1px !important'}} disableGutters>
+              <Typography variant="h6">Blackouts</Typography>
+              <IconButton
+                title="Add Blackout"
+                sx={{width: 40}}
+                onClick={() => updateState({type: 'add_blackout', blackout: {start: schedule.date}})}
+              >
+                <Add />
+              </IconButton>
+            </Toolbar>
+            <Stack spacing={1} sx={{mb: 2}}>
+              {schedule.blackouts.length ? (
+                schedule.blackouts.map((blackout, index) => (
+                  <EditBlackout
+                    key={index}
+                    blackout={blackout}
+                    onRemove={() => updateState({type: 'remove_blackout', index})}
+                    onUpdate={(blackout: Blackout) => updateState({type: 'edit_blackout', index, blackout})}
+                    format="hh:mm A"
+                    isTime={true}
+                  />
+                ))
+              ) : (
+                <Chip disabled label="No Blackout Times" />
+              )}
             </Stack>
           </DialogContent>
           <DialogActions sx={{justifyContent: 'space-between'}}>
