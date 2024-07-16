@@ -36,13 +36,13 @@ export function timeToMs(time: string) {
   let n = 0
   if (patterns.apm.test(s)) {
     if (patterns.anycolon.test(s)) {
-      // p = s.replace(patterns.numpunct, '').split(patterns.colon)
-      // n = +p[0]
-      // if (n < 12 && patterns.p.test(s)) {
-      //   n += 12
-      // } else if (n === 12 && patterns.a.test(s)) n = 0
-      // n = n * MS_HOUR + +p[1] * MS_MINUTE + (p.length === 3 ? +p[2] * MS_SECOND : 0)
-      return dayjs(time, patterns.ap.test(s) ? 'hh:mm A' : 'HH:mm').valueOf()
+      p = s.replace(patterns.numpunct, '').split(patterns.colon)
+      n = +p[0]
+      if (n < 12 && patterns.p.test(s)) {
+        n += 12
+      } else if (n === 12 && patterns.a.test(s)) n = 0
+      n = n * MS_HOUR + +p[1] * MS_MINUTE + (p.length === 3 ? +p[2] * MS_SECOND : 0)
+      // return dayjs(time, patterns.ap.test(s) ? 'hh:mm A' : 'HH:mm').valueOf()
     } else {
       n = +s.replace(patterns.numpunct, '')
       if (n < 12 && patterns.p.test(s)) n += 12

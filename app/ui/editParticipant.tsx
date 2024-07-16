@@ -22,6 +22,7 @@ import {
   SelectChangeEvent,
   Stack,
   TextField,
+  Toolbar,
   Tooltip,
   Typography,
 } from '@mui/material'
@@ -37,6 +38,7 @@ import {EditBlackout} from './editBlackout'
 import Schedule from '@/lib/schedule'
 import {ScheduleDay} from './schedule'
 import {ConfirmDelete} from './confirmDelete'
+import {Protocols} from '@/lib/protocol'
 
 const daysofweek_labels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 type EditParticipantAction =
@@ -63,11 +65,12 @@ export default function ParticipantEditDialog({
   study: string
   currentParticipants: Participants
   updateParticipants: (participants: Participants) => void
-  protocols: string[]
+  protocols: Protocols
 }) {
   const notify = useContext(FeedbackContext)
+  const protocolNames = useMemo(() => Object.keys(protocols), [protocols])
   const participants: Participants = useMemo(() => {
-    return {New: new Participant({protocols}), ...currentParticipants}
+    return {New: new Participant({protocols: protocolNames}), ...currentParticipants}
   }, [currentParticipants])
   const [participant, setParticipant] = useReducer(editParticipant, participants.New)
   const [selected, setSelected] = useState('New')
@@ -127,11 +130,13 @@ export default function ParticipantEditDialog({
   }
   const ParticipantList = useMemo(
     () =>
-      Object.keys(participants).map(id => (
-        <MenuItem key={id} value={id}>
-          {id}
-        </MenuItem>
-      )),
+      Object.keys(participants)
+        .map(id => (
+          <MenuItem key={id} value={id}>
+            {id}
+          </MenuItem>
+        ))
+        .reverse(),
     [participants]
   )
   const DaysOfWeek = useMemo(() => {
@@ -187,6 +192,8 @@ export default function ParticipantEditDialog({
           <ScheduleDay
             key={index}
             schedule={schedule}
+            color={protocols[schedule.protocol].color}
+            protocols={protocols}
             onRemove={() => {
               const newSchedule = [...participant.schedule]
               newSchedule.splice(index, 1)
@@ -288,7 +295,7 @@ export default function ParticipantEditDialog({
             <Typography variant="h6">Protocol Sampling</Typography>
             <Stack direction="row" spacing={1}>
               <Autocomplete
-                options={['All', ...protocols, '']}
+                options={['All', ...protocolNames, '']}
                 value={participant.protocols}
                 multiple
                 renderInput={params => <TextField {...params} size="small" label="Selected Protocols"></TextField>}
@@ -297,7 +304,7 @@ export default function ParticipantEditDialog({
                 getOptionDisabled={option => option === ''}
                 onChange={(_, value) => {
                   if (value[value.length - 1] === 'All') {
-                    updateState({type: 'edit', key: 'protocols', value: [...protocols]})
+                    updateState({type: 'edit', key: 'protocols', value: [...protocolNames]})
                   } else {
                     updateState({type: 'edit', key: 'protocols', value})
                   }
@@ -401,7 +408,7 @@ export default function ParticipantEditDialog({
                 <Typography variant="h6">Time Range</Typography>
                 <Stack spacing={2} sx={{maxWidth: 140, pt: 1}}>
                   <TimePicker
-                    value={dayjs(participant.start_ms.time)}
+                    value={dayjs(participant.start_time, 'hh:mm A')}
                     name="start_time"
                     sx={{'& input': {p: 1}}}
                     label="Start Time"
@@ -410,7 +417,7 @@ export default function ParticipantEditDialog({
                     }}
                   ></TimePicker>
                   <TimePicker
-                    value={dayjs(participant.end_ms.time)}
+                    value={dayjs(participant.end_time, 'hh:mm A')}
                     name="end_time"
                     sx={{'& input': {p: 1}}}
                     label="End Time"
@@ -422,20 +429,29 @@ export default function ParticipantEditDialog({
               </Box>
             </Stack>
           </Stack>
-          <Typography variant="h6" sx={{pt: 2}}>
-            Schedule
-          </Typography>
+          <Toolbar disableGutters>
+            <Typography variant="h6" sx={{pt: 2}}>
+              Schedule
+            </Typography>
+            <Tooltip title="Roll schedule" placement="top">
+              <IconButton
+                onClick={() => {
+                  const newParticipants = new Participant(participant)
+                  newParticipants.rollSchedule(protocols)
+                  updateState({type: 'replace', participant: newParticipants})
+                }}
+              >
+                <Casino />
+              </IconButton>
+            </Tooltip>
+          </Toolbar>
           <Stack direction="row" sx={{overflowX: 'auto'}}>
             {Schedules}
           </Stack>
         </Paper>
       </DialogContent>
       <DialogActions sx={{justifyContent: 'space-between'}}>
-        <ConfirmDelete
-          name={'participant ' + selected}
-          onConfirm={() => updateState({type: 'replace', participant: participants[selected]})}
-          disabled={!changed}
-        />
+        <ConfirmDelete name={'participant ' + selected} onConfirm={deleteParticipant} disabled={!changed} />
         <Box>
           <Button
             disabled={!changed}

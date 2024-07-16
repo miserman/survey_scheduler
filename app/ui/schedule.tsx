@@ -1,15 +1,20 @@
 import Schedule, {statusLabels} from '@/lib/schedule'
-import {Button, Card, CardActions, CardContent, CardHeader, Stack, Typography} from '@mui/material'
+import {Box, Button, Card, CardActions, CardContent, CardHeader, Stack, Tooltip, Typography} from '@mui/material'
 import dayjs from 'dayjs'
 import {useMemo} from 'react'
 import {EditSchedule} from './editSchedule'
+import type {Protocols} from '@/lib/protocol'
 
 export function ScheduleDay({
   schedule,
+  color,
+  protocols,
   onRemove,
   onUpdate,
 }: {
   schedule: Schedule
+  color: string
+  protocols: Protocols
   onRemove: () => void
   onUpdate: (schedule: Schedule) => void
 }) {
@@ -26,17 +31,31 @@ export function ScheduleDay({
       variant="outlined"
       sx={{minWidth: 85, display: 'flex', flexDirection: 'column', '& .MuiPaper-root': {height: '100%'}}}
     >
-      <CardHeader title={date.format('ddd M/D')} sx={{p: 1, '& span': {fontSize: '1em', whiteSpace: 'nowrap'}}} />
+      <CardHeader
+        title={
+          <Stack spacing={1} sx={{textAlign: 'center'}}>
+            {date.format('ddd M/D')}
+            <Box
+              sx={{
+                fontSize: '.8em',
+                textShadow: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;',
+                bgcolor: color,
+              }}
+            >
+              {schedule.protocol}
+            </Box>
+          </Stack>
+        }
+        sx={{p: 0, pb: 1, pt: 1, '& span': {fontSize: '1em', whiteSpace: 'nowrap'}}}
+      />
       <CardContent sx={{p: 0, flexGrow: 1, textAlign: 'center'}}>
         {times.map((time, index) => {
           return (
-            <Typography
-              key={index}
-              className={statusLabels[schedule.statuses[index]]}
-              sx={{borderRadius: '15px', mb: 0.2}}
-            >
-              {time.format('hh:mm A')}
-            </Typography>
+            <Tooltip key={index} title={time.toDate().toLocaleString()} placement="left">
+              <Typography className={statusLabels[schedule.statuses[index]]} sx={{borderRadius: '15px', mb: 0.2}}>
+                {time.format('hh:mm A')}
+              </Typography>
+            </Tooltip>
           )
         })}
       </CardContent>
@@ -69,7 +88,7 @@ export function ScheduleDay({
           ) : (
             <Button disabled>Pause</Button>
           )}
-          <EditSchedule initial={schedule} onRemove={onRemove} onUpdate={onUpdate} />
+          <EditSchedule initial={schedule} protocols={protocols} onRemove={onRemove} onUpdate={onUpdate} />
         </Stack>
       </CardActions>
     </Card>

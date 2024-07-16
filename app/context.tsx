@@ -49,7 +49,7 @@ export function Context({children}: {children: ReactNode}) {
         if (res.signedin) setLogEvents('established session')
         setSession(res)
       })
-    const timer = setInterval(maintainSession, MS_HOUR)
+    const timer = setInterval(maintainSession, MS_HOUR - 5e4)
     maintainSession()
     return () => clearInterval(timer)
   }, [])

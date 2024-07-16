@@ -23,11 +23,11 @@ export default class Participant {
   // always specified
   id = ''
   start_day = ''
-  start_time = ''
   end_day = ''
-  end_time = ''
 
   // valid defaults
+  start_time = '09:00 AM'
+  end_time = '05:00 PM'
   protocols: string[] = []
   blackouts: Blackout[] = []
   daysofweek = [true, true, true, true, true, true, true]
@@ -68,9 +68,9 @@ export default class Participant {
     })
     this.phone += ''
     this.updateDate(spec.start_day, 'start')
-    this.updateTime(spec.start_time, 'start')
+    this.updateTime(spec.start_time || this.start_time, 'start')
     this.updateDate(spec.end_day, 'end')
-    this.updateTime(spec.end_time, 'end')
+    this.updateTime(spec.end_time || this.end_time, 'end')
     if (!this.timezone) this.timezone = TIMEZONE_OFFSET / MS_MINUTE
     if (messager) this.messager = messager
     if (logger) this.logger = logger
@@ -79,7 +79,7 @@ export default class Participant {
     if ('number' === typeof newDay) newDay = dashdate(newDay)
     if (!newDay) newDay = dashdate(Date.now())
     this[`${which}_day`] = newDay
-    this[`${which}_ms`].day = new Date(newDay + 'T12:00:00').getTime()
+    this[`${which}_ms`].day = new Date(newDay + (which === 'start' ? 'T00:00:01' : 'T23:59:59')).getTime()
     if (this.end_ms.day && this.start_ms.day) {
       this.n_days = Math.floor((this.end_ms.day - this.start_ms.day) / MS_DAY) + 1
     }
@@ -94,6 +94,7 @@ export default class Participant {
     if (!this.protocols.length) this.protocols = Object.keys(protocols)
     this.protocol_order.splice(start, this.protocol_order.length - start - 1)
     const n_protocols = this.protocols.length
+    if (!n_protocols) return
     let days = start
     let i = 0
     switch (this.order_type) {
@@ -135,7 +136,8 @@ export default class Participant {
         }
     }
   }
-  scheduleDay(date: number, protocol: Protocol, index?: number) {
+  scheduleDay(date: number, protocol?: Protocol, index?: number) {
+    if (!protocol) return
     if ('undefined' === typeof index) index = this.schedule.length
     const protocolName = protocol.name || ''
     this.protocol_order[index] = protocolName
@@ -154,11 +156,26 @@ export default class Participant {
     this.rollProtocols(protocols, last)
     this.scheduleDay(this.end_ms.day, protocols[this.protocol_order[last]], last)
   }
+  validDay(date: number) {
+    const parsed = new Date(date)
+    if (!this.daysofweek[parsed.getDay()]) return false
+    let pass = true
+    this.blackouts.forEach(b => {
+      if (pass) {
+        if (date > new Date(b.start).setHours(0, 0, 0, 0) && date < new Date(b.end).setHours(24, 0, 0, 0)) pass = false
+      }
+    })
+    return pass
+  }
   rollSchedule(protocols: Protocols) {
+    this.schedule = []
     this.rollProtocols(protocols)
     const start = this.start_ms.day
     for (let i = 0; i < this.n_days; i++) {
-      this.scheduleDay(start + i * MS_DAY, protocols[this.protocol_order[i]], i)
+      const date = start + i * MS_DAY
+      if (this.validDay(date)) {
+        this.scheduleDay(date, protocols[this.protocol_order[i]], i)
+      }
     }
   }
   checkBeep(day: number, index: number) {

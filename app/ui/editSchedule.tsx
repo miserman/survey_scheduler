@@ -1,5 +1,5 @@
 import Schedule, {statusLabels} from '@/lib/schedule'
-import {Add, Close, Delete} from '@mui/icons-material'
+import {Add, Casino, Close, Delete} from '@mui/icons-material'
 import {
   Box,
   Button,
@@ -22,6 +22,7 @@ import dayjs from 'dayjs'
 import {useMemo, useReducer, useState} from 'react'
 import {EditBlackout} from './editBlackout'
 import type {Blackout} from '@/lib/blackout'
+import type {Protocol, Protocols} from '@/lib/protocol'
 
 type EditScheduleAction =
   | {type: 'add'}
@@ -32,8 +33,10 @@ type EditScheduleAction =
   | {type: 'remove_blackout'; index: number}
   | {type: 'edit_blackout'; index: number; blackout: Partial<Blackout>}
   | {type: 'replace'; schedule: Schedule}
+  | {type: 'reroll'; schedule: Schedule; protocol: Protocol}
 function updateSchedule(state: Schedule, action: EditScheduleAction) {
   if (action.type === 'replace') return new Schedule(action.schedule)
+  if (action.type === 'reroll') return action.schedule.copy(action.protocol)
   const newState = new Schedule(state)
   switch (action.type) {
     case 'add':
@@ -89,10 +92,12 @@ function StatusSelect({current, onChange}: {current: number; onChange: (status: 
 
 export function EditSchedule({
   initial,
+  protocols,
   onRemove,
   onUpdate,
 }: {
   initial: Schedule
+  protocols: Protocols
   onRemove: () => void
   onUpdate: (schedule: Schedule) => void
 }) {
@@ -124,6 +129,7 @@ export function EditSchedule({
   }
   const times = schedule.times.map(time => dayjs(time))
   const date = dayjs(schedule.date).format('dddd, MMMM D YYYY')
+  const reroll = () => updateState({type: 'reroll', schedule, protocol: protocols[schedule.protocol]})
   return (
     <>
       <Button size="small" variant="outlined" onClick={toggleMenu}>
@@ -145,6 +151,28 @@ export function EditSchedule({
             <Close />
           </IconButton>
           <DialogContent sx={{p: 0}}>
+            <FormControl fullWidth sx={{p: 1}}>
+              <InputLabel sx={{p: 1}} id="day_protocol_select">
+                Protocol
+              </InputLabel>
+              <Select
+                labelId="day_protocol_select"
+                label="Protocol"
+                size="small"
+                value={schedule.protocol}
+                onChange={e => {
+                  const value = e.target.value
+                  schedule.protocol = value
+                  updateState({type: 'reroll', schedule, protocol: protocols[value]})
+                }}
+              >
+                {Object.keys(protocols).map(name => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <Toolbar sx={{pl: 1, minHeight: '1px !important'}} disableGutters>
               <Typography variant="h6">Beeps</Typography>
               <IconButton title="Add beep" sx={{width: 40}} onClick={() => updateState({type: 'add'})}>
@@ -219,7 +247,15 @@ export function EditSchedule({
               Delete
             </Button>
             <Box>
-              <Button disabled={!changed} onClick={() => updateState({type: 'replace', schedule: initial})}>
+              <IconButton onClick={reroll}>
+                <Casino />
+              </IconButton>
+              <Button
+                disabled={!changed}
+                onClick={() => {
+                  updateState({type: 'replace', schedule: initial})
+                }}
+              >
                 Reset
               </Button>
               <Button

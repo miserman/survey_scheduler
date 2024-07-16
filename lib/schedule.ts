@@ -27,6 +27,7 @@ const rollMethods = {
   },
 }
 
+type LastRoll = {protocol: Protocol; start: number; end: number}
 export default class Schedule {
   accessed_first: number[] = []
   accessed_n: number[] = []
@@ -37,16 +38,23 @@ export default class Schedule {
   times: number[] = []
   blackouts: Blackout[] = []
 
-  constructor(schedule?: Partial<Schedule>) {
+  lastRollParams: LastRoll | undefined
+
+  constructor(schedule?: Partial<Schedule>, reset?: boolean) {
     if (schedule) {
       const o = Object(schedule)
-      ;['accessed_first', 'accessed_n', 'date', 'messages', 'protocol', 'statuses', 'times'].forEach(k => {
-        if (k in o) {
-          const value = o[k as keyof Schedule]
-          if ('undefined' !== typeof value)
-            (this[k as keyof Schedule] as typeof value) = Array.isArray(value) ? [...value] : value
-        }
-      })
+      if (o.date) this.date = o.date
+      if (o.protocol) this.protocol = o.protocol
+      if (o.lastRollParams) this.lastRollParams = o.lastRollParams
+      if (!reset) {
+        ;['accessed_first', 'accessed_n', 'messages', 'statuses', 'times'].forEach(k => {
+          if (k in o) {
+            const value = o[k as keyof Schedule]
+            if ('undefined' !== typeof value)
+              (this[k as keyof Schedule] as typeof value) = Array.isArray(value) ? [...value] : value
+          }
+        })
+      }
       if ('blackouts' in o) {
         o.blackouts.forEach((b: Partial<Blackout>) => this.blackouts.push(new Blackout(b)))
       }
@@ -92,9 +100,10 @@ export default class Schedule {
     }
     return inBlackout
   }
-  isOverlapping(index: number, time: number, buffer: number) {
+  isOverlapping(time: number, buffer: number) {
     let overlapping = false
-    for (let i = 0; i < index; i++) {
+    const n = this.times.length
+    for (let i = 0; i < n; i++) {
       if (Math.abs(time - this.times[i]) < buffer) {
         overlapping = true
         break
@@ -106,15 +115,20 @@ export default class Schedule {
     const which = this.inBlackout(start)
     return which === -1 ? start : this.blackouts[which].end
   }
-  rollTimes(protocol: Protocol, start: number, end: number) {
+  rollTimes(protocol?: Protocol, start?: number, end?: number) {
+    if (this.lastRollParams) {
+      if (!protocol) protocol = this.lastRollParams.protocol
+      if (!start) start = this.lastRollParams.start
+      if (!end) end = this.lastRollParams.end
+    }
+    if (!protocol || !start || !end) return
+    this.lastRollParams = {protocol, start, end}
     let beepIndex = 0
     start = this.adjustForBlackout(start)
     const n = protocol.beeps || 1
     const minsep = (protocol.minsep || 0) * MS_MINUTE
     const binsize = Math.max(Math.floor((end - start) / n), minsep)
-    if (!protocol.random_start) {
-      this.setBeep(beepIndex++, start)
-    }
+    if (!protocol.random_start) this.setBeep(beepIndex++, start)
     const randomization = protocol.randomization || 'none'
     if (randomization === 'none') {
       for (; beepIndex < n; beepIndex++) {
@@ -123,23 +137,28 @@ export default class Schedule {
         start = time
         this.setBeep(beepIndex, time)
       }
-    } else {
+    } else if (end - start > binsize) {
       const roller = rollMethods[randomization]
       const limit = 1e5
       for (; beepIndex < n; beepIndex++) {
         let invalid = true
         for (let attempt = 0; attempt < limit; attempt++) {
           const time = this.adjustForBlackout(roller(this.adjustForBlackout(start), end, binsize))
-          invalid = time > end || this.isOverlapping(beepIndex, time, minsep)
+          invalid = time > end || this.isOverlapping(time, minsep)
           if (!invalid) {
-            start = time
+            if (randomization === 'binned') start = time
             this.setBeep(beepIndex, time)
             break
           }
         }
-        if (invalid) throw Error('failed to find a valid time for beep ' + beepIndex)
+        if (invalid) console.error('failed to find a valid time for beep ' + beepIndex)
       }
-      if (protocol.randomization === 'independent') this.times.sort()
+      if (protocol.randomization === 'independent') this.times.sort().reverse()
     }
+  }
+  copy(protocol?: Protocol) {
+    const newSchedule = new Schedule(this, true)
+    newSchedule.rollTimes(protocol)
+    return newSchedule
   }
 }

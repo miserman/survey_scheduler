@@ -9,6 +9,7 @@ import {Participants, ParticipantSummary} from '@/lib/participant'
 import {operation} from '@/utils/operation'
 import {ParticipantFilter, defaultFilter, updateFilter} from '@/app/ui/participantFilter'
 import Participant from '@/lib/participant'
+import {Protocols} from '@/lib/protocol'
 
 const ParticipantEditDialog = dynamic(() => import('@/app/ui/editParticipant'))
 const UserEditDialog = dynamic(() => import('@/app/ui/editUsers'))
@@ -73,6 +74,21 @@ export default function Study({params}: {params: {study: string}}) {
       requestParticipants()
     }
   }, [session.signedin, params.study])
+
+  const [protocols, setProtocols] = useState<Protocols>({})
+  useEffect(() => {
+    if (session.signedin) {
+      const getProtocols = async () => {
+        const req = await operation<Protocols>({type: 'view_protocol', study: params.study})
+        if (req.error) {
+          notify('failed to retrieve protocols: ' + req.status)
+        } else {
+          setProtocols(req.content)
+        }
+      }
+      getProtocols()
+    }
+  }, [session.signedin, notify, params.study])
 
   const participantsDisplay = useMemo(
     () =>
@@ -159,10 +175,16 @@ export default function Study({params}: {params: {study: string}}) {
         study={params.study}
         currentParticipants={participants}
         updateParticipants={newParticipants => setParticipants(newParticipants)}
-        protocols={Object.keys(summary.protocols)}
+        protocols={protocols}
       />
       <UserEditDialog study={params.study} open={userOpen} onClose={() => setUserOpen(false)} />
-      <ProtocolEditDialog study={params.study} open={protocolOpen} onClose={() => setProtocolOpen(false)} />
+      <ProtocolEditDialog
+        study={params.study}
+        open={protocolOpen}
+        onClose={() => setProtocolOpen(false)}
+        currentProtocols={protocols}
+        setCurrentProtocols={(protocols: Protocols) => setProtocols(protocols)}
+      />
     </Box>
   ) : (
     redirect('/')

@@ -23,8 +23,8 @@ import {
   Typography,
   useTheme,
 } from '@mui/material'
-import {ReactNode, SyntheticEvent, useContext, useEffect, useMemo, useReducer, useState} from 'react'
-import {FeedbackContext, SessionContext} from '../context'
+import {ReactNode, SyntheticEvent, useContext, useMemo, useReducer, useState} from 'react'
+import {FeedbackContext} from '../context'
 import {Protocol, type Protocols} from '@/lib/protocol'
 import {Close} from '@mui/icons-material'
 import {ConfirmUpdate} from './confirmUpdate'
@@ -71,15 +71,18 @@ export default function ProtocolEditDialog({
   study,
   open,
   onClose,
+  currentProtocols,
+  setCurrentProtocols,
 }: {
   study: string
   open: boolean
   onClose: () => void
+  currentProtocols: Protocols
+  setCurrentProtocols: (protocols: Protocols) => void
 }) {
   const theme = useTheme()
-  const session = useContext(SessionContext)
   const notify = useContext(FeedbackContext)
-  const [protocols, setProtocols] = useState<Protocols>({New: new Protocol()})
+  const [protocols, setProtocols] = useState<Protocols>({New: new Protocol(), ...currentProtocols})
   const [protocol, setProtocol] = useReducer(editProtocol, protocols.New)
   const [selected, setSelected] = useState('New')
   const [changed, setChanged] = useState(false)
@@ -90,6 +93,9 @@ export default function ProtocolEditDialog({
       setSelected(name)
       protocols[name] = new Protocol(protocols[name])
       state.current = JSON.stringify(protocols[name])
+      const newProtocols = {...protocols}
+      delete newProtocols.New
+      setCurrentProtocols(newProtocols)
       setChanged(false)
     } else {
       ;(protocol[action.key as keyof Protocol] as typeof action.value) = action.value
@@ -136,19 +142,6 @@ export default function ProtocolEditDialog({
       updateState({type: 'replace', protocol: protocols.New})
     }
   }
-  useEffect(() => {
-    if (session.signedin && open) {
-      const getProtocols = async () => {
-        const req = await operation<Protocols>({type: 'view_protocol', study})
-        if (req.error) {
-          notify('failed to retrieve protocols: ' + req.status)
-        } else {
-          setProtocols({New: new Protocol(), ...req.content})
-        }
-      }
-      getProtocols()
-    }
-  }, [session.signedin, open, notify, study])
   const ProtocolList = useMemo(
     () =>
       Object.keys(protocols).map(id => (
