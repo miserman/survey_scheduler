@@ -2,6 +2,7 @@ import {MS_DAY, MS_HOUR, MS_MINUTE, MS_WEEK, TIMEZONE_OFFSET, dashdate, format_t
 import {Blackout} from './blackout'
 import type {Protocol, Protocols} from './protocol'
 import Schedule from './schedule'
+import useStore from '@/app/store'
 
 type DayParsed = {day: number; time: number}
 
@@ -17,7 +18,12 @@ function byRandom() {
   return Math.random() - 0.5
 }
 
-const scheduledBeeps = new Map<string, NodeJS.Timeout>()
+type MessagePayload = {Message: string; PhoneNumber: string}
+export type ParticipantHooks = {
+  messager: (payload: MessagePayload) => Promise<string>
+  logger: (study: string, message: string) => void
+  updater: (study: string, id: string, participant: Participant) => Promise<string>
+}
 
 export default class Participant {
   // always specified
@@ -26,19 +32,19 @@ export default class Participant {
   end_day = ''
 
   // valid defaults
-  start_time = '09:00 AM'
-  end_time = '05:00 PM'
+  start_time = '09:00'
+  end_time = '17:00'
   protocols: string[] = []
   blackouts: Blackout[] = []
   daysofweek = [true, true, true, true, true, true, true]
   order_type: 'shuffle' | 'sample' | 'ordered' = 'shuffle'
   phone = ''
 
-  // always filled
+  // always filled when new
   schedule: Schedule[] = []
   protocol_order: string[] = []
-  first = 0
-  last = 0
+  first = Infinity
+  last = -Infinity
   n_days = 1
   timezone = 0
   end_ms: DayParsed = {day: 0, time: 0}
@@ -46,14 +52,19 @@ export default class Participant {
   study = ''
 
   // environment-based
-  messager = (day: Schedule, index: number) => {}
-  logger = (message: string) => {}
+  env: ParticipantHooks = {
+    messager: async (payload: MessagePayload) => {
+      return 'no messager attached'
+    },
+    logger: (study: string, message: string) => {},
+    updater: async (study: string, id: string, participant: Participant) => {
+      return 'no updater attached'
+    },
+  }
 
-  constructor(
-    participant?: Partial<Participant>,
-    messager?: (day: Schedule, index: number) => void,
-    logger?: (messager: string) => void
-  ) {
+  scheduleTimeouts: Map<string, NodeJS.Timeout>
+
+  constructor(participant?: Partial<Participant>, env?: ParticipantHooks) {
     const spec = Object(participant)
     Object.keys(spec).forEach(k => {
       if (k === 'blackouts') {
@@ -66,14 +77,16 @@ export default class Participant {
           (this[k as keyof Participant] as typeof value) = Array.isArray(value) ? [...value] : value
       }
     })
+    this.id += ''
     this.phone += ''
     this.updateDate(spec.start_day, 'start')
     this.updateTime(spec.start_time || this.start_time, 'start')
     this.updateDate(spec.end_day, 'end')
     this.updateTime(spec.end_time || this.end_time, 'end')
+    this.scheduleRange()
     if (!this.timezone) this.timezone = TIMEZONE_OFFSET / MS_MINUTE
-    if (messager) this.messager = messager
-    if (logger) this.logger = logger
+    if (env) this.env = env
+    this.scheduleTimeouts = new Map()
   }
   updateDate(newDay: string | number, which: 'start' | 'end') {
     if ('number' === typeof newDay) newDay = dashdate(newDay)
@@ -167,6 +180,17 @@ export default class Participant {
     })
     return pass
   }
+  scheduleRange() {
+    this.first = Infinity
+    this.last = -Infinity
+    this.schedule.forEach(s => {
+      const first = s.times[0]
+      const last = s.times[s.times.length - 1]
+      if (first < this.first) this.first = first
+      if (last > this.last) this.last = last
+    })
+    return [this.first, this.last]
+  }
   rollSchedule(protocols: Protocols) {
     this.schedule = []
     this.rollProtocols(protocols)
@@ -181,9 +205,9 @@ export default class Participant {
   checkBeep(day: number, index: number) {
     const now = Date.now()
     let status: 'ineligible' | 'standard' | 'paused' | 'late' = 'ineligible'
-    if (day > -1 && this.schedule.length < day) {
-      const daySchedule = this.schedule[index]
-      if (index > -1 && daySchedule.times.length < index) {
+    if (day > -1 && this.schedule.length > day) {
+      const daySchedule = this.schedule[day]
+      if (index > -1 && daySchedule.times.length > index) {
         const time = daySchedule.times[index]
         const priorStatus = daySchedule.statuses[index]
         if ((priorStatus === 1 || priorStatus === 6) && time > now - MS_MINUTE * 15 && time < now + MS_WEEK) {
@@ -193,27 +217,83 @@ export default class Participant {
     }
     return status
   }
-  sendBeep(day: number, index: number) {
-    const status = this.checkBeep(day, index)
-    if (status !== 'ineligible') {
-      this.messager(this.schedule[day], index)
-    }
-  }
   establish() {
     const now = Date.now()
     this.schedule.forEach((daySchedule, day) => {
       daySchedule.times.forEach((time, index) => {
         const status = this.checkBeep(day, index)
         if (status === 'standard' || status === 'paused') {
-          scheduledBeeps.set(
-            this.study + this.id + day + index,
+          const beepId = '' + day + index
+          if (this.scheduleTimeouts.has(beepId)) clearTimeout(this.scheduleTimeouts.get(beepId))
+          this.scheduleTimeouts.set(
+            beepId,
             setTimeout(() => {
-              this.sendBeep(day, index)
+              const {studies} = useStore()
+              const {protocols} = studies[this.study]
+              this.sendMessage(protocols, day, index)
             }, time - now)
           )
         }
       })
     })
+  }
+  cancel() {
+    this.scheduleTimeouts.forEach(id => clearTimeout(id))
+  }
+  async sendMessage(protocols: Protocols, dayIndex: number, beepIndex: number) {
+    const beepId = this.id + ' [' + dayIndex + '][' + beepIndex + ']'
+    const daySchedule = this.schedule[dayIndex]
+    const protocol = protocols[daySchedule.protocol]
+
+    const status = this.checkBeep(dayIndex, beepIndex)
+    let newStatus = 0
+    switch (status) {
+      case 'ineligible':
+        this.env.logger(this.study, 'not sending beep ' + beepId + ' because it has an ineligible status')
+        return
+      case 'paused':
+        this.env.logger(this.study, 'skipping sending beep ' + beepId + ' because it is paused')
+        newStatus = 7
+        break
+      default:
+        const messageType = daySchedule.statuses[beepIndex] === 3 ? 'reminder' : 'initial'
+        const messageStatus = await this.env.messager({
+          Message: protocol.getMessage(messageType),
+          PhoneNumber: '+1' + this.phone,
+        })
+        if (messageStatus === 'success') {
+          this.env.logger(this.study, 'sent message ' + beepId + (status === 'late' ? ' retroactively' : ''))
+          newStatus = messageType === 'initial' ? 2 : 3
+        } else {
+          this.env.logger(this.study, 'failed to send message ' + beepId + ': ' + messageStatus)
+          return
+        }
+    }
+    daySchedule.statuses[beepIndex] = newStatus
+    this.env.updater(this.study, this.id, this.export())
+  }
+  export() {
+    const spec: Partial<Participant> = {}
+    ;[
+      'id',
+      'start_day',
+      'end_day',
+      'start_time',
+      'end_time',
+      'protocols',
+      'blackouts',
+      'daysofweek',
+      'order_type',
+      'phone',
+      'schedule',
+      'protocol_order',
+      'timezone',
+      'study',
+    ].forEach(key => {
+      const value = this[key as keyof Participant]
+      ;(spec[key as keyof Participant] as typeof value) = value
+    })
+    return JSON.parse(JSON.stringify(spec)) as Participant
   }
 }
 export type Participants = {[index: string]: Participant}

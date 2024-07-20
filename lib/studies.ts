@@ -1,6 +1,6 @@
-import Participant from '@/lib/participant'
+import Participant, {type ParticipantHooks} from '@/lib/participant'
 import {Protocol, type Protocols} from '@/lib/protocol'
-import type {User, Users} from '@/lib/user'
+import {User, Users} from '@/lib/user'
 
 export type StudyMetadata = {
   study: string
@@ -38,33 +38,49 @@ export class Study {
     }),
   }
   users: Users = {}
+  env?: ParticipantHooks
   constructor(name: string, existing?: {Items: Participant[]} | {protocols: Protocols; users: Users}) {
     this.name = name
     if (existing) {
       if ('Items' in existing) {
         this.dbcopy = {Items: existing.Items}
-        existing.Items.forEach(p => (this.participants[p.id] = p))
+        existing.Items.forEach(p => this.addParticipant(p))
+        this.updateParticipants(existing.Items)
       } else {
-        this.protocols = existing.protocols
-        this.users = existing.users
+        this.updateProtocols(existing.protocols)
+        this.updateUsers(existing.users)
       }
     }
   }
+  addParticipant(spec: Participant) {
+    spec.cancel && spec.cancel()
+    spec.study = this.name
+    const participant = new Participant(spec, this.env)
+    this.participants[spec.id] = participant
+    participant.establish()
+  }
+  setEnv(env: ParticipantHooks) {
+    this.env = env
+    Object.values(this.participants).forEach(p => (p.env = env))
+  }
   updateProtocols(protocols: Protocols) {
-    this.protocols = protocols
+    this.protocols = {}
+    Object.values(protocols).forEach(p => (this.protocols[p.name] = new Protocol(p)))
   }
   updateUsers(users: Users) {
-    this.users = users
+    this.users = {}
+    Object.keys(users).forEach(id => (this.users[id] = new User(users[id])))
   }
   updateParticipants(participants: Participant[]) {
+    this.cancelSchedules()
     this.participants = {}
-    participants.forEach(p => (this.participants[p.id] = new Participant(p)))
+    participants.forEach(p => this.addParticipant(p))
   }
   establishSchedules() {
-    Object.keys(this.participants).forEach(name => {
-      const participant = this.participants[name]
-      participant.establish()
-    })
+    Object.values(this.participants).forEach(participant => participant.establish())
+  }
+  cancelSchedules() {
+    Object.values(this.participants).forEach(participant => participant.cancel())
   }
   export() {
     const res = {study: this.name, protocols: {}, users: {}} as StudyMetadata

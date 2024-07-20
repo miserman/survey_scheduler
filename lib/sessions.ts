@@ -44,10 +44,8 @@ export class Sessions {
   sessions: {[index: string]: Session} = {}
   expiry: {[index: string]: NodeJS.Timeout} = {}
   initialized = false
-  instanceId = Math.random()
   init() {
     if (!this.initialized) {
-      console.log('establishing sessions container')
       this.sessions = {}
       this.expiry = {}
       this.initialized = true
@@ -67,7 +65,6 @@ export class Sessions {
   }
   get(id: string) {
     this.init()
-    console.log('sessions id: ' + this.instanceId)
     const session = this.sessions[id]
     if (session) {
       if (session.expires > Date.now()) {

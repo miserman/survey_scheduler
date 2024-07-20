@@ -40,7 +40,7 @@ export function scanTable(TableName: string) {
   return DDB.send(new ScanCommand({TableName}))
 }
 
-export function updateTable(TableName: string, Item: StudyMetadata | Participant) {
+export function updateTable(TableName: string, Item: StudyMetadata | Partial<Participant>) {
   return DDB.send(new PutCommand({TableName, Item}))
 }
 

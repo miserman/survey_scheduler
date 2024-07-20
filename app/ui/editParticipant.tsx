@@ -109,7 +109,7 @@ export default function ParticipantEditDialog({
   }
   const submitParticipant = async () => {
     const parsed = new Participant(participant)
-    const req = await operation({type: 'add_participant', study, id: parsed.id, participant: parsed})
+    const req = await operation({type: 'add_participant', study, id: parsed.id, participant: parsed.export()})
     if (req.error) {
       notify('failed to ' + (selected === 'New' ? 'add' : 'update') + ' participant ' + parsed.id + ': ' + req.status)
     } else {
@@ -408,7 +408,7 @@ export default function ParticipantEditDialog({
                 <Typography variant="h6">Time Range</Typography>
                 <Stack spacing={2} sx={{maxWidth: 140, pt: 1}}>
                   <TimePicker
-                    value={dayjs(participant.start_time, 'hh:mm A')}
+                    value={dayjs(participant.start_time, 'HH:mm')}
                     name="start_time"
                     sx={{'& input': {p: 1}}}
                     label="Start Time"
@@ -417,7 +417,7 @@ export default function ParticipantEditDialog({
                     }}
                   ></TimePicker>
                   <TimePicker
-                    value={dayjs(participant.end_time, 'hh:mm A')}
+                    value={dayjs(participant.end_time, 'HH:mm')}
                     name="end_time"
                     sx={{'& input': {p: 1}}}
                     label="End Time"

@@ -1,15 +1,13 @@
 import type {MessageId} from '../lib/messages'
 import {Sessions} from '../lib/sessions'
-import {SNSClient} from '@aws-sdk/client-sns'
 import type {Studies} from '../lib/studies'
 
 class Store {
-  // sessions
+  // client sessions
   sessions = new Sessions()
 
-  // messages
+  // incoming messages
   messageMap: {[index: string]: MessageId} = {}
-  SNS = new SNSClient({region: process.env.REGION})
 
   // studies
   studies: Studies = {}

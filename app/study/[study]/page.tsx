@@ -1,6 +1,6 @@
 'use client'
 import {Box, Button, Stack, Typography} from '@mui/material'
-import {useContext, useEffect, useMemo, useReducer, useState} from 'react'
+import {forwardRef, useContext, useEffect, useMemo, useReducer, useRef, useState} from 'react'
 import {BottomDrawer} from '@/app/ui/bottomDrawer'
 import {FeedbackContext, SessionContext} from '@/app/context'
 import {redirect} from 'next/navigation'
@@ -14,8 +14,6 @@ import {Protocols} from '@/lib/protocol'
 const ParticipantEditDialog = dynamic(() => import('@/app/ui/editParticipant'))
 const UserEditDialog = dynamic(() => import('@/app/ui/editUsers'))
 const ProtocolEditDialog = dynamic(() => import('@/app/ui/editProtocols'))
-
-const drawerHeight = '20vh'
 
 export default function Study({params}: {params: {study: string}}) {
   const session = useContext(SessionContext)
@@ -39,10 +37,14 @@ export default function Study({params}: {params: {study: string}}) {
         if (req.error) {
           notify('failed to retrieve participants: ' + req.status)
         } else {
-          setParticipants(req.content)
+          const newParticipants: Participants = {}
+          Object.keys(req.content).forEach(id => {
+            newParticipants[id] = new Participant(req.content[id])
+          })
+          setParticipants(newParticipants)
           const newSummary = new ParticipantSummary()
           const now = Date.now()
-          Object.values(req.content).forEach(p => {
+          Object.values(newParticipants).forEach(p => {
             const order = p.order_type.toLowerCase()
             if (p.last > now) newSummary.upcoming++
             if (order in newSummary.orders) {
@@ -100,36 +102,37 @@ export default function Study({params}: {params: {study: string}}) {
 
   const includeParticipant = ({schedule}: {schedule: Participant}) => {
     const now = Date.now()
-    let pass = true
-    if (filter.id && !schedule.id.includes(filter.id)) pass = false
-    if (pass && filter.upcoming && schedule.last < now) pass = false
-    if (pass && filter.firstBeep_after && filter.firstBeep_after > schedule.first) pass = false
-    if (pass && filter.firstBeep_before && filter.firstBeep_before < schedule.first) pass = false
-    if (pass && filter.lastBeep_after && filter.lastBeep_after > schedule.last) pass = false
-    if (pass && filter.lastBeep_before && filter.lastBeep_before < schedule.last) pass = false
-    if (pass && filter.phone && !(schedule.phone + '').includes(filter.phone)) pass = false
-    if (pass && (!filter.orders.length || !filter.orders.includes(schedule.order_type.toLowerCase()))) {
-      pass = false
+    if (filter.upcoming && schedule.last < now) return false
+    if (filter.id && !schedule.id.includes(filter.id)) return false
+    if (filter.firstBeep_after && filter.firstBeep_after > schedule.first) return false
+    if (filter.firstBeep_before && filter.firstBeep_before < schedule.first) return false
+    if (filter.lastBeep_after && filter.lastBeep_after > schedule.last) return false
+    if (filter.lastBeep_before && filter.lastBeep_before < schedule.last) return false
+    if (filter.phone && !(schedule.phone + '').includes(filter.phone)) return false
+    if (!filter.orders.length || !filter.orders.includes(schedule.order_type.toLowerCase())) {
+      return false
     }
-    if (pass) {
-      if (filter.protocols.length) {
-        let any = false
-        for (let i = schedule.protocols.length; i--; ) {
-          if (filter.protocols.includes(schedule.protocols[i])) {
-            any = true
-            break
-          }
+    if (filter.protocols.length) {
+      let any = false
+      for (let i = schedule.protocols.length; i--; ) {
+        if (filter.protocols.includes(schedule.protocols[i])) {
+          any = true
+          break
         }
-        if (!any) pass = false
-      } else {
-        pass = false
       }
+      if (!any) return false
+    } else {
+      return false
     }
-    return pass
+    return true
   }
   const filteredParticipants = useMemo(() => {
     return participantsDisplay.filter(includeParticipant).map(({display}) => display)
   }, [participantsDisplay, filter])
+
+  const Drawer = forwardRef(BottomDrawer)
+  const drawerElement = useRef<HTMLDivElement>(null)
+  const drawerHeight = drawerElement.current ? drawerElement.current.clientHeight - 4 : 0
 
   return session.signedin ? (
     <Box
@@ -144,10 +147,10 @@ export default function Study({params}: {params: {study: string}}) {
       }}
     >
       <ul>{filteredParticipants}</ul>
-      <BottomDrawer
+      <Drawer
         open={drawerOpen}
         setOpen={setDrawerOpen}
-        height={drawerHeight}
+        ref={drawerElement}
         filter={<ParticipantFilter filter={filter} filterAction={setFilter} summary={summary} />}
       >
         <Stack spacing={1} direction="row" sx={{pl: 1, width: '100%', justifyContent: 'space-between'}}>
@@ -168,7 +171,7 @@ export default function Study({params}: {params: {study: string}}) {
             </Button>
           </Stack>
         </Stack>
-      </BottomDrawer>
+      </Drawer>
       <ParticipantEditDialog
         open={participantOpen}
         onClose={() => setParticipantOpen(false)}

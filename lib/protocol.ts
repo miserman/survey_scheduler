@@ -16,6 +16,8 @@ const numberParams = [
   'reminder_after',
 ] as (keyof Protocol)[]
 const randomizationOptions = ['independent', 'binned', 'none']
+const urlProtocol = /^https?:\/\//
+const urlSearch = /\?/
 
 export class Protocol {
   name = ''
@@ -59,6 +61,12 @@ export class Protocol {
       if (value) (res[k as keyof Protocol] as string) = value
     })
     return res
+  }
+  getMessage(type: 'initial' | 'reminder', id?: string) {
+    const base = this[`${type}_message`]
+    const link = this.link ? ' ' + this.link.replace(urlProtocol, '') : ''
+    const idParam = id && this.id_parameter ? (urlSearch ? '&' : '?') + this.id_parameter + '=' + id : ''
+    return base + link + idParam
   }
 }
 

@@ -10,6 +10,7 @@ export async function addParticipant(study: string, id: string, participant: Par
   const action = existing ? 'update' : 'add'
   let status = 'failed to ' + action + ' participant ' + id + ' to study ' + study + ': unknown'
   try {
+    if (existing) s.participants[id].cancel()
     const updateRequest = await updateTable(study, participant)
     if (updateRequest.$metadata.httpStatusCode === 200) {
       const original = s.dbcopy.Items.findIndex(p => p.id === id)
@@ -17,15 +18,16 @@ export async function addParticipant(study: string, id: string, participant: Par
         s.dbcopy.Items.push(participant)
       } else {
         s.dbcopy.Items[original] = participant
+        s.dbcopy.Items[original] = participant
       }
-      s.participants[id] = participant
+      s.addParticipant(participant)
       status = 'success'
     } else {
       status =
         'failed to make ' + action + ' participant request: HTTP status ' + updateRequest.$metadata.httpStatusCode
     }
   } catch (e) {
-    status = 'failed to ' + action + ' participant ' + id + ' to study ' + study + ': ' + e
+    status = 'failed to ' + action + ' participant ' + id + ' in study ' + study + ': ' + e
   }
   log(
     'sessions',

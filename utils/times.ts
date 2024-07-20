@@ -12,7 +12,7 @@ export function format_date(time: number) {
   return formatter_date.format(time)
 }
 
-const formatter_time = Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit'})
+const formatter_time = Intl.DateTimeFormat('en-us', {hour: 'numeric', minute: '2-digit', hour12: false})
 export function format_time(time: number) {
   return formatter_time.format(time)
 }
@@ -42,7 +42,6 @@ export function timeToMs(time: string) {
         n += 12
       } else if (n === 12 && patterns.a.test(s)) n = 0
       n = n * MS_HOUR + +p[1] * MS_MINUTE + (p.length === 3 ? +p[2] * MS_SECOND : 0)
-      // return dayjs(time, patterns.ap.test(s) ? 'hh:mm A' : 'HH:mm').valueOf()
     } else {
       n = +s.replace(patterns.numpunct, '')
       if (n < 12 && patterns.p.test(s)) n += 12

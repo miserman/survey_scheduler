@@ -1,9 +1,11 @@
 import {createTable, scanTable} from '@/lib/database'
+import {sendMessage} from '@/lib/messager'
 import type Participant from '@/lib/participant'
 import type {Protocols} from '@/lib/protocol'
 import {type Studies, Study} from '@/lib/studies'
 import type {Users} from '@/lib/user'
 import {log} from '@/utils/log'
+import {addParticipant} from './add_participant'
 
 // retrieve study list with users and protocols
 export default async function scanStudies(
@@ -68,6 +70,7 @@ async function retrieveStudy(study: string, studies: Studies, resolver: (value: 
           console.log('making new study with participants')
           studies[study] = new Study(study, studySchedules as unknown as {Items: Participant[]})
         }
+        studies[study].setEnv({messager: sendMessage, logger: log, updater: addParticipant})
         resolver(true)
         log(study, 'scanned participants table')
       } else {
