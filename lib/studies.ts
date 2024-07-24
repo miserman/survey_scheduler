@@ -1,6 +1,7 @@
 import Participant, {type ParticipantHooks} from '@/lib/participant'
 import {Protocol, type Protocols} from '@/lib/protocol'
 import {User, Users} from '@/lib/user'
+import {MS_MINUTE} from '@/utils/times'
 
 export type StudyMetadata = {
   study: string
@@ -39,6 +40,7 @@ export class Study {
   }
   users: Users = {}
   env?: ParticipantHooks
+  recheckInterval: number | NodeJS.Timeout = -1
   constructor(name: string, existing?: {Items: Participant[]} | {protocols: Protocols; users: Users}) {
     this.name = name
     if (existing) {
@@ -77,7 +79,13 @@ export class Study {
     participants.forEach(p => this.addParticipant(p))
   }
   establishSchedules() {
+    clearInterval(this.recheckInterval)
     Object.values(this.participants).forEach(participant => participant.establish())
+    if (process.env.DOUBLECHECK_FREQ)
+      this.recheckInterval = setInterval(() => this.checkSchedule(), +process.env.DOUBLECHECK_FREQ * MS_MINUTE)
+  }
+  checkSchedule() {
+    Object.values(this.participants).forEach(participant => participant.check())
   }
   cancelSchedules() {
     Object.values(this.participants).forEach(participant => participant.cancel())

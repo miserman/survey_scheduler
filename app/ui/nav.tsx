@@ -22,7 +22,7 @@ export function Nav({logEvents}: {logEvents: LogHistory}) {
         <ClientLog history={logEvents} />
         <Tooltip title="Server Logs" placement="left">
           <span>
-            <IconButton onClick={() => setOpenLogs(true)} disabled={!session.signedin}>
+            <IconButton onClick={() => setOpenLogs(!openLogs)} disabled={!session.signedin}>
               <ReceiptLong />
             </IconButton>
             {openLogs && <ListLogs study={study || 'sessions'} open={openLogs} onClose={() => setOpenLogs(false)} />}

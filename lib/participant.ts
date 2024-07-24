@@ -90,7 +90,7 @@ export default class Participant {
   }
   updateDate(newDay: string | number, which: 'start' | 'end') {
     if ('number' === typeof newDay) newDay = dashdate(newDay)
-    if (!newDay) newDay = dashdate(Date.now())
+    if (!newDay) newDay = dashdate(which === 'start' ? Date.now() : Date.now() + 7 * MS_DAY)
     this[`${which}_day`] = newDay
     this[`${which}_ms`].day = new Date(newDay + (which === 'start' ? 'T00:00:01' : 'T23:59:59')).getTime()
     if (this.end_ms.day && this.start_ms.day) {
@@ -204,35 +204,57 @@ export default class Participant {
   }
   checkBeep(day: number, index: number) {
     const now = Date.now()
-    let status: 'ineligible' | 'standard' | 'paused' | 'late' = 'ineligible'
+    let status: 'ineligible' | 'missed' | 'standard' | 'paused' | 'skipped' | 'late' = 'ineligible'
     if (day > -1 && this.schedule.length > day) {
       const daySchedule = this.schedule[day]
       if (index > -1 && daySchedule.times.length > index) {
         const time = daySchedule.times[index]
         const priorStatus = daySchedule.statuses[index]
-        if ((priorStatus === 1 || priorStatus === 6) && time > now - MS_MINUTE * 15 && time < now + MS_WEEK) {
-          status = time > now ? (priorStatus === 1 ? 'standard' : 'paused') : 'late'
+        if (priorStatus === 1 || priorStatus === 6) {
+          if (time > now - MS_MINUTE * 15 && time < now + MS_WEEK) {
+            status = time > now ? (priorStatus === 1 ? 'standard' : 'paused') : 'late'
+          } else {
+            status = priorStatus === 1 ? 'missed' : 'skipped'
+          }
         }
       }
     }
     return status
+  }
+  sendBeep(day: number, index: number) {
+    const {studies} = useStore()
+    const {protocols} = studies[this.study]
+    this.sendMessage(protocols, day, index)
   }
   establish() {
     const now = Date.now()
     this.schedule.forEach((daySchedule, day) => {
       daySchedule.times.forEach((time, index) => {
         const status = this.checkBeep(day, index)
+        const beepId = '' + day + index
+        if (this.scheduleTimeouts.has(beepId)) clearTimeout(this.scheduleTimeouts.get(beepId))
         if (status === 'standard' || status === 'paused') {
-          const beepId = '' + day + index
-          if (this.scheduleTimeouts.has(beepId)) clearTimeout(this.scheduleTimeouts.get(beepId))
           this.scheduleTimeouts.set(
             beepId,
-            setTimeout(() => {
-              const {studies} = useStore()
-              const {protocols} = studies[this.study]
-              this.sendMessage(protocols, day, index)
-            }, time - now)
+            setTimeout(() => this.sendBeep(day, index), time - now)
           )
+        } else if (status === 'late') {
+          this.sendBeep(day, index)
+        } else if (status === 'missed' || status === 'skipped') {
+          daySchedule.statuses[index] = status === 'missed' ? 0 : 7
+          this.env.updater(this.study, this.id, this.export())
+        }
+      })
+    })
+  }
+  check() {
+    this.schedule.forEach((daySchedule, day) => {
+      daySchedule.times.forEach((_, index) => {
+        const status = this.checkBeep(day, index)
+        if (status === 'late') {
+          const beepId = '' + day + index
+          if (this.scheduleTimeouts.has(beepId)) clearTimeout(this.scheduleTimeouts.get(beepId))
+          this.sendBeep(day, index)
         }
       })
     })

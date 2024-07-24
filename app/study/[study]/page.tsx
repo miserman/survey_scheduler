@@ -10,12 +10,15 @@ import {operation} from '@/utils/operation'
 import {ParticipantFilter, defaultFilter, updateFilter} from '@/app/ui/participantFilter'
 import Participant from '@/lib/participant'
 import {Protocols} from '@/lib/protocol'
+import {Study} from '@/lib/studies'
+import useStore from '@/app/store'
 
 const ParticipantEditDialog = dynamic(() => import('@/app/ui/editParticipant'))
 const UserEditDialog = dynamic(() => import('@/app/ui/editUsers'))
 const ProtocolEditDialog = dynamic(() => import('@/app/ui/editProtocols'))
 
-export default function Study({params}: {params: {study: string}}) {
+export default function StudyDisplay({params}: {params: {study: string}}) {
+  // const {studies} = useStore()
   const session = useContext(SessionContext)
   const notify = useContext(FeedbackContext)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -30,6 +33,29 @@ export default function Study({params}: {params: {study: string}}) {
 
   const [participants, setParticipants] = useState<Participants>({})
   const [summary, setSummary] = useState(new ParticipantSummary())
+  const [protocols, setProtocols] = useState<Protocols>({})
+
+  const study = useMemo(() => {
+    const s = new Study(params.study)
+    // studies[params.study] = s
+    s.setEnv({
+      messager: async payload => {
+        notify('message sent: ' + payload.Message, true)
+        return 'success'
+      },
+      logger: (_, message) => {
+        notify(message, true)
+      },
+      updater: async (_, id, participant) => {
+        notify('participant ' + id + ' was updated', true)
+        s.addParticipant(participant)
+        setParticipants(s.participants)
+        return 'success'
+      },
+    })
+    return s
+  }, [])
+
   useEffect(() => {
     if (session.signedin) {
       const requestParticipants = async () => {
@@ -42,6 +68,7 @@ export default function Study({params}: {params: {study: string}}) {
             newParticipants[id] = new Participant(req.content[id])
           })
           setParticipants(newParticipants)
+          study.updateParticipants(Object.values(newParticipants))
           const newSummary = new ParticipantSummary()
           const now = Date.now()
           Object.values(newParticipants).forEach(p => {
@@ -77,7 +104,6 @@ export default function Study({params}: {params: {study: string}}) {
     }
   }, [session.signedin, params.study])
 
-  const [protocols, setProtocols] = useState<Protocols>({})
   useEffect(() => {
     if (session.signedin) {
       const getProtocols = async () => {
@@ -86,6 +112,7 @@ export default function Study({params}: {params: {study: string}}) {
           notify('failed to retrieve protocols: ' + req.status)
         } else {
           setProtocols(req.content)
+          study.updateProtocols(req.content)
         }
       }
       getProtocols()

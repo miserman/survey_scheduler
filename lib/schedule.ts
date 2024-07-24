@@ -153,7 +153,7 @@ export default class Schedule {
         }
         if (invalid) console.error('failed to find a valid time for beep ' + beepIndex)
       }
-      if (protocol.randomization === 'independent') this.times.sort().reverse()
+      this.times = this.times.sort()
     }
   }
   copy(protocol?: Protocol) {

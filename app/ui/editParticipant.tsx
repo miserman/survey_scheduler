@@ -78,7 +78,8 @@ export default function ParticipantEditDialog({
   const updateState = (action: EditParticipantAction) => {
     setParticipant(action)
     if (action.type === 'replace') {
-      const id = action.participant.id || 'New'
+      const setId = action.participant.id
+      const id = setId && setId in participants ? setId : 'New'
       setSelected(id)
       participants[id] = new Participant(participants[id])
       state.current = JSON.stringify(participants[id])
@@ -114,6 +115,7 @@ export default function ParticipantEditDialog({
       notify('failed to ' + (selected === 'New' ? 'add' : 'update') + ' participant ' + parsed.id + ': ' + req.status)
     } else {
       notify((selected === 'New' ? 'added' : 'updated') + ' participant ' + parsed.id, true)
+      participants[parsed.id] = parsed
       updateState({type: 'replace', participant: parsed})
     }
   }
@@ -257,27 +259,31 @@ export default function ParticipantEditDialog({
                   placement="top"
                   title="Unique string identifying this participant, to be added to their survey link."
                 >
-                  <TextField
-                    size="small"
-                    value={participant.id || ''}
-                    name="id"
-                    onChange={handleChange}
-                    label="ID"
-                    error={!participant.id}
-                    disabled={existing}
-                  />
+                  <span>
+                    <TextField
+                      size="small"
+                      value={participant.id || ''}
+                      name="id"
+                      onChange={handleChange}
+                      label="ID"
+                      error={!participant.id}
+                      disabled={existing}
+                    />
+                  </span>
                 </Tooltip>
                 <Tooltip title="Generate ID" placement="top">
-                  <IconButton
-                    disabled={existing}
-                    onClick={() => {
-                      let value = Math.floor(Math.random() * 1e8)
-                      while (value in participants) value = Math.floor(Math.random() * 1e9)
-                      updateState({type: 'edit', key: 'id', value})
-                    }}
-                  >
-                    <Casino />
-                  </IconButton>
+                  <span>
+                    <IconButton
+                      disabled={existing}
+                      onClick={() => {
+                        let value = Math.floor(Math.random() * 1e8)
+                        while (value in participants) value = Math.floor(Math.random() * 1e9)
+                        updateState({type: 'edit', key: 'id', value})
+                      }}
+                    >
+                      <Casino />
+                    </IconButton>
+                  </span>
                 </Tooltip>
               </Stack>
               <Tooltip placement="top" title="10 digit number (e.g., 1231231234)">

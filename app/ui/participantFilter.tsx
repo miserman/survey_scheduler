@@ -90,7 +90,7 @@ export function ParticipantFilter({
           control={<Switch name="upcoming" checked={filter.upcoming} onChange={handleChange} />}
           label="Only Upcoming"
         />
-        <Button size="small" variant="contained" onClick={() => filterAction({type: 'reset'})}>
+        <Button size="small" onClick={() => filterAction({type: 'reset'})}>
           Reset
         </Button>
       </Stack>

@@ -40,6 +40,8 @@
     "babel-plugin-istanbul": "latest",
     "cypress": "latest",
     "eslint": "latest",
+    "jest": "latest",
+    "ts-jest": "latest",
     "typescript": "latest"
   }
 }
